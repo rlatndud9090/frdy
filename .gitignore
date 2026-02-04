@@ -1,0 +1,39 @@
+# Love2D
+*.love
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Debug
+debug/
+*.debug
+
+# Build
+build/
+dist/
+*.exe
+*.app
+*.apk
+
+# Dependencies (if using libraries)
+libs/*.zip
+libs/*.tar.gz
+
+# User settings
+settings.lua
+config.local.lua
