@@ -37,10 +37,10 @@ function MapScene:initialize()
     self.suspicion_gauge:set_value(0)
     self.suspicion_gauge:set_max(100)
 
-    -- 마나 게이지 (의심 게이지 아래)
+    -- 마나 게이지 (의심 게이지 아래) - 코스트 기반 시스템
+    -- Placeholder: 턴 3 기준 (3/3)
     self.mana_gauge = Gauge.new(20, 60, 200, 30, "마나", {0, 0.5, 1})
-    self.mana_gauge:set_value(100)
-    self.mana_gauge:set_max(100)
+    self.mana_gauge:set_value(3, 3)  -- 현재 3마나, 최대 3마나 (턴 3)
 
     -- 미니맵 버튼 (화면 오른쪽 상단)
     self.minimap_button = Button.new(1280 - 120, 20, 100, 40, "미니맵")
