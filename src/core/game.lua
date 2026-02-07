@@ -22,6 +22,11 @@ end
 function Game:init()
     self.scene_manager = SceneManager:new()
     self.event_bus = EventBus:new()
+
+    -- 초기 Scene 설정: MapScene으로 시작
+    -- MapScene은 require가 Game:init() 내부에서 호출되어 순환 참조 방지
+    local MapScene = require('src.scene.map_scene')
+    self.scene_manager:push(MapScene:new())
 end
 
 function Game:update(dt)
