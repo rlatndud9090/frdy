@@ -1,0 +1,11 @@
+{
+  "projectName": "FRDY - 마왕의 은밀한 조력",
+  "genre": "로그라이트 덱빌딩",
+  "engine": "Love2D (Lua)",
+  "storyConcept": "환생한 일반인 마왕이 부하들 몰래 용사를 도와 자신을 죽이게 만들어 원래 세계로 돌아가는 게임",
+  "coreGameplay": "부하들에게 들키지 않으면서 용사가 마왕성을 돌파하도록 조력",
+  "techStack": "Love2D, Lua",
+  "version": "1.0.0",
+  "lastScanned": 1770454253368,
+  "projectRoot": "D:/codes/games/frdy"
+}

@@ -37,3 +37,12 @@ libs/*.tar.gz
 # User settings
 settings.lua
 config.local.lua
+
+# AI
+# .omc - keep notepad and project-memory, ignore rest
+.omc/*
+!.omc/notepad.md
+!.omc/project-memory.json
+
+# .claude - ignore everything
+.claude/

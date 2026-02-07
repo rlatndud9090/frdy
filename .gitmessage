@@ -1,0 +1,38 @@
+# <type>(<scope>): <subject>
+# |<----  최대 50자 이내  ---->|
+
+# 본문 (선택사항)
+# |<----  한 줄당 최대 72자 이내  ---->|
+
+# 꼬리말 (선택사항)
+# 예: Refs #123, Closes #456
+
+# --- COMMIT 규칙 ---
+# Type (필수):
+#   feat     : 새 기능
+#   fix      : 버그 수정
+#   art      : 아트/그래픽 작업
+#   audio    : 사운드/음악 작업
+#   balance  : 게임 밸런스 조정
+#   ui       : UI/UX 변경
+#   refactor : 코드 리팩토링
+#   test     : 테스트 추가/수정
+#   docs     : 문서 작업
+#   chore    : 기타 작업
+#
+# Scope (선택사항):
+#   combat    : 전투 시스템
+#   map       : 맵/노드 시스템
+#   card      : 카드 시스템
+#   hero      : 용사
+#   enemy     : 적
+#   event     : 이벤트
+#   suspicion : 의심 시스템
+#   ui        : UI 요소
+#
+# 예시:
+#   feat(combat): 턴제 전투 시스템 구현
+#   fix(map): 노드 연결 버그 수정
+#   balance(card): 마왕 카드 마력 소모량 조정
+#   art: 용사 스프라이트 추가
+# ------------------
