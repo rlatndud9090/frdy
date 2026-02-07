@@ -4,7 +4,7 @@ local UIElement = require("src.ui.ui_element")
 local Panel = class("Panel", UIElement)
 
 function Panel:initialize(x, y, width, height, background_color)
-	Panel.super.initialize(self, x, y, width, height)
+	UIElement.initialize(self, x, y, width, height)
 	self.children = {}
 	self.background_color = background_color or nil
 end

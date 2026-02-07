@@ -10,7 +10,7 @@ local MapScene = class('MapScene', Scene)
 local SEGMENT_WIDTH = 300
 
 function MapScene:initialize()
-    MapScene.__super.initialize(self)
+    Scene.initialize(self)
 
     -- 맵 및 좌표계
     self.map = nil

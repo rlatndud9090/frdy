@@ -4,7 +4,7 @@ local UIElement = require("src.ui.ui_element")
 local Button = class("Button", UIElement)
 
 function Button:initialize(x, y, width, height, text, callback)
-	Button.__super.initialize(self, x, y, width, height)
+	UIElement.initialize(self, x, y, width, height)
 	self.text = text or ""
 	self.callback = callback
 	self.bg_color = {0.3, 0.3, 0.3}

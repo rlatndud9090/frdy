@@ -5,7 +5,7 @@ local Button = require("src.ui.button")
 local EdgeSelector = class("EdgeSelector", UIElement)
 
 function EdgeSelector:initialize(x, y, edges, on_select_callback)
-	EdgeSelector.__super.initialize(self, x, y, 0, 0)
+	UIElement.initialize(self, x, y, 0, 0)
 	self.edges = edges or {}
 	self.on_select_callback = on_select_callback
 	self.buttons = {}
