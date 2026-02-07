@@ -10,19 +10,19 @@ function CombatScene:initialize()
     Scene.initialize(self)
 
     -- 용사 HP 게이지 생성 (50, 100, 200, 30, "Hero HP")
-    self.hero_gauge = Gauge.new(50, 100, 200, 30)
+    self.hero_gauge = Gauge:new(50, 100, 200, 30)
     self.hero_gauge.label = "Hero HP"
     self.hero_gauge.fg_color = {0, 1, 0}  -- 초록색
     self.hero_gauge:set_value(100, 100)
 
     -- 적 HP 게이지 생성 (800, 100, 200, 30, "Enemy HP")
-    self.enemy_gauge = Gauge.new(800, 100, 200, 30)
+    self.enemy_gauge = Gauge:new(800, 100, 200, 30)
     self.enemy_gauge.label = "Enemy HP"
     self.enemy_gauge.fg_color = {1, 0, 0}  -- 빨강색
     self.enemy_gauge:set_value(50, 100)
 
     -- "전투 종료" 버튼 생성 (클릭 시 MapScene으로 복귀)
-    self.end_button = Button.new(640 - 50, 650, 100, 40, "전투 종료")
+    self.end_button = Button:new(640 - 50, 650, 100, 40, "전투 종료")
     self.end_button:set_on_click(function()
         Game:getInstance().scene_manager:pop()
     end)

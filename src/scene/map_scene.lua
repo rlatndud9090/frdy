@@ -24,7 +24,7 @@ function MapScene:initialize()
     self.minimap_button = nil
 
     -- MapGenerator로 맵 생성
-    local generator = MapGenerator.new()
+    local generator = MapGenerator:new()
     self.map = generator:generate()
 
     -- 용사를 시작 노드에 배치 (column 0)
@@ -33,17 +33,17 @@ function MapScene:initialize()
 
     -- UI 위젯 생성
     -- 의심 게이지 (화면 왼쪽 상단)
-    self.suspicion_gauge = Gauge.new(20, 20, 200, 30, "의심", {1, 0, 0})
+    self.suspicion_gauge = Gauge:new(20, 20, 200, 30, "의심", {1, 0, 0})
     self.suspicion_gauge:set_value(0)
     self.suspicion_gauge:set_max(100)
 
     -- 마나 게이지 (의심 게이지 아래) - 코스트 기반 시스템
     -- Placeholder: 턴 3 기준 (3/3)
-    self.mana_gauge = Gauge.new(20, 60, 200, 30, "마나", {0, 0.5, 1})
+    self.mana_gauge = Gauge:new(20, 60, 200, 30, "마나", {0, 0.5, 1})
     self.mana_gauge:set_value(3, 3)  -- 현재 3마나, 최대 3마나 (턴 3)
 
     -- 미니맵 버튼 (화면 오른쪽 상단)
-    self.minimap_button = Button.new(1280 - 120, 20, 100, 40, "미니맵")
+    self.minimap_button = Button:new(1280 - 120, 20, 100, 40, "미니맵")
     self.minimap_button:set_on_click(function()
         print("미니맵 버튼 클릭됨")
         -- TODO: 미니맵 씬으로 전환

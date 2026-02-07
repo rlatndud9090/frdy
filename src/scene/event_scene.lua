@@ -12,14 +12,14 @@ function EventScene:initialize()
     self.choice_buttons = {}
 
     -- 선택 1 버튼 (MapScene 복귀)
-    local button1 = Button.new(400, 400, 200, 50, "선택 1")
+    local button1 = Button:new(400, 400, 200, 50, "선택 1")
     button1:set_on_click(function()
         Game:getInstance().scene_manager:pop()
     end)
     table.insert(self.choice_buttons, button1)
 
     -- 선택 2 버튼 (MapScene 복귀)
-    local button2 = Button.new(680, 400, 200, 50, "선택 2")
+    local button2 = Button:new(680, 400, 200, 50, "선택 2")
     button2:set_on_click(function()
         Game:getInstance().scene_manager:pop()
     end)
