@@ -1,7 +1,7 @@
 local class = require('lib.middleclass')
-local Scene = require("src.scene.scene")
+local Scene = require("src.core.scene")
 local Button = require("src.ui.button")
-local SceneManager = require("src.core.scene_manager")
+local Game = require('src.core.game')
 
 local EventScene = class('EventScene', Scene)
 
@@ -14,14 +14,14 @@ function EventScene:initialize()
     -- 선택 1 버튼 (MapScene 복귀)
     local button1 = Button.new(400, 400, 200, 50, "선택 1")
     button1:set_on_click(function()
-        SceneManager:change_scene("map")
+        Game:getInstance().scene_manager:pop()
     end)
     table.insert(self.choice_buttons, button1)
 
     -- 선택 2 버튼 (MapScene 복귀)
     local button2 = Button.new(680, 400, 200, 50, "선택 2")
     button2:set_on_click(function()
-        SceneManager:change_scene("map")
+        Game:getInstance().scene_manager:pop()
     end)
     table.insert(self.choice_buttons, button2)
 end
@@ -63,7 +63,7 @@ end
 function EventScene:keypressed(key)
     -- ESC로 MapScene 복귀
     if key == "escape" then
-        SceneManager:change_scene("map")
+        Game:getInstance().scene_manager:pop()
     end
 end
 

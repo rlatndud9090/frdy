@@ -33,4 +33,8 @@ function UIElement:set_visible(visible)
 	self.visible = visible
 end
 
+function UIElement:mousepressed(x, y, button)
+	-- 서브클래스에서 오버라이드 (기본 구현은 아무것도 하지 않음)
+end
+
 return UIElement

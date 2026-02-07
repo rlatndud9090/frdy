@@ -1,13 +1,13 @@
-local class = require("middleclass")
+local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
 
 local Gauge = class("Gauge", UIElement)
 
-function Gauge:initialize(x, y, width, height, label)
+function Gauge:initialize(x, y, width, height, label, fg_color)
 	Gauge.__super.initialize(self, x, y, width, height)
 	self.current_value = 0
 	self.max_value = 100
-	self.fg_color = {0, 1, 0}  -- 초록
+	self.fg_color = fg_color or {0, 1, 0}  -- 기본값 초록색
 	self.bg_color = {0.2, 0.2, 0.2}  -- 어두운 회색
 	self.label = label or "Gauge"
 end

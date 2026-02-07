@@ -18,9 +18,9 @@ function EdgeSelectScene:initialize(edges, on_select_callback)
   local selector_y = screen_height / 2
 
   self.edge_selector = EdgeSelector:new(
-    edges,
     selector_x,
     selector_y,
+    edges,
     function(edge) self:handle_edge_selected(edge) end
   )
 

@@ -1,4 +1,4 @@
-local class = require("middleclass")
+local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
 
 local Panel = class("Panel", UIElement)

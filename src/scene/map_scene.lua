@@ -1,5 +1,5 @@
 local class = require('lib.middleclass')
-local Scene = require("src.scene.scene")
+local Scene = require("src.core.scene")
 local Map = require("src.map.map")
 local MapGenerator = require("src.map.map_generator")
 local Gauge = require("src.ui.gauge")

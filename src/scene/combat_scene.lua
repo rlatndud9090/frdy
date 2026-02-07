@@ -2,6 +2,7 @@ local class = require('lib.middleclass')
 local Scene = require("src.core.scene")
 local Gauge = require("src.ui.gauge")
 local Button = require("src.ui.button")
+local Game = require('src.core.game')
 
 local CombatScene = class('CombatScene', Scene)
 
@@ -23,7 +24,7 @@ function CombatScene:initialize()
     -- "전투 종료" 버튼 생성 (클릭 시 MapScene으로 복귀)
     self.end_button = Button.new(640 - 50, 650, 100, 40, "전투 종료")
     self.end_button:set_on_click(function()
-        love.scene:switch("map_scene")
+        Game:getInstance().scene_manager:pop()
     end)
 end
 
@@ -66,7 +67,7 @@ end
 function CombatScene:keypressed(key)
     -- ESC로 MapScene 복귀
     if key == "escape" then
-        love.scene:switch("map_scene")
+        Game:getInstance().scene_manager:pop()
     end
 end
 
