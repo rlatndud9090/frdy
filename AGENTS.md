@@ -140,6 +140,18 @@ function ClassName:method(name, optional_param)
 | `Panel` | 패널 (UIElement 서브클래스) |
 | `EdgeSelector` | 엣지 선택기 (UIElement 서브클래스) |
 
+### 실행 검증 (필수)
+
+**코드 변경 후 반드시 Love2D 실행 검증을 수행해야 합니다.**
+
+```bash
+timeout 5 love . 2>&1
+```
+
+- **출력 없음** = 정상 (5초간 에러 없이 실행 후 타임아웃 종료)
+- **에러 출력** = 실패 (에러 메시지가 stderr로 출력되며 즉시 종료)
+- 에러 발생 시 반드시 수정 후 재검증할 것
+
 ### 게임 시스템 우선순위
 
 1. **핵심 시스템** (맵, 전투, 카드)

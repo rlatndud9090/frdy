@@ -33,7 +33,8 @@ function MapScene:initialize()
 
     -- MapGenerator로 맵 생성
     local generator = MapGenerator:new()
-    self.map = generator:generate()
+    local config = require('data.map_configs.default_config')
+    self.map = generator:generate_map(config)
 
     -- 용사를 시작 노드에 배치 (column 0)
     self.current_column = 0
