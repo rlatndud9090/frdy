@@ -1,28 +1,35 @@
 local class = require('lib.middleclass')
 
+---@class EventBus
+---@field subscribers table<string, function[]>
+---@field new fun(self: EventBus): EventBus
 local EventBus = class('EventBus')
 
 function EventBus:initialize()
-    -- Internal table mapping event names to lists of callbacks
+    --- Internal table mapping event names to lists of callbacks
     self.subscribers = {}
 end
 
--- Register a callback for an event
+--- Register a callback for an event
+---@param event_name string
+---@param callback function
 function EventBus:subscribe(event_name, callback)
     if not event_name or type(callback) ~= 'function' then
         error("EventBus:subscribe requires event_name and a callback function")
     end
 
-    -- Create subscriber list for this event if it doesn't exist
+    --- Create subscriber list for this event if it doesn't exist
     if not self.subscribers[event_name] then
         self.subscribers[event_name] = {}
     end
 
-    -- Add callback to the list
+    --- Add callback to the list
     table.insert(self.subscribers[event_name], callback)
 end
 
--- Remove a callback from an event
+--- Remove a callback from an event
+---@param event_name string
+---@param callback function
 function EventBus:unsubscribe(event_name, callback)
     if not event_name or type(callback) ~= 'function' then
         return
@@ -33,7 +40,7 @@ function EventBus:unsubscribe(event_name, callback)
         return
     end
 
-    -- Find and remove the specific callback
+    --- Find and remove the specific callback
     for i = #callbacks, 1, -1 do
         if callbacks[i] == callback then
             table.remove(callbacks, i)
@@ -41,13 +48,15 @@ function EventBus:unsubscribe(event_name, callback)
         end
     end
 
-    -- Clean up empty subscriber lists
+    --- Clean up empty subscriber lists
     if #callbacks == 0 then
         self.subscribers[event_name] = nil
     end
 end
 
--- Trigger all callbacks for an event
+--- Trigger all callbacks for an event
+---@param event_name string
+---@param data? any
 function EventBus:emit(event_name, data)
     if not event_name then
         return
@@ -58,7 +67,7 @@ function EventBus:emit(event_name, data)
         return
     end
 
-    -- Call each callback with the provided data
+    --- Call each callback with the provided data
     for i = 1, #callbacks do
         callbacks[i](data)
     end

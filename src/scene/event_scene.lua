@@ -3,6 +3,9 @@ local Scene = require("src.core.scene")
 local Button = require("src.ui.button")
 local Game = require('src.core.game')
 
+---@class EventScene : Scene
+---@field event_text string
+---@field choice_buttons Button[]
 local EventScene = class('EventScene', Scene)
 
 function EventScene:initialize()
@@ -26,11 +29,13 @@ function EventScene:initialize()
     table.insert(self.choice_buttons, button2)
 end
 
+---@param params? any
 function EventScene:enter(params)
     -- 진입 시 초기화
     self:initialize()
 end
 
+---@param dt number
 function EventScene:update(dt)
     -- 버튼들 업데이트
     for _, button in ipairs(self.choice_buttons) do
@@ -53,6 +58,9 @@ function EventScene:draw()
     end
 end
 
+---@param x number
+---@param y number
+---@param button number
 function EventScene:mousepressed(x, y, button)
     -- 버튼들에 마우스 이벤트 전달
     for _, btn in ipairs(self.choice_buttons) do
@@ -60,6 +68,7 @@ function EventScene:mousepressed(x, y, button)
     end
 end
 
+---@param key string
 function EventScene:keypressed(key)
     -- ESC로 MapScene 복귀
     if key == "escape" then

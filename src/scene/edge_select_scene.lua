@@ -3,8 +3,15 @@ local Scene = require('src.core.scene')
 local EdgeSelector = require('src.ui.edge_selector')
 local Game = require('src.core.game')
 
+---@class EdgeSelectScene : Scene
+---@field edges Edge[]
+---@field on_select_callback function
+---@field edge_selector EdgeSelector
+---@field auto_advance_timer number|nil
 local EdgeSelectScene = class('EdgeSelectScene', Scene)
 
+---@param edges Edge[]
+---@param on_select_callback function
 function EdgeSelectScene:initialize(edges, on_select_callback)
   Scene.initialize(self)
 
@@ -36,6 +43,7 @@ function EdgeSelectScene:enter()
   -- Scene 진입 시 호출
 end
 
+---@param dt number
 function EdgeSelectScene:update(dt)
   -- 자동 진행 타이머 처리
   if self.auto_advance_timer then
@@ -65,6 +73,7 @@ function EdgeSelectScene:draw()
   self.edge_selector:draw()
 end
 
+---@param edge Edge
 function EdgeSelectScene:handle_edge_selected(edge)
   -- 콜백 호출
   self.on_select_callback(edge)
@@ -73,6 +82,9 @@ function EdgeSelectScene:handle_edge_selected(edge)
   Game:getInstance().scene_manager:pop()
 end
 
+---@param x number
+---@param y number
+---@param button number
 function EdgeSelectScene:mousepressed(x, y, button)
   self.edge_selector:mousepressed(x, y, button)
 end

@@ -4,6 +4,10 @@ local Gauge = require("src.ui.gauge")
 local Button = require("src.ui.button")
 local Game = require('src.core.game')
 
+---@class CombatScene : Scene
+---@field hero_gauge Gauge
+---@field enemy_gauge Gauge
+---@field end_button Button
 local CombatScene = class('CombatScene', Scene)
 
 function CombatScene:initialize()
@@ -33,6 +37,7 @@ function CombatScene:enter()
     self:initialize()
 end
 
+---@param dt number
 function CombatScene:update(dt)
     -- UI 위젯 업데이트
     self.hero_gauge:update(dt)
@@ -57,6 +62,9 @@ function CombatScene:draw()
     self.end_button:draw()
 end
 
+---@param x number
+---@param y number
+---@param button number
 function CombatScene:mousepressed(x, y, button)
     -- UI 위젯에 전달
     self.hero_gauge:mousepressed(x, y, button)
@@ -64,6 +72,7 @@ function CombatScene:mousepressed(x, y, button)
     self.end_button:mousepressed(x, y, button)
 end
 
+---@param key string
 function CombatScene:keypressed(key)
     -- ESC로 MapScene 복귀
     if key == "escape" then

@@ -5,6 +5,14 @@ local MapGenerator = require("src.map.map_generator")
 local Gauge = require("src.ui.gauge")
 local Button = require("src.ui.button")
 
+---@class MapScene : Scene
+---@field map Map|nil
+---@field hero_world_x number
+---@field camera_offset_x number
+---@field current_column number
+---@field suspicion_gauge Gauge|nil
+---@field mana_gauge Gauge|nil
+---@field minimap_button Button|nil
 local MapScene = class('MapScene', Scene)
 
 local SEGMENT_WIDTH = 300
@@ -54,6 +62,7 @@ function MapScene:enter()
     -- 진입 시 특정 상태만 리셋 (전체 초기화는 필요 없음)
 end
 
+---@param dt number
 function MapScene:update(dt)
     -- 카메라 오프셋 업데이트 (용사를 화면 중앙에 위치)
     self.camera_offset_x = self.hero_world_x - 640
@@ -106,6 +115,7 @@ function MapScene:draw()
     self.minimap_button:draw()
 end
 
+---@param key string
 function MapScene:keypressed(key)
     if key == "escape" then
         love.event.quit()
@@ -121,6 +131,9 @@ function MapScene:keypressed(key)
     end
 end
 
+---@param x number
+---@param y number
+---@param button number
 function MapScene:mousepressed(x, y, button)
     -- UI 위젯에 마우스 이벤트 전달
     self.suspicion_gauge:mousepressed(x, y, button)

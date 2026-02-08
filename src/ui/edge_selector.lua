@@ -2,8 +2,22 @@ local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
 local Button = require("src.ui.button")
 
+---@class Edge
+---@field get_to_node fun(self: Edge): Node
+
+---@class Node
+---@field get_type fun(self: Node): string
+
+---@class EdgeSelector : UIElement
+---@field edges Edge[]
+---@field on_select_callback function|nil
+---@field buttons Button[]
 local EdgeSelector = class("EdgeSelector", UIElement)
 
+---@param x number
+---@param y number
+---@param edges Edge[]
+---@param on_select_callback? function
 function EdgeSelector:initialize(x, y, edges, on_select_callback)
 	UIElement.initialize(self, x, y, 0, 0)
 	self.edges = edges or {}
@@ -50,6 +64,7 @@ function EdgeSelector:initialize(x, y, edges, on_select_callback)
 	self.height = current_y - y
 end
 
+---@param dt number
 function EdgeSelector:update(dt)
 	if not self.visible then return end
 
@@ -66,6 +81,9 @@ function EdgeSelector:draw()
 	end
 end
 
+---@param mx number
+---@param my number
+---@param button number
 function EdgeSelector:mousepressed(mx, my, button)
 	if not self.visible then return end
 

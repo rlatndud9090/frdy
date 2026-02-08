@@ -1,8 +1,20 @@
 local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
 
+---@class Gauge : UIElement
+---@field current_value number
+---@field max_value number
+---@field fg_color number[]
+---@field bg_color number[]
+---@field label string
 local Gauge = class("Gauge", UIElement)
 
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param label? string
+---@param fg_color? number[]
 function Gauge:initialize(x, y, width, height, label, fg_color)
 	UIElement.initialize(self, x, y, width, height)
 	self.current_value = 0
@@ -12,6 +24,8 @@ function Gauge:initialize(x, y, width, height, label, fg_color)
 	self.label = label or "Gauge"
 end
 
+---@param current? number
+---@param max? number
 function Gauge:set_value(current, max)
 	self.current_value = current or 0
 	if max then
@@ -19,6 +33,7 @@ function Gauge:set_value(current, max)
 	end
 end
 
+---@param max? number
 function Gauge:set_max(max)
 	self.max_value = max or 100
 end

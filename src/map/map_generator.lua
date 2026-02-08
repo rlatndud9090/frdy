@@ -5,6 +5,8 @@ local Edge = require('src.map.edge')
 local Floor = require('src.map.floor')
 local Map = require('src.map.map')
 
+---@class MapGenerator
+---@field _next_node_id number
 local MapGenerator = class('MapGenerator')
 
 local SEGMENT_WIDTH = 300
@@ -14,20 +16,21 @@ function MapGenerator:initialize()
     self._next_node_id = 0
 end
 
---- Generate a unique node ID
+---@return number
 function MapGenerator:_generate_id()
     self._next_node_id = self._next_node_id + 1
     return self._next_node_id
 end
 
---- Random integer in range [min, max] inclusive
+---@param min_val number
+---@param max_val number
+---@return number
 local function rand_int(min_val, max_val)
     return math.random(min_val, max_val)
 end
 
---- Generate a complete Map with all floors
----@param config table Map generation config (from default_config.lua)
----@return table Map instance
+---@param config table
+---@return Map
 function MapGenerator:generate_map(config)
     self._next_node_id = 0
     local map = Map:new()
@@ -40,10 +43,9 @@ function MapGenerator:generate_map(config)
     return map
 end
 
---- Generate a single floor with column-based DAG structure
----@param floor_index integer 1-based floor index
----@param config table Map generation config
----@return table Floor instance
+---@param floor_index number
+---@param config table
+---@return Floor
 function MapGenerator:generate_floor(floor_index, config)
     local floor = Floor:new(floor_index)
     local num_columns = rand_int(config.columns_per_floor.min, config.columns_per_floor.max)
@@ -130,10 +132,9 @@ function MapGenerator:generate_floor(floor_index, config)
     return floor
 end
 
---- Pick `count` unique random indices from range [1, max]
----@param max integer Upper bound
----@param count integer Number of indices to pick
----@return table Array of unique indices
+---@param max number
+---@param count number
+---@return number[]
 function MapGenerator:_pick_random_indices(max, count)
     if count >= max then
         -- Return all indices

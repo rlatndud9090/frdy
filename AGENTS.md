@@ -86,6 +86,60 @@ feat: 기능 추가했습니다.
 - 들여쓰기: 2 spaces
 - 명명 규칙: snake_case (함수, 변수), PascalCase (클래스/모듈)
 
+### LuaLS 타입 어노테이션 (필수)
+
+**모든 Lua 파일에는 LuaLS 타입 어노테이션을 반드시 포함해야 합니다.**
+
+#### 클래스 정의
+
+```lua
+---@class ClassName
+---@field field_name type
+local ClassName = class('ClassName')
+
+-- 상속 시
+---@class ChildClass : ParentClass
+---@field extra_field type
+local ChildClass = class('ChildClass', ParentClass)
+```
+
+#### 함수 어노테이션
+
+```lua
+---함수 설명
+---@param name type
+---@param optional_param? type
+---@return type
+function ClassName:method(name, optional_param)
+```
+
+#### 규칙
+
+1. **클래스 선언** 위에 `---@class` 와 `---@field` 추가
+2. **모든 함수**에 `---@param`, `---@return` 추가
+3. **구체적 타입 사용**: `table` 대신 클래스명 (예: `Node`, `Scene`, `Edge`)
+4. **선택적 파라미터**는 `?` 표기 (예: `---@param pos? {x: number, y: number}`)
+5. **좌표**는 `{x: number, y: number}` 사용
+6. **색상 배열**은 `number[]` 사용
+7. **콜백**은 `fun(...)` 또는 `function` 사용
+
+#### 주요 타입 참조
+
+| 타입 | 설명 |
+|------|------|
+| `Scene` | 씬 기본 클래스 |
+| `Node` | 맵 노드 기본 클래스 |
+| `CombatNode` | 전투 노드 (Node 서브클래스) |
+| `EventNode` | 이벤트 노드 (Node 서브클래스) |
+| `Edge` | 노드 간 간선 |
+| `Floor` | 맵 층 |
+| `Map` | 전체 맵 |
+| `UIElement` | UI 기본 클래스 |
+| `Button` | 버튼 (UIElement 서브클래스) |
+| `Gauge` | 게이지 (UIElement 서브클래스) |
+| `Panel` | 패널 (UIElement 서브클래스) |
+| `EdgeSelector` | 엣지 선택기 (UIElement 서브클래스) |
+
 ### 게임 시스템 우선순위
 
 1. **핵심 시스템** (맵, 전투, 카드)

@@ -1,8 +1,21 @@
 local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
 
+---@class Button : UIElement
+---@field text string
+---@field callback function|nil
+---@field bg_color number[]
+---@field hover_color number[]
+---@field text_color number[]
+---@field is_hovered boolean
 local Button = class("Button", UIElement)
 
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param text? string
+---@param callback? function
 function Button:initialize(x, y, width, height, text, callback)
 	UIElement.initialize(self, x, y, width, height)
 	self.text = text or ""
@@ -13,6 +26,7 @@ function Button:initialize(x, y, width, height, text, callback)
 	self.is_hovered = false
 end
 
+---@param dt number
 function Button:update(dt)
 	if self.visible then
 		local mx, my = love.mouse.getPosition()
@@ -41,6 +55,7 @@ function Button:draw()
 	love.graphics.print(self.text, text_x, text_y)
 end
 
+---@param callback function|nil
 function Button:set_on_click(callback)
 	self.callback = callback
 end
@@ -51,6 +66,9 @@ function Button:on_click()
 	end
 end
 
+---@param mx number
+---@param my number
+---@param button number
 function Button:mousepressed(mx, my, button)
 	if button == 1 and self.visible and self:hit_test(mx, my) then
 		self:on_click()
