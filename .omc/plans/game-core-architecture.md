@@ -67,12 +67,22 @@
 │       │                                      │                  │
 │       │          ┌──────────────┐     ┌──────┴───────────┐     │
 │       └─────────→│ EventBus     │     │ Concrete Scenes: │     │
-│                  │ (옵저버)     │     │  - MapScene      │     │
-│                  └──────────────┘     │  - CombatScene   │     │
-│                                       │  - EventScene    │     │
-│                                       │  - EdgeSelectScene│    │
-│                                       │  - MapOverlay    │     │
-│                                       └──────────────────┘     │
+│                  │ (옵저버)     │     │  - GameScene     │     │
+│                  └──────────────┘     │    (통합 게임)  │     │
+│                       ↑               │  - MapScene      │     │
+│                       │               │    (맵/탐색)     │     │
+│                  ┌────┴──────┐        │  - MapOverlay    │     │
+│                  │  Handlers  │        │    (맵 보기)     │     │
+│                  │ (모듈들):  │        └──────────────────┘     │
+│                  │ - Combat   │                                 │
+│                  │ - Event    │       GameScene 내부 페이즈:   │
+│                  │ - EdgeSel. │       - TRAVELING               │
+│                  └────────────┘       - ARRIVING                │
+│                                       - ENTERING/EXITING_COMBAT │
+│                                       - COMBAT (handler)        │
+│                                       - ENTERING/EXITING_EVENT  │
+│                                       - EVENT (handler)         │
+│                                       - EDGE_SELECT (handler)   │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -250,12 +260,22 @@
 | **EdgeSelector** | 경로 선택 UI. 사용 가능한 엣지 표시 | `show_edges(edges)`, `on_select(callback)`, `hide()` |
 | **CardHand** | 카드 패 UI. 펼치기/접기 | `set_cards(cards)`, `on_play(callback)`, `highlight(card)` |
 
+### Screen Management (Scenes & Handlers)
+
+| Class/Module | Responsibility | Key Methods |
+|------|---------------|-------------|
+| **GameScene** | 통합 게임플레이 Scene. 페이즈 상태 머신으로 게임 흐름 제어. Map, Hero, Camera 보유 | `init(map, hero)`, `set_phase(phase)`, `update(dt)`, `draw()`, `keypressed(key)`, `mousepressed(x,y,btn)` |
+| **MapScene** | 맵 탐색 화면. 벨트스크롤 뷰. 미니맵, 게이지 표시 | `init(map, hero)`, `update(dt)`, `draw()`, `keypressed(key)` |
+| **CombatHandler** | GameScene의 COMBAT 페이즈 전용 모듈. CombatManager와 ActionQueue 관리 | `init()`, `update(dt)`, `draw()`, `on_enter()`, `on_exit()` |
+| **EventHandler** | GameScene의 EVENT 페이즈 전용 모듈. EventManager와 선택지 UI 관리 | `init()`, `update(dt)`, `draw()`, `on_enter()`, `on_exit()` |
+| **EdgeSelectHandler** | GameScene의 EDGE_SELECT 페이즈 전용 모듈. EdgeSelector UI 관리 | `init()`, `update(dt)`, `draw()`, `on_enter()`, `on_exit()` |
+| **MapOverlay** | 전체 맵 시각화 오버레이. MapScene 위에 push되는 Scene | `init(map)`, `update(dt)`, `draw()`, `keypressed(key)` |
+
 ### Animation System
 
 | Class | Responsibility | Key Methods |
 |-------|---------------|-------------|
-| **Camera** | 뷰포트 제어. 스크롤, 줌 | `move_to(x, y, duration)`, `shake(intensity, duration)`, `get_offset()` |
-| **Transition** | 화면 전환 효과 (페이드 등) | `fade_in(duration)`, `fade_out(duration)`, `is_done()` |
+| **Camera** | 뷰포트 제어. 월드/화면 좌표 변환. flux 기반 부드러운 이동 | `move_to(x, y, duration)`, `shake(intensity, duration)`, `apply()`, `release()`, `get_offset()` |
 
 ---
 
@@ -322,12 +342,15 @@ frdy/
 │   │   ├── event.lua            -- Event 기본 클래스
 │   │   └── choice.lua           -- Choice 선택지
 │   │
-│   ├── scene/                   -- 구체 Scene 구현
-│   │   ├── map_scene.lua        -- 메인 게임 화면 (용사 이동)
-│   │   ├── combat_scene.lua     -- 전투 화면
-│   │   ├── event_scene.lua      -- 이벤트 화면
-│   │   ├── edge_select_scene.lua -- 경로 선택 화면
-│   │   └── map_overlay.lua      -- 전체 맵 오버레이
+│   ├── scene/                   -- Scene 구현
+│   │   ├── game_scene.lua       -- GameScene (통합 게임플레이 - 페이즈 상태머신)
+│   │   ├── map_scene.lua        -- MapScene (맵/탐색 화면)
+│   │   └── map_overlay.lua      -- MapOverlay (전체 맵 보기)
+│   │
+│   ├── handler/                 -- GameScene 페이즈 핸들러들
+│   │   ├── combat_handler.lua   -- 전투 페이즈 로직
+│   │   ├── event_handler.lua    -- 이벤트 페이즈 로직
+│   │   └── edge_select_handler.lua -- 경로 선택 페이즈 로직
 │   │
 │   ├── ui/                      -- UI 시스템
 │   │   ├── ui_element.lua       -- UIElement 추상 기본
@@ -339,8 +362,7 @@ frdy/
 │   │   └── card_hand.lua        -- CardHand 카드 패 UI
 │   │
 │   └── anim/                    -- 애니메이션 시스템
-│       ├── camera.lua           -- Camera 뷰포트
-│       └── transition.lua       -- Transition 화면 전환
+│       └── camera.lua           -- Camera (뷰포트, flux 기반 이동)
 │
 ├── data/                        -- 게임 데이터 정의 (Lua 테이블)
 │   ├── enemies/                 -- 적 정의
@@ -512,19 +534,36 @@ frdy/
 
 ---
 
-### Phase 3: Screen Management & UI Foundation
+### Phase 3: Screen Management & Unified GameScene Architecture
 
-**목표**: 주요 화면 Scene 구현. UI 기본 위젯. 화면 전환 흐름.
+**목표**: UI 기본 위젯 구현. 통합 GameScene 구현 - 페이즈 상태 머신으로 모든 게임플레이를 관리. 경로 선택 UI와 헨들러들 구현.
+
+**아키텍처 변경**:
+- **Before**: MapScene, CombatScene, EventScene, EdgeSelectScene 4개의 독립 Scene
+- **After**: GameScene 1개 + CombatHandler, EventHandler, EdgeSelectHandler 3개의 헨들러 모듈
+  - GameScene은 phase 상태 머신으로 게임플레이 흐름 제어
+  - Handlers는 Scene이 아닌 헬퍼 모듈로, 특정 페이즈의 로직을 캡슐화
+
+**GameScene 페이즈 상태 머신**:
+- `TRAVELING` - 맵 화면. 용사 이동 애니메이션 중
+- `ARRIVING` - 도착 노드에서 일시 정지. 노드 콘텐츠 준비
+- `ENTERING_COMBAT` - 전투 페이즈로 전환 중 (Transition)
+- `COMBAT` - 턴제 전투 진행 (CombatHandler 관리)
+- `EXITING_COMBAT` - 전투 종료 (Transition)
+- `ENTERING_EVENT` - 이벤트 페이즈로 전환 중 (Transition)
+- `EVENT` - 이벤트 선택지 표시 (EventHandler 관리)
+- `EXITING_EVENT` - 이벤트 종료 (Transition)
+- `EDGE_SELECT` - 경로 선택 UI 표시 (EdgeSelectHandler 관리)
 
 **파일 목록**:
 - `src/ui/ui_element.lua`
 - `src/ui/button.lua`
 - `src/ui/panel.lua`
 - `src/ui/gauge.lua`
-- `src/scene/map_scene.lua`
-- `src/scene/combat_scene.lua`
-- `src/scene/event_scene.lua`
-- `src/scene/edge_select_scene.lua`
+- `src/scene/game_scene.lua` - 통합 GameScene (NEW)
+- `src/handler/combat_handler.lua` - 전투 페이즈 관리 (NEW)
+- `src/handler/event_handler.lua` - 이벤트 페이즈 관리 (NEW)
+- `src/handler/edge_select_handler.lua` - 경로 선택 관리 (NEW)
 - `src/ui/edge_selector.lua`
 
 **TODO 3.1**: UIElement 추상 기본 클래스 구현
@@ -549,8 +588,48 @@ frdy/
 - 색상 커스터마이징
 - **수락 기준**: set_value(50, 100) → 50% 채워진 게이지 표시
 
-**TODO 3.5**: MapScene 구현 (메인 게임 화면)
-- 수평 레이아웃: 용사가 우측으로 이동하는 벨트스크롤 뷰
+**TODO 3.5**: EdgeSelector UI 위젯 구현
+- 사용 가능한 경로를 시각적으로 표시 (노드 타입 아이콘 포함)
+- 마우스 hover, 클릭 상호작용
+- **수락 기준**: 복수 엣지 표시, 클릭 시 선택 콜백 실행
+
+**TODO 3.6**: GameScene 통합 구현
+- Scene 기본 클래스 상속
+- 페이즈 상태 머신: phase 속성, phase_transitions 로직
+- 맵 데이터 보유: current_node, map, hero
+- 현재 페이즈에 따라 update(dt), draw() 위임
+- 페이즈 전환 트리거:
+  - TRAVELING → ARRIVING (도착 지점에서)
+  - ARRIVING → EDGE_SELECT (매 턴) 또는 ENTERING_COMBAT/ENTERING_EVENT (노드 타입에 따라)
+  - ENTERING_COMBAT → COMBAT (Transition 완료 시)
+  - COMBAT → EXITING_COMBAT (전투 종료 시)
+  - EXITING_COMBAT → ARRIVING 또는 EDGE_SELECT (Transition 완료 시)
+  - 이벤트도 동일 흐름
+- **수락 기준**: 게임 시작 시 GameScene 진입. 페이즈 전환이 정상 동작
+
+**TODO 3.7**: CombatHandler 구현
+- 전투 페이즈 전용 로직 캡슐화
+- 메서드: init(), update(dt), draw(), on_enter(), on_exit()
+- CombatManager, TurnManager, ActionQueue는 여기서 관리
+- GameScene의 COMBAT 페이즈에서만 활성화
+- **수락 기준**: CombatHandler가 GameScene과 협력하여 전투 진행
+
+**TODO 3.8**: EventHandler 구현
+- 이벤트 페이즈 전용 로직 캡슐화
+- 메서드: init(), update(dt), draw(), on_enter(), on_exit()
+- EventManager, 선택지 UI 관리
+- GameScene의 EVENT 페이즈에서만 활성화
+- **수락 기준**: EventHandler가 GameScene과 협력하여 이벤트 진행
+
+**TODO 3.9**: EdgeSelectHandler 구현
+- 경로 선택 페이즈 전용 로직
+- 메서드: init(), update(dt), draw(), on_enter(), on_exit()
+- EdgeSelector UI 관리
+- 선택 완료 시 GameScene에 다음 노드 전달
+- **수락 기준**: 경로 선택 UI가 표시되고 선택 시 콜백 실행
+
+**TODO 3.10**: MapScene 구현 (GameScene과 별도)
+- 벨트스크롤 뷰: 용사가 우측으로 이동
 - **벨트스크롤 좌표계**:
   - 각 플로어의 단계(열, column)가 하나의 수평 세그먼트에 매핑됨 (SEGMENT_WIDTH = 300px)
   - hero의 월드 좌표 world_x = current_column * SEGMENT_WIDTH
@@ -558,76 +637,75 @@ frdy/
   - Camera가 hero.world_x를 추적하여 뷰포트 오프셋 결정
   - 화면 좌표 = 월드 좌표 - camera.offset_x
 - 현재 노드 시각적 표시 (placeholder 도형)
-- 미니맵 버튼, 의심 게이지, 마력 게이지 배치
-- **수락 기준**: 맵 생성 후 MapScene 진입 시 용사와 현재 노드가 화면에 표시됨. 노드 이동 시 카메라가 hero를 따라 스크롤됨
+- 미니맵, 의심 게이지, 마력 게이지 배치
+- **수락 기준**: MapScene 진입 시 용사와 맵이 표시됨. 노드 이동 애니메이션 재생
 
-**TODO 3.6**: EdgeSelectScene 구현 (경로 선택)
-- 노드 완료 후 SceneManager에 push
-- 사용 가능한 엣지를 EdgeSelector UI로 표시
-- 단일 엣지 시 자동 진행 (1초 대기 후)
-- 선택 시 콜백으로 다음 노드 설정 → pop
-- **수락 기준**: 분기점에서 선택 UI 표시. 선택 시 다음 노드로 이동. 단일 경로 시 자동 진행
-
-**TODO 3.7**: EdgeSelector UI 위젯 구현
-- 사용 가능한 경로를 시각적으로 표시 (노드 타입 아이콘 포함)
-- 마우스 hover, 클릭 상호작용
-- **수락 기준**: 복수 엣지 표시, 클릭 시 선택 콜백 실행
-
-**TODO 3.8**: CombatScene 기본 구현 (placeholder)
-- 전투 노드 진입 시 표시되는 화면
-- 용사 HP, 적 HP 게이지 표시
-- "전투 종료" 테스트 버튼 (다음 Phase에서 실제 전투 로직 연결)
-- **수락 기준**: CombatNode 진입 시 CombatScene 표시. 종료 버튼으로 MapScene 복귀
-
-**TODO 3.9**: EventScene 기본 구현 (placeholder)
-- 이벤트 노드 진입 시 표시되는 화면
-- 이벤트 텍스트와 선택지 버튼 표시
-- 선택 시 효과 적용 후 MapScene 복귀
-- **수락 기준**: EventNode 진입 시 EventScene 표시. 선택지 클릭 시 MapScene 복귀
-
-**커밋 1**: `feat(ui): 기본 UI 위젯 시스템 구현 (UIElement, Button, Panel, Gauge)`
-**커밋 2**: `feat(core): Scene 구현 (MapScene, CombatScene, EventScene, EdgeSelectScene)`
+**커밋 1**: `feat(ui): 기본 UI 위젯 시스템 구현 (UIElement, Button, Panel, Gauge, EdgeSelector)`
+**커밋 2**: `feat(scene): 통합 GameScene 페이즈 상태 머신 구현`
+**커밋 3**: `feat(handler): 전투/이벤트/경로선택 핸들러 모듈 구현`
+**커밋 4**: `feat(scene): MapScene 벨트스크롤 뷰 구현`
 
 ---
 
-### Phase 4: Animation & Transitions
+### Phase 4: Animation System & Camera
 
-**목표**: 벨트스크롤 이동 애니메이션, 화면 전환 효과, 카메라 시스템.
+**목표**: 카메라 시스템 구현, flux 기반 애니메이션 통합, 벨트스크롤 애니메이션 완성.
+
+**설계 개선**:
+- **Before**: 별도 Transition 클래스 + 화면 전환 효과 관리
+- **After**: flux tween 라이브러리로 모든 애니메이션 처리
+  - Camera는 flux tween으로 위치 이동 (apply/release 메서드로 love.graphics.translate 제어)
+  - UI 페이드/슬라이드도 flux로 처리
+  - Game:update(dt)에서 flux.update(dt) 호출하여 모든 tween 업데이트
+  - Transition 관련 로직은 GameScene의 페이즈 전환에서 flux tween으로 구현
 
 **파일 목록**:
 - `src/anim/camera.lua`
-- `src/anim/transition.lua`
+- `src/scene/game_scene.lua` (수정)
 - `src/scene/map_scene.lua` (수정)
-- `src/scene/edge_select_scene.lua` (수정)
 
 **TODO 4.1**: Camera 클래스 구현
 - 뷰포트 offset (x, y) 관리
 - move_to(target_x, target_y, duration): flux tween으로 부드러운 이동
+  - 내부적으로 `flux.to(self, duration, {offset_x = target_x, offset_y = target_y})`
+  - 콜백 옵션으로 tween 완료 후 로직 연결
 - shake(intensity, duration): 화면 흔들림 효과
+  - 여러 번의 작은 tween으로 흔들림 구현
+- apply(): 현재 offset을 love.graphics.translate에 적용
+- release(): transform 상태 복원
 - get_offset(): 현재 오프셋 반환
-- love.graphics.translate에 적용
-- **수락 기준**: Camera:move_to 호출 시 화면이 부드럽게 스크롤됨
+- **수락 기준**: Camera:move_to 호출 시 화면이 부드럽게 스크롤됨. apply/release로 변환 관리
 
-**TODO 4.2**: Transition 클래스 구현
-- fade_in(duration), fade_out(duration)
-- 검은 화면으로 페이드 인/아웃
-- is_done() 체크
-- SceneManager에서 Scene 전환 시 Transition 삽입
-- **수락 기준**: Scene 전환 시 페이드 효과가 재생됨
+**TODO 4.2**: GameScene 페이즈별 애니메이션 통합
+- TRAVELING → ARRIVING: 즉시 전환 또는 0.2초 페이드
+- ARRIVING → EDGE_SELECT: 0.3초 페이드 인
+- ENTERING_COMBAT: 0.5초 fade to black + 배경 전환
+- EXITING_COMBAT: 0.5초 fade from black
+- 이벤트도 동일 패턴 (0.5초 fade)
+- 모든 fade는 flux 기반 UI 레이어(semi-transparent 오버레이) 알파 tween으로 구현
+- **수락 기준**: 페이즈 전환 시 자동으로 fade 효과 재생
 
-**TODO 4.3**: MapScene 벨트스크롤 애니메이션 연결
-- 엣지 선택 후 → 용사가 우측으로 이동하는 애니메이션 재생
-- Camera가 용사를 따라 스크롤
-- 배경 요소가 상대적으로 이동 (패럴랙스 효과 기초)
-- 이동 완료 후 → 도착 노드 타입에 따라 CombatScene 또는 EventScene push
-- **수락 기준**: 경로 선택 → 용사 이동 애니메이션 → 자동으로 다음 노드 화면 진입
+**TODO 4.3**: MapScene 용사 이동 애니메이션
+- 엣지 선택 후 TRAVELING 페이즈 시작
+- hero.world_x를 현재 위치 → 도착 노드 위치로 flux tween
+- Camera는 hero를 추적하여 자동으로 move_to (또는 직접 계산)
+- 이동 duration: 노드 거리에 비례 (기본: 2초)
+- 이동 완료 시 ARRIVING으로 전환
+- **수락 기준**: 경로 선택 → 용사가 부드럽게 우측 이동 → 카메라 따라 스크롤
 
-**TODO 4.4**: 화면 전환 효과 통합
-- SceneManager의 push/pop/switch에 Transition 효과 옵션 추가
-- 기본값: 0.3초 fade
-- **수락 기준**: 모든 Scene 전환에 페이드 효과 적용
+**TODO 4.4**: UI 슬라이드 애니메이션 (선택사항)
+- CardHand, EdgeSelector 등이 화면에 나타날 때 슬라이드 인
+- flux 기반 위치 tween으로 구현
+- **수락 기준**: UI 등장 시 자연스러운 슬라이드 애니메이션
 
-**커밋**: `feat(anim): 벨트스크롤 이동 애니메이션 및 화면 전환 효과 구현`
+**TODO 4.5**: Game:update(dt)에 flux 통합
+- `flux.update(dt)` 호출하여 모든 tween 업데이트
+- Camera 위치 변동 → draw 시 apply() 호출
+- **수락 기준**: Game 시작 후 모든 tween 애니메이션이 정상 재생
+
+**커밋 1**: `feat(anim): Camera 클래스 및 flux 기반 애니메이션 통합`
+**커밋 2**: `feat(scene): GameScene 페이즈별 페이드 효과 구현`
+**커밋 3**: `feat(scene): 용사 이동 애니메이션 및 카메라 추적 완성`
 
 ---
 
@@ -1003,19 +1081,38 @@ frdy/
 
 1. Love2D 실행 시 에러 없이 게임 시작
 2. 맵이 절차적으로 생성되고 그래프 구조가 유효함
-3. 노드 간 이동 시 벨트스크롤 애니메이션 재생
-4. 전투 노드에서 턴제 전투 진행 가능
-5. 이벤트 노드에서 선택지 이벤트 진행 가능
-6. 마왕 카드 사용 시 효과 적용 및 의심 수치 변동
-7. 의심 수치 MAX 도달 시 게임오버
-8. 전체 맵과 미니맵으로 현재 위치 확인 가능
-9. 1개 층 전체 플레이 가능
-10. 마왕이 경로 선택에 개입(진로 수정)할 수 있고 의심 수치에 반영됨
+3. GameScene이 페이즈 상태 머신으로 게임플레이 흐름 제어
+4. 노드 간 이동 시 벨트스크롤 애니메이션 재생 (flux 기반)
+5. 전투 노드에서 CombatHandler가 턴제 전투 진행
+6. 이벤트 노드에서 EventHandler가 선택지 이벤트 진행
+7. 마왕 카드 사용 시 효과 적용 및 의심 수치 변동
+8. 의심 수치 MAX 도달 시 게임오버
+9. 전체 맵과 미니맵으로 현재 위치 확인 가능
+10. 1개 층 전체 플레이 가능
+11. 마왕이 경로 선택에 개입(진로 수정)할 수 있고 의심 수치에 반영됨
+12. GameScene의 페이즈 전환 시 flux 기반 fade/전환 효과 재생
+
+### 아키텍처 개선 검증
+
+1. **GameScene 페이즈 통합**: 4개의 독립 Scene 대신 1개의 GameScene + 3개의 Handlers로 통합
+   - 페이즈 전환이 명확한 상태 머신으로 구현됨
+   - Handler는 Scene이 아닌 모듈로 캡슐화됨 (SceneManager 스택 불필요)
+   - EventBus를 통한 느슨한 결합 유지
+
+2. **Animation 시스템 통합**: 별도 Transition 클래스 제거, flux 기반 통합
+   - 모든 애니메이션 (이동, 페이드, shake)이 flux tween으로 처리됨
+   - Game:update(dt)에서 flux.update(dt) 호출하여 중앙 관리
+   - Camera는 apply/release로 변환 상태 제어
+
+3. **MapScene 별도 유지**: GameScene과 독립적인 맵 탐색 전용 Scene
+   - 이벤트 중단 시 맵으로 복귀하는 전환이 깔끔함
+   - MapOverlay와 MapScene이 SceneManager 스택으로 독립 관리
 
 ### 코드 품질 기준
 
-1. 모든 클래스가 단일 책임 원칙 준수
+1. 모든 클래스/모듈이 단일 책임 원칙 준수
 2. 새 노드 타입 추가 시 기존 코드 수정 불필요 (개방-폐쇄 원칙)
 3. 새 카드 효과 추가 시 Card 클래스 수정 불필요 (Strategy 패턴)
-4. 시스템 간 직접 참조 최소화 (EventBus 활용)
+4. 시스템 간 직接 참조 최소화 (EventBus 활용)
 5. Lua 코딩 규칙 준수 (snake_case, 2 spaces 들여쓰기)
+6. Handler 모듈들이 SceneManager에 의존하지 않음 (GameScene에서만 관리)

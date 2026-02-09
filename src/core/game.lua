@@ -30,14 +30,16 @@ function Game:init()
     self.scene_manager = SceneManager:new()
     self.event_bus = EventBus:new()
 
-    --- 초기 Scene 설정: MapScene으로 시작
-    --- MapScene은 require가 Game:init() 내부에서 호출되어 순환 참조 방지
-    local MapScene = require('src.scene.map_scene')
-    self.scene_manager:push(MapScene:new())
+    --- 초기 Scene 설정: GameScene으로 시작 (통합 게임플레이 씬)
+    local GameScene = require('src.scene.game_scene')
+    self.scene_manager:push(GameScene:new())
 end
 
 ---@param dt number
 function Game:update(dt)
+    local flux = require('lib.flux')
+    flux.update(dt)
+
     if self.scene_manager then
         self.scene_manager:update(dt)
     end
