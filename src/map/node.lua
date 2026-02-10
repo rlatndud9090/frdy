@@ -39,4 +39,9 @@ function Node:mark_completed()
   self.completed = true
 end
 
+---@return boolean
+function Node:is_boss()
+  return false
+end
+
 return Node

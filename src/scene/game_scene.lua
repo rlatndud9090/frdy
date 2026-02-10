@@ -4,7 +4,8 @@ local Scene = require('src.core.scene')
 local Camera = require('src.anim.camera')
 local MapGenerator = require('src.map.map_generator')
 local Gauge = require('src.ui.gauge')
-local Button = require('src.ui.button')
+local Minimap = require('src.ui.minimap')
+local MapOverlay = require('src.ui.map_overlay')
 local CombatHandler = require('src.handler.combat_handler')
 local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
@@ -36,7 +37,8 @@ local EDGE_SELECT = "EDGE_SELECT"
 ---@field overlay_alpha number
 ---@field suspicion_gauge Gauge
 ---@field mana_gauge Gauge
----@field minimap_button Button
+---@field minimap Minimap
+---@field map_overlay MapOverlay
 local GameScene = class('GameScene', Scene)
 
 function GameScene:initialize()
@@ -71,10 +73,13 @@ function GameScene:initialize()
   self.mana_gauge = Gauge:new(20, 60, 200, 30, "마나", {0, 0.5, 1})
   self.mana_gauge:set_value(3, 3)
 
-  self.minimap_button = Button:new(1280 - 120, 20, 100, 40, "미니맵")
-  self.minimap_button:set_on_click(function()
-    print("미니맵 버튼 클릭됨")
+  self.minimap = Minimap:new(1280 - 220, 16, 200, 100)
+  self.minimap:set_map_data(floor, self.current_node)
+  self.minimap:set_on_click(function()
+    self:_toggle_map_overlay()
   end)
+
+  self.map_overlay = MapOverlay:new()
 
   -- 핸들러 생성
   self.combat_handler = CombatHandler:new({
@@ -109,7 +114,8 @@ function GameScene:update(dt)
   -- UI 위젯 업데이트
   self.suspicion_gauge:update(dt)
   self.mana_gauge:update(dt)
-  self.minimap_button:update(dt)
+  self.minimap:update(dt)
+  self.map_overlay:update(dt)
 
   -- 페이즈별 업데이트
   if self.phase == TRAVELING then
@@ -142,50 +148,13 @@ function GameScene:draw()
 
   -- UI 렌더링
   self:_draw_ui()
+
+  -- 맵 오버레이 (UI 위에 그려야 함)
+  self.map_overlay:draw()
 end
 
---- 월드 요소 그리기
+--- 월드 요소 그리기 (용사 + 핸들러 월드 요소만. 맵 그래프는 Minimap/MapOverlay에서 표시)
 function GameScene:_draw_world()
-  local floor = self.map:get_current_floor()
-  if not floor then return end
-
-  -- 엣지 그리기
-  love.graphics.setColor(0.5, 0.5, 0.5, 0.3)
-  for _, edge in ipairs(floor.edges) do
-    local from_pos = edge:get_from_node():get_position()
-    local to_pos = edge:get_to_node():get_position()
-    love.graphics.line(from_pos.x, from_pos.y, to_pos.x, to_pos.y)
-  end
-
-  -- 노드 그리기
-  for _, node in ipairs(floor:get_nodes()) do
-    local pos = node:get_position()
-    local node_type = node:get_type()
-    local alpha = node:is_completed() and 0.4 or 1.0
-
-    -- 노드 타입별 색상 및 크기
-    local radius = 30
-    if node_type == "combat" then
-      -- 보스 노드 판별
-      if node.is_boss and node:is_boss() then
-        love.graphics.setColor(0.8, 0.1, 0.1, alpha)
-        radius = 40
-      else
-        love.graphics.setColor(0.3, 0.3, 0.8, alpha)
-      end
-    elseif node_type == "event" then
-      love.graphics.setColor(0.2, 0.7, 0.3, alpha)
-    end
-
-    love.graphics.circle('fill', pos.x, pos.y, radius)
-
-    -- 현재 노드 흰색 외곽선
-    if node == self.current_node then
-      love.graphics.setColor(1, 1, 1, alpha)
-      love.graphics.circle('line', pos.x, pos.y, radius)
-    end
-  end
-
   -- 용사 그리기 (금색)
   love.graphics.setColor(1, 0.8, 0)
   love.graphics.circle('fill', self.hero_world_x, self.hero_world_y, 20)
@@ -205,10 +174,10 @@ end
 function GameScene:_draw_ui()
   love.graphics.setColor(1, 1, 1)
 
-  -- 게이지 및 버튼
+  -- 게이지 및 미니맵
   self.suspicion_gauge:draw()
   self.mana_gauge:draw()
-  self.minimap_button:draw()
+  self.minimap:draw()
 
   -- 전투 관련 페이즈: 핸들러 UI 그리기
   if self.phase == ENTERING_COMBAT or self.phase == COMBAT or self.phase == EXITING_COMBAT then
@@ -234,10 +203,16 @@ end
 
 ---@param key string
 function GameScene:keypressed(key)
+  -- 맵 오버레이가 열려있으면 오버레이에 키 이벤트 우선 전달
+  if self.map_overlay:is_open() then
+    self.map_overlay:keypressed(key)
+    return
+  end
+
   if key == "escape" then
     love.event.quit()
   elseif key == "m" then
-    print("미니맵")
+    self:_toggle_map_overlay()
   end
 end
 
@@ -245,7 +220,13 @@ end
 ---@param y number
 ---@param button number
 function GameScene:mousepressed(x, y, button)
-  self.minimap_button:mousepressed(x, y, button)
+  -- 맵 오버레이가 열려있으면 오버레이에만 이벤트 전달
+  if self.map_overlay:is_open() then
+    self.map_overlay:mousepressed(x, y, button)
+    return
+  end
+
+  self.minimap:mousepressed(x, y, button)
 
   if self.phase == COMBAT then
     self.combat_handler:mousepressed(x, y, button)
@@ -295,6 +276,9 @@ function GameScene:_on_arrived()
   self.target_node = nil
   self.map:set_current_node(self.current_node)
   self.current_node:mark_completed()
+
+  -- 미니맵 데이터 갱신
+  self.minimap:set_map_data(self.map:get_current_floor(), self.current_node)
 
   local node_type = self.current_node:get_type()
   if node_type == "combat" then
@@ -392,6 +376,15 @@ end
 ---@param edge Edge
 function GameScene:_on_edge_selected(edge)
   self:_start_traveling(edge:get_to_node())
+end
+
+--- 맵 오버레이 토글
+function GameScene:_toggle_map_overlay()
+  if self.map_overlay:is_open() then
+    self.map_overlay:close()
+  else
+    self.map_overlay:open(self.map:get_current_floor(), self.current_node)
+  end
 end
 
 return GameScene

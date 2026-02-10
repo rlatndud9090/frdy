@@ -28,6 +28,11 @@ function Floor:get_nodes()
   return self.nodes
 end
 
+---@return Edge[]
+function Floor:get_edges()
+  return self.edges
+end
+
 ---@param node Node
 ---@return Edge[]
 function Floor:get_edges_from(node)
