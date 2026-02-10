@@ -1,119 +1,363 @@
 local class = require('lib.middleclass')
+local CombatManager = require('src.combat.combat_manager')
 local Gauge = require('src.ui.gauge')
 local Button = require('src.ui.button')
+local CardHand = require('src.ui.card_hand')
 
 ---@class CombatHandler
+---@field combat_manager CombatManager
+---@field deck Deck|nil
+---@field mana_manager ManaManager|nil
+---@field suspicion_manager SuspicionManager|nil
 ---@field hero_gauge Gauge
----@field enemy_gauge Gauge
----@field end_button Button
----@field on_end_callback function|nil
----@field enemy_world_x number     -- enemy position in world coords (for slide-in animation)
+---@field enemy_gauges Gauge[]
+---@field end_turn_button Button
+---@field card_hand CardHand
+---@field on_combat_end function|nil
+---@field enemy_world_x number
 ---@field enemy_world_y number
----@field ui_offset_y number       -- combat UI vertical offset (for slide-up animation)
+---@field ui_offset_y number
 ---@field active boolean
+---@field phase_timer number
+---@field combat_log string[]
+---@field log_timer number
 local CombatHandler = class('CombatHandler')
 
----Constructor
----@param params table { on_end_callback = function }
-function CombatHandler:initialize(params)
-  params = params or {}
+function CombatHandler:initialize()
+  self.combat_manager = CombatManager:new()
+  self.deck = nil
+  self.mana_manager = nil
+  self.suspicion_manager = nil
 
-  -- Create hero gauge at (50, 100, 200, 30) with green color, label "Hero HP", value 100/100
-  self.hero_gauge = Gauge:new(50, 100, 200, 30)
-  self.hero_gauge.label = "Hero HP"
-  self.hero_gauge.fg_color = { 0, 1, 0 }
-  self.hero_gauge:set_value(100, 100)
+  -- UI
+  self.hero_gauge = Gauge:new(50, 520, 200, 25, "용사 HP", {0.2, 0.8, 0.2})
+  self.enemy_gauges = {}
 
-  -- Create enemy gauge at (800, 100, 200, 30) with red color, label "Enemy HP", value 50/100
-  self.enemy_gauge = Gauge:new(800, 100, 200, 30)
-  self.enemy_gauge.label = "Enemy HP"
-  self.enemy_gauge.fg_color = { 1, 0, 0 }
-  self.enemy_gauge:set_value(50, 100)
+  self.end_turn_button = Button:new(1100, 620, 120, 40, "턴 종료")
+  self.end_turn_button:set_on_click(function()
+    self:_end_demon_lord_turn()
+  end)
+  self.end_turn_button:set_visible(false)
 
-  -- Create end button at (640-50, 650, 100, 40) with text "전투 종료"
-  self.end_button = Button:new(640 - 50, 650, 100, 40, "전투 종료")
-  self.end_button:set_on_click(function()
-    if self.on_end_callback then
-      self.on_end_callback()
+  self.card_hand = CardHand:new()
+  self.card_hand:set_visible(false)
+  self.card_hand:set_on_play(function(card, index)
+    self:_play_card(card, index)
+  end)
+
+  self.on_combat_end = nil
+
+  -- 애니메이션 필드
+  self.enemy_world_x = 1280 + 200
+  self.enemy_world_y = 300
+  self.ui_offset_y = 200
+
+  self.active = false
+  self.phase_timer = 0
+
+  self.combat_log = {}
+  self.log_timer = 0
+end
+
+function CombatHandler:set_on_combat_end(callback)
+  self.on_combat_end = callback
+end
+
+--- 전투 시작
+function CombatHandler:start_combat(hero, enemies, deck, mana_manager, suspicion_manager)
+  self.deck = deck
+  self.mana_manager = mana_manager
+  self.suspicion_manager = suspicion_manager
+  self.combat_log = {}
+
+  self.combat_manager:start_combat(hero, enemies)
+  self.combat_manager:set_on_combat_end(function(result)
+    if self.on_combat_end then
+      self.on_combat_end(result)
     end
   end)
 
-  self.on_end_callback = params.on_end_callback
+  -- 적 HP 게이지 생성
+  self.enemy_gauges = {}
+  for i, enemy in ipairs(enemies) do
+    local g = Gauge:new(800, 460 + (i-1) * 35, 180, 25, enemy:get_name(), {0.8, 0.2, 0.2})
+    g:set_value(enemy:get_hp(), enemy:get_max_hp())
+    table.insert(self.enemy_gauges, g)
+  end
 
-  -- Animation fields
-  self.enemy_world_x = 1280 + 200  -- off-screen right, for slide-in
-  self.enemy_world_y = 300
-  self.ui_offset_y = 200  -- below screen, for slide-up
+  -- hero gauge 업데이트
+  self.hero_gauge:set_value(hero:get_hp(), hero:get_max_hp())
 
-  self.active = false
+  -- 첫 턴 시작 (DEMON_LORD_TURN)
+  self:_start_demon_lord_turn()
 end
 
----Activate combat handler
 function CombatHandler:activate()
   self.active = true
 end
 
----Deactivate combat handler
 function CombatHandler:deactivate()
   self.active = false
+  self.card_hand:set_visible(false)
+  self.end_turn_button:set_visible(false)
 end
 
----Update combat handler
----@param dt number Delta time
 function CombatHandler:update(dt)
   if not self.active then return end
 
-  self.hero_gauge:update(dt)
-  self.enemy_gauge:update(dt)
-  self.end_button:update(dt)
+  local tm = self.combat_manager:get_turn_manager()
+  if not tm then return end
+
+  local phase = tm:get_phase()
+
+  -- 로그 타이머
+  if self.log_timer > 0 then
+    self.log_timer = self.log_timer - dt
+  end
+
+  -- HERO_TURN / ENEMY_TURN은 자동 진행
+  if phase == "HERO_TURN" or phase == "ENEMY_TURN" then
+    self.phase_timer = self.phase_timer - dt
+    if self.phase_timer <= 0 then
+      self:_auto_advance()
+    end
+  end
+
+  -- UI 업데이트
+  self.card_hand:update(dt)
+  self.end_turn_button:update(dt)
+
+  -- 게이지 업데이트
+  self:_update_gauges()
 end
 
----Draw world elements (enemy)
----@param camera_x number Camera X position (not used, we draw in world coords)
-function CombatHandler:draw_world(camera_x)
-  -- Draw enemy placeholder (red circle radius 40) at enemy_world_x, enemy_world_y
-  love.graphics.setColor(1, 0, 0)
-  love.graphics.circle('fill', self.enemy_world_x, self.enemy_world_y, 40)
-  love.graphics.setColor(1, 1, 1)
+function CombatHandler:draw_world()
+  -- 적 그리기 (빨간 원)
+  local enemies = self.combat_manager:get_enemies() or {}
+  for i, enemy in ipairs(enemies) do
+    if enemy:is_alive() then
+      local offset_y = (i - 1) * 70
+      love.graphics.setColor(0.8, 0.2, 0.2, 1)
+      love.graphics.circle('fill', self.enemy_world_x, self.enemy_world_y + offset_y, 30)
+      -- 적 이름
+      love.graphics.setColor(1, 1, 1, 1)
+      love.graphics.printf(enemy:get_name(), self.enemy_world_x - 50, self.enemy_world_y + offset_y - 45, 100, 'center')
+      -- intent 표시
+      local intent = enemy:get_intent()
+      if intent then
+        if intent.type == "attack" then
+          love.graphics.setColor(1, 0.4, 0.4, 1)
+        else
+          love.graphics.setColor(0.4, 0.7, 1, 1)
+        end
+        love.graphics.printf(intent.description, self.enemy_world_x - 60, self.enemy_world_y + offset_y + 35, 120, 'center')
+      end
+    end
+  end
+  love.graphics.setColor(1, 1, 1, 1)
 end
 
----Draw UI elements (gauges, button, overlay text)
 function CombatHandler:draw_ui()
-  -- Draw background overlay text "전투 중" at top center
-  love.graphics.setColor(1, 1, 1, 0.8)
-  love.graphics.printf("전투 중", 0, 30, 1280, 'center')
-
-  -- Translate gauges and button by ui_offset_y for slide-up animation
   love.graphics.push()
   love.graphics.translate(0, self.ui_offset_y)
 
+  local tm = self.combat_manager:get_turn_manager()
+  local phase = tm and tm:get_phase() or ""
+  local turn_count = tm and tm:get_turn_count() or 0
+
+  -- 턴 정보
+  love.graphics.setColor(1, 1, 1, 0.9)
+  local phase_text = "전투 중"
+  if phase == "DEMON_LORD_TURN" then
+    phase_text = "마왕의 턴 (턴 " .. turn_count .. ")"
+  elseif phase == "HERO_TURN" then
+    phase_text = "용사의 턴"
+  elseif phase == "ENEMY_TURN" then
+    phase_text = "적의 턴"
+  end
+  love.graphics.printf(phase_text, 0, 20, 1280, 'center')
+
+  -- 마나 표시
+  if self.mana_manager then
+    love.graphics.setColor(0, 0.5, 1, 1)
+    love.graphics.printf(
+      "마나: " .. self.mana_manager:get_current() .. "/" .. self.mana_manager:get_max(),
+      0, 45, 1280, 'center'
+    )
+  end
+
+  -- Hero intent 표시
+  local hero = self.combat_manager:get_hero()
+  if hero and hero:is_alive() then
+    local hero_intent = hero:get_intent()
+    if hero_intent then
+      love.graphics.setColor(1, 0.8, 0, 0.8)
+      love.graphics.print("용사: " .. hero_intent.description .. " (" .. hero_intent.damage .. " 데미지)", 50, 490)
+    end
+  end
+
+  -- 게이지
   self.hero_gauge:draw()
-  self.enemy_gauge:draw()
-  self.end_button:draw()
+  for _, g in ipairs(self.enemy_gauges) do
+    g:draw()
+  end
+
+  -- 전투 로그 (최근 3개)
+  love.graphics.setColor(1, 1, 1, 0.7)
+  local log_y = 70
+  local start_idx = math.max(1, #self.combat_log - 2)
+  for i = start_idx, #self.combat_log do
+    love.graphics.printf(self.combat_log[i], 300, log_y, 680, 'center')
+    log_y = log_y + 18
+  end
+
+  -- CardHand + 턴 종료 버튼
+  self.card_hand:draw()
+  self.end_turn_button:draw()
 
   love.graphics.pop()
-  love.graphics.setColor(1, 1, 1)
+  love.graphics.setColor(1, 1, 1, 1)
 end
 
----Handle mouse press
----@param x number Mouse X position
----@param y number Mouse Y position
----@param button number Mouse button
 function CombatHandler:mousepressed(x, y, button)
   if not self.active then return end
-
-  -- Adjust mouse coords by ui_offset_y for button/gauge hit testing
   local adjusted_y = y - self.ui_offset_y
 
-  self.hero_gauge:mousepressed(x, adjusted_y, button)
-  self.enemy_gauge:mousepressed(x, adjusted_y, button)
-  self.end_button:mousepressed(x, adjusted_y, button)
+  self.card_hand:mousepressed(x, adjusted_y, button)
+  self.end_turn_button:mousepressed(x, adjusted_y, button)
 end
 
----Set on_end callback
----@param callback function Callback function
-function CombatHandler:set_on_end(callback)
-  self.on_end_callback = callback
+--- 마왕 턴 시작
+function CombatHandler:_start_demon_lord_turn()
+  if not self.deck or not self.mana_manager then return end
+
+  local tm = self.combat_manager:get_turn_manager()
+  if not tm then return end
+
+  -- 마나 충전
+  self.mana_manager:start_turn(tm:get_turn_count())
+
+  -- 카드 드로우
+  self.deck:start_turn(5)
+
+  -- CardHand 갱신
+  self.card_hand:set_cards(self.deck:get_hand())
+  self.card_hand:set_mana_manager(self.mana_manager)
+  self.card_hand:set_visible(true)
+  self.end_turn_button:set_visible(true)
+
+  table.insert(self.combat_log, "--- 마왕의 턴 (턴 " .. tm:get_turn_count() .. ") ---")
+end
+
+--- 카드 플레이
+---@param card Card
+---@param index number
+function CombatHandler:_play_card(card, index)
+  local hero = self.combat_manager:get_hero()
+  local enemies = self.combat_manager:get_enemies()
+  if not hero or not enemies then return end
+
+  -- 타겟 결정: effect type에 따라
+  local effect = card:get_effect()
+  ---@type Entity
+  local target = hero  -- 기본: hero
+  if effect and (effect.type == "damage" or effect.type == "debuff_attack") then
+    -- 첫 번째 살아있는 적을 타겟
+    local living = self.combat_manager:get_turn_manager():get_living_enemies()
+    if #living > 0 then
+      target = living[1]
+    end
+  end
+
+  -- 카드 플레이
+  local context = {
+    hero = hero,
+    enemies = enemies,
+    mana_manager = self.mana_manager,
+    suspicion_manager = self.suspicion_manager,
+  }
+  card:play(target, context)
+
+  -- 핸드에서 제거
+  self.deck:discard(card)
+
+  -- 로그
+  table.insert(self.combat_log, "마왕이 [" .. card:get_name() .. "]을 사용!")
+
+  -- CardHand 갱신
+  self.card_hand:set_cards(self.deck:get_hand())
+
+  -- 게이지 갱신
+  self:_update_gauges()
+end
+
+--- 마왕 턴 종료
+function CombatHandler:_end_demon_lord_turn()
+  self.card_hand:set_visible(false)
+  self.end_turn_button:set_visible(false)
+
+  -- 남은 카드 discard
+  self.deck:discard_hand()
+
+  -- advance_phase: DEMON_LORD → HERO
+  self.combat_manager:advance_phase()
+
+  -- 전투 종료 체크
+  if self.combat_manager:is_combat_over() then
+    self.combat_manager:end_combat()
+    return
+  end
+
+  -- HERO 턴 자동 진행 타이머
+  self.phase_timer = 0.8
+  table.insert(self.combat_log, "용사가 행동한다!")
+end
+
+--- 자동 진행 (HERO/ENEMY 턴)
+function CombatHandler:_auto_advance()
+  local tm = self.combat_manager:get_turn_manager()
+  if not tm then return end
+
+  local phase = tm:get_phase()
+
+  if phase == "HERO_TURN" then
+    self.combat_manager:advance_phase()
+
+    if self.combat_manager:is_combat_over() then
+      self.combat_manager:end_combat()
+      return
+    end
+
+    -- ENEMY 턴 타이머
+    self.phase_timer = 0.8
+    table.insert(self.combat_log, "적이 행동한다!")
+
+  elseif phase == "ENEMY_TURN" then
+    self.combat_manager:advance_phase()
+
+    if self.combat_manager:is_combat_over() then
+      self.combat_manager:end_combat()
+      return
+    end
+
+    -- 다시 DEMON_LORD 턴
+    self:_start_demon_lord_turn()
+  end
+end
+
+--- 게이지 갱신
+function CombatHandler:_update_gauges()
+  local hero = self.combat_manager:get_hero()
+  if hero then
+    self.hero_gauge:set_value(hero:get_hp(), hero:get_max_hp())
+  end
+
+  local enemies = self.combat_manager:get_enemies() or {}
+  for i, enemy in ipairs(enemies) do
+    if self.enemy_gauges[i] then
+      self.enemy_gauges[i]:set_value(enemy:get_hp(), enemy:get_max_hp())
+    end
+  end
 end
 
 return CombatHandler

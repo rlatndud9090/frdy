@@ -13,4 +13,9 @@ function EventNode:initialize(id, position, floor_index, event_id)
   self.event_id = event_id
 end
 
+---@return string|nil
+function EventNode:get_event_id()
+  return self.event_id
+end
+
 return EventNode

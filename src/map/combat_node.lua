@@ -21,4 +21,9 @@ function CombatNode:is_boss()
   return self._is_boss
 end
 
+---@return string|nil
+function CombatNode:get_enemy_group()
+  return self.enemy_group_id
+end
+
 return CombatNode

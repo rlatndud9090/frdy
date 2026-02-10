@@ -9,6 +9,14 @@ local MapOverlay = require('src.ui.map_overlay')
 local CombatHandler = require('src.handler.combat_handler')
 local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
+local Hero = require('src.combat.hero')
+local Enemy = require('src.combat.enemy')
+local Card = require('src.card.card')
+local Deck = require('src.card.deck')
+local ManaManager = require('src.card.mana_manager')
+local SuspicionManager = require('src.card.suspicion_manager')
+local EventManager = require('src.event.event_manager')
+local Game = require('src.core.game')
 
 local SEGMENT_WIDTH = 300
 
@@ -31,6 +39,12 @@ local EDGE_SELECT = "EDGE_SELECT"
 ---@field hero_world_x number
 ---@field hero_world_y number
 ---@field camera Camera
+---@field hero Hero
+---@field deck Deck
+---@field mana_manager ManaManager
+---@field suspicion_manager SuspicionManager
+---@field event_manager EventManager
+---@field floor_enemies table
 ---@field combat_handler CombatHandler
 ---@field event_handler EventHandler
 ---@field edge_select_handler EdgeSelectHandler|nil
@@ -65,13 +79,35 @@ function GameScene:initialize()
   self.camera.x = self.hero_world_x
   self.camera.target_x = self.hero_world_x
 
+  -- 게임 객체 생성
+  self.hero = Hero:new({hp = 50, attack = 8, defense = 2})
+
+  -- 카드 덱 생성
+  local base_cards_data = require('data.cards.base_cards')
+  local cards = {}
+  for _, card_data in ipairs(base_cards_data) do
+    table.insert(cards, Card:new(card_data))
+  end
+  self.deck = Deck:new(cards)
+
+  -- 매니저 생성
+  local event_bus = Game:getInstance().event_bus
+  self.mana_manager = ManaManager:new(3)
+  self.suspicion_manager = SuspicionManager:new(event_bus)
+
+  -- 이벤트 매니저 생성
+  self.event_manager = EventManager:new()
+  self.event_manager:load_events(require('data.events.floor1_events'))
+
+  -- 적 데이터 로드
+  self.floor_enemies = require('data.enemies.floor1_enemies')
+
   -- UI 위젯 생성
   self.suspicion_gauge = Gauge:new(20, 20, 200, 30, "의심", {1, 0, 0})
-  self.suspicion_gauge:set_value(0)
-  self.suspicion_gauge:set_max(100)
+  self.suspicion_gauge:set_value(0, 100)
 
   self.mana_gauge = Gauge:new(20, 60, 200, 30, "마나", {0, 0.5, 1})
-  self.mana_gauge:set_value(3, 3)
+  self.mana_gauge:set_value(self.mana_manager:get_current(), self.mana_manager:get_max())
 
   self.minimap = Minimap:new(1280 - 220, 16, 200, 100)
   self.minimap:set_map_data(floor, self.current_node)
@@ -82,17 +118,15 @@ function GameScene:initialize()
   self.map_overlay = MapOverlay:new()
 
   -- 핸들러 생성
-  self.combat_handler = CombatHandler:new({
-    on_end_callback = function()
-      self:_on_combat_ended()
-    end
-  })
+  self.combat_handler = CombatHandler:new()
+  self.combat_handler:set_on_combat_end(function(result)
+    self:_on_combat_ended(result)
+  end)
 
-  self.event_handler = EventHandler:new({
-    on_choice_callback = function(index)
-      self:_on_event_choice(index)
-    end
-  })
+  self.event_handler = EventHandler:new()
+  self.event_handler:set_on_event_end(function()
+    self:_on_event_ended()
+  end)
 
   self.edge_select_handler = nil
 
@@ -132,6 +166,10 @@ function GameScene:update(dt)
     -- ENTERING_*, EXITING_*, ARRIVING: flux 처리, 카메라 타겟만 갱신
     self.camera:set_target(self.hero_world_x, self.hero_world_y)
   end
+
+  -- 게이지 실시간 갱신
+  self.suspicion_gauge:set_value(self.suspicion_manager:get_level(), self.suspicion_manager:get_max())
+  self.mana_gauge:set_value(self.mana_manager:get_current(), self.mana_manager:get_max())
 end
 
 function GameScene:draw()
@@ -178,6 +216,11 @@ function GameScene:_draw_ui()
   self.suspicion_gauge:draw()
   self.mana_gauge:draw()
   self.minimap:draw()
+
+  -- 용사 HP (텍스트)
+  love.graphics.setColor(0.2, 0.8, 0.2, 1)
+  love.graphics.print("용사 HP: " .. self.hero:get_hp() .. "/" .. self.hero:get_max_hp(), 20, 100)
+  love.graphics.setColor(1, 1, 1)
 
   -- 전투 관련 페이즈: 핸들러 UI 그리기
   if self.phase == ENTERING_COMBAT or self.phase == COMBAT or self.phase == EXITING_COMBAT then
@@ -292,6 +335,13 @@ end
 function GameScene:_enter_combat()
   self.phase = ENTERING_COMBAT
 
+  -- 적 생성
+  local enemies = self:_create_enemies()
+
+  -- combat_handler에 전투 데이터 전달
+  self.combat_handler:start_combat(self.hero, enemies, self.deck, self.mana_manager, self.suspicion_manager)
+
+  -- 애니메이션
   self.combat_handler.enemy_world_x = self.hero_world_x + 800
   self.combat_handler.enemy_world_y = self.hero_world_y + 60
   self.combat_handler.ui_offset_y = 200
@@ -308,10 +358,43 @@ function GameScene:_enter_combat()
     end)
 end
 
+--- 적 생성
+---@return Enemy[]
+function GameScene:_create_enemies()
+  local enemies = {}
+  local node = self.current_node
+
+  if node:is_boss() then
+    -- 보스 노드: 암흑기사
+    local data = self.floor_enemies.boss_dark_knight
+    table.insert(enemies, Enemy:new(data.name, data.stats, data.action_patterns))
+  else
+    -- 일반 전투: 랜덤 1~2마리
+    local enemy_keys = {"slime", "goblin", "skeleton", "wolf"}
+    local count = math.random(1, 2)
+    for _ = 1, count do
+      local key = enemy_keys[math.random(#enemy_keys)]
+      local data = self.floor_enemies[key]
+      table.insert(enemies, Enemy:new(data.name, data.stats, data.action_patterns))
+    end
+  end
+
+  return enemies
+end
+
 --- 전투 종료 처리
-function GameScene:_on_combat_ended()
+---@param result string
+function GameScene:_on_combat_ended(result)
   self.phase = EXITING_COMBAT
   self.combat_handler:deactivate()
+
+  if result == "victory" then
+    -- 용사 성장
+    self.hero:grow({exp = 30, hp_bonus = 0, attack_bonus = 0})
+  elseif result == "defeat" then
+    -- 패배 처리 (TODO: 게임 오버 화면)
+    print("패배! 게임 오버")
+  end
 
   flux.to(self.combat_handler, 0.4, {enemy_world_x = self.hero_world_x + 800})
     :ease("quadin")
@@ -320,6 +403,9 @@ function GameScene:_on_combat_ended()
   flux.to(self, 0.3, {overlay_alpha = 0})
     :ease("linear")
     :oncomplete(function()
+      if result == "defeat" then
+        return  -- 게임 오버 시 진행하지 않음
+      end
       self:_check_next_move()
     end)
 end
@@ -328,6 +414,21 @@ end
 function GameScene:_enter_event()
   self.phase = ENTERING_EVENT
 
+  -- 이벤트 가져오기
+  local event = self.event_manager:get_random_event()
+  if not event then
+    -- 이벤트가 없으면 바로 다음으로 진행
+    self:_check_next_move()
+    return
+  end
+
+  -- event_handler에 이벤트 데이터 전달
+  self.event_handler:start_event(event, {
+    hero = self.hero,
+    suspicion_manager = self.suspicion_manager,
+  })
+
+  -- 애니메이션
   self.event_handler.npc_world_x = self.hero_world_x + 200
   self.event_handler.npc_world_y = self.hero_world_y
   self.event_handler.panel_alpha = 0
@@ -341,9 +442,8 @@ function GameScene:_enter_event()
     end)
 end
 
---- 이벤트 선택 처리
----@param choice_index number
-function GameScene:_on_event_choice(choice_index)
+--- 이벤트 종료 처리
+function GameScene:_on_event_ended()
   self.phase = EXITING_EVENT
   self.event_handler:deactivate()
 
