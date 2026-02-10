@@ -71,13 +71,14 @@
 │                  └──────────────┘     │    (통합 게임)  │     │
 │                       ↑               │  - MapScene      │     │
 │                       │               │    (맵/탐색)     │     │
-│                  ┌────┴──────┐        │  - MapOverlay    │     │
-│                  │  Handlers  │        │    (맵 보기)     │     │
-│                  │ (모듈들):  │        └──────────────────┘     │
-│                  │ - Combat   │                                 │
-│                  │ - Event    │       GameScene 내부 페이즈:   │
-│                  │ - EdgeSel. │       - TRAVELING               │
-│                  └────────────┘       - ARRIVING                │
+│                  ┌────┴──────┐        └──────────────────┘     │
+│                  │  Handlers  │                                 │
+│                  │ (모듈들):  │  GameScene 내부 UI 모듈:       │
+│                  │ - Combat   │  - Minimap (축소 맵 위젯)     │
+│                  │ - Event    │  - MapOverlay (전체 맵 오버레이)│
+│                  │ - EdgeSel. │                                 │
+│                  └────────────┘  GameScene 내부 페이즈:        │
+│                                  - TRAVELING                   │
 │                                       - ENTERING/EXITING_COMBAT │
 │                                       - COMBAT (handler)        │
 │                                       - ENTERING/EXITING_EVENT  │
@@ -256,7 +257,7 @@
 | **Button** | 클릭 가능한 버튼 | `on_click(callback)`, `set_text(text)` |
 | **Panel** | 배경 패널/컨테이너 | `add_child(element)`, `remove_child(element)` |
 | **Gauge** | 게이지 바 (HP, 마력, 의심) | `set_value(current, max)`, `set_color(color)` |
-| **Minimap** | 플로팅 미니맵 위젯 | `set_map(map)`, `set_current_node(node)`, `toggle()` |
+| **Minimap** | 플로팅 미니맵 위젯. 축소된 맵 그래프 표시. 클릭 시 MapOverlay 열기 | `set_map_data(floor, node)`, `set_on_click(callback)`, `update(dt)`, `draw()` |
 | **EdgeSelector** | 경로 선택 UI. 사용 가능한 엣지 표시 | `show_edges(edges)`, `on_select(callback)`, `hide()` |
 | **CardHand** | 카드 패 UI. 펼치기/접기 | `set_cards(cards)`, `on_play(callback)`, `highlight(card)` |
 
@@ -264,12 +265,12 @@
 
 | Class/Module | Responsibility | Key Methods |
 |------|---------------|-------------|
-| **GameScene** | 통합 게임플레이 Scene. 페이즈 상태 머신으로 게임 흐름 제어. Map, Hero, Camera 보유 | `init(map, hero)`, `set_phase(phase)`, `update(dt)`, `draw()`, `keypressed(key)`, `mousepressed(x,y,btn)` |
+| **GameScene** | 통합 게임플레이 Scene. 페이즈 상태 머신으로 게임 흐름 제어. Map, Hero, Camera 보유. 맵 그래프는 직접 렌더링하지 않고 Minimap/MapOverlay를 통해서만 표시 | `init(map, hero)`, `set_phase(phase)`, `update(dt)`, `draw()`, `keypressed(key)`, `mousepressed(x,y,btn)` |
 | **MapScene** | 맵 탐색 화면. 벨트스크롤 뷰. 미니맵, 게이지 표시 | `init(map, hero)`, `update(dt)`, `draw()`, `keypressed(key)` |
 | **CombatHandler** | GameScene의 COMBAT 페이즈 전용 모듈. CombatManager와 ActionQueue 관리 | `init()`, `update(dt)`, `draw()`, `on_enter()`, `on_exit()` |
 | **EventHandler** | GameScene의 EVENT 페이즈 전용 모듈. EventManager와 선택지 UI 관리 | `init()`, `update(dt)`, `draw()`, `on_enter()`, `on_exit()` |
 | **EdgeSelectHandler** | GameScene의 EDGE_SELECT 페이즈 전용 모듈. EdgeSelector UI 관리 | `init()`, `update(dt)`, `draw()`, `on_enter()`, `on_exit()` |
-| **MapOverlay** | 전체 맵 시각화 오버레이. MapScene 위에 push되는 Scene | `init(map)`, `update(dt)`, `draw()`, `keypressed(key)` |
+| **MapOverlay** | 전체 맵 시각화 오버레이. GameScene 내부 UI 모듈 (Scene이 아님). 미니맵 클릭 또는 M키로 토글 | `open(floor, node)`, `close()`, `is_open()`, `update(dt)`, `draw()`, `keypressed(key)` |
 
 ### Animation System
 
@@ -344,8 +345,7 @@ frdy/
 │   │
 │   ├── scene/                   -- Scene 구현
 │   │   ├── game_scene.lua       -- GameScene (통합 게임플레이 - 페이즈 상태머신)
-│   │   ├── map_scene.lua        -- MapScene (맵/탐색 화면)
-│   │   └── map_overlay.lua      -- MapOverlay (전체 맵 보기)
+│   │   └── map_scene.lua        -- MapScene (맵/탐색 화면)
 │   │
 │   ├── handler/                 -- GameScene 페이즈 핸들러들
 │   │   ├── combat_handler.lua   -- 전투 페이즈 로직
@@ -357,7 +357,8 @@ frdy/
 │   │   ├── button.lua           -- Button
 │   │   ├── panel.lua            -- Panel 컨테이너
 │   │   ├── gauge.lua            -- Gauge 게이지 바
-│   │   ├── minimap.lua          -- Minimap 미니맵
+│   │   ├── minimap.lua          -- Minimap 미니맵 (축소 맵 그래프 위젯)
+│   │   ├── map_overlay.lua      -- MapOverlay (전체 맵 오버레이 UI 모듈)
 │   │   ├── edge_selector.lua    -- EdgeSelector 경로 선택 UI
 │   │   └── card_hand.lua        -- CardHand 카드 패 UI
 │   │
@@ -718,29 +719,29 @@ frdy/
 - `src/ui/minimap.lua`
 - `src/scene/map_scene.lua` (수정)
 
-**TODO 5.1**: MapOverlay Scene 구현
-- SceneManager에 push (아래 MapScene이 보이도록 반투명 배경)
-- 전체 맵 그래프 시각화:
-  - 노드를 원 또는 아이콘으로 표시
-  - 엣지를 선으로 표시
-  - 현재 위치 강조
-  - 완료된 노드 표시
-  - 노드 타입별 색상 구분
-- 줌/팬 (선택사항, 기본은 전체 보기 fit)
-- ESC 또는 닫기 버튼으로 pop
-- **수락 기준**: 맵 버튼 클릭 시 오버레이 표시. 전체 노드/엣지/현재위치 시각화. ESC로 닫기
+**TODO 5.1**: MapOverlay UI 모듈 구현 ✅ (구현 완료)
+- GameScene 내부 UI 모듈로 구현 (별도 Scene이 아님)
+- 화면 전체를 덮는 반투명 어둠 배경 + 전체 맵 그래프 시각화
+- 노드 타입별 색상, 완료 상태, 현재 위치 강조, 엣지 표시
+- ESC/M키 또는 닫기 버튼으로 닫기
+- flux tween으로 fade in/out 애니메이션
+- **변경 이유**: SceneManager push 시 GameScene의 tween이 멈추는 문제 회피. Handler 패턴과 일관성 유지
+- **수락 기준**: 미니맵 클릭 또는 M키로 오버레이 토글. 전체 노드/엣지/현재위치 시각화
 
-**TODO 5.2**: Minimap 위젯 구현
-- MapScene 우측 상단에 고정 배치
-- 축소된 맵 그래프 표시
+**TODO 5.2**: Minimap 위젯 구현 ✅ (구현 완료)
+- GameScene 우측 상단에 고정 배치 (200x100)
+- 축소된 맵 그래프 표시 (월드 좌표→미니맵 좌표 스케일 변환)
 - 현재 위치 깜빡임 표시
 - 클릭 시 MapOverlay 열기
-- **수락 기준**: MapScene에서 항상 미니맵 표시. 현재 위치 표시. 클릭 시 전체 맵 열기
+- **수락 기준**: GameScene에서 항상 미니맵 표시. 현재 위치 표시. 클릭 시 전체 맵 열기
 
-**TODO 5.3**: MapScene에 미니맵 및 맵 버튼 통합
-- Minimap 위젯 배치
+**TODO 5.3**: GameScene에 미니맵 및 맵 오버레이 통합 ✅ (구현 완료)
+- GameScene에서 Node-Edge 그래프 직접 렌더링 제거 (_draw_world에서 노드/엣지 삭제)
+- Minimap 위젯 배치 (기존 minimap_button 대체)
+- MapOverlay 인스턴스 생성 및 토글 로직
 - 전체 맵 보기 단축키 (M키) 추가
-- **수락 기준**: M키 또는 미니맵 클릭으로 MapOverlay 토글
+- 오버레이 열림 시 입력 이벤트 차단 (오버레이에만 전달)
+- **수락 기준**: M키 또는 미니맵 클릭으로 MapOverlay 토글. GameScene 배경에 노드/엣지 없음
 
 **커밋**: `feat(map): 전체 맵 오버레이 및 플로팅 미니맵 구현`
 
