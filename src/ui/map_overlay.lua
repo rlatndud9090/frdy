@@ -1,11 +1,16 @@
 local class = require("lib.middleclass")
 local flux = require("lib.flux")
 local Button = require("src.ui.button")
+local MapUtils = require("src.ui.map_utils")
 
+--- 전체 맵 시각화 오버레이. GameScene 내부 UI 모듈.
+--- UIElement를 상속하지 않음: 전체화면 오버레이로 x/y/width/height 위치 개념이 불필요.
+--- SceneManager push 시 GameScene tween이 멈추는 문제를 회피하기 위해 별도 Scene이 아닌 내부 모듈로 구현.
 ---@class MapOverlay
 ---@field floor Floor|nil
 ---@field current_node Node|nil
----@field is_visible boolean
+---@field visible boolean
+---@field is_closing boolean
 ---@field alpha number
 ---@field close_button Button
 ---@field padding number
@@ -18,7 +23,8 @@ local SCREEN_H = 720
 function MapOverlay:initialize()
   self.floor = nil
   self.current_node = nil
-  self.is_visible = false
+  self.visible = false
+  self.is_closing = false
   self.alpha = 0
   self.padding = 60
   self.on_close_callback = nil
@@ -38,10 +44,10 @@ end
 ---@param floor Floor
 ---@param current_node Node|nil
 function MapOverlay:open(floor, current_node)
-  if self.is_visible then return end
+  if self.visible then return end
   self.floor = floor
   self.current_node = current_node
-  self.is_visible = true
+  self.visible = true
   self.alpha = 0
   self.close_button:set_visible(true)
 
@@ -49,12 +55,14 @@ function MapOverlay:open(floor, current_node)
 end
 
 function MapOverlay:close()
-  if not self.is_visible then return end
+  if not self.visible or self.is_closing then return end
+  self.is_closing = true
 
   flux.to(self, 0.2, {alpha = 0})
     :ease("quadin")
     :oncomplete(function()
-      self.is_visible = false
+      self.visible = false
+      self.is_closing = false
       self.close_button:set_visible(false)
       if self.on_close_callback then
         self.on_close_callback()
@@ -64,73 +72,24 @@ end
 
 ---@return boolean
 function MapOverlay:is_open()
-  return self.is_visible
+  return self.visible
 end
 
 ---@param dt number
 function MapOverlay:update(dt)
-  if not self.is_visible then return end
+  if not self.visible then return end
   self.close_button:update(dt)
 end
 
---- 맵 노드들의 월드 좌표 바운드 계산
----@return table|nil
-function MapOverlay:_get_map_bounds()
-  if not self.floor then return nil end
-  local nodes = self.floor:get_nodes()
-  if #nodes == 0 then return nil end
-
-  local min_x, min_y = math.huge, math.huge
-  local max_x, max_y = -math.huge, -math.huge
-
-  for _, node in ipairs(nodes) do
-    local pos = node:get_position()
-    if pos.x < min_x then min_x = pos.x end
-    if pos.y < min_y then min_y = pos.y end
-    if pos.x > max_x then max_x = pos.x end
-    if pos.y > max_y then max_y = pos.y end
-  end
-
-  local w = max_x - min_x
-  local h = max_y - min_y
-  if w < 1 then w = 1 end
-  if h < 1 then h = 100 end
-
-  return {min_x = min_x, min_y = min_y, max_x = max_x, max_y = max_y, width = w, height = h}
-end
-
---- 월드 좌표 → 오버레이 화면 좌표 변환
----@param world_x number
----@param world_y number
----@param bounds table
----@return number, number
-function MapOverlay:_world_to_screen(world_x, world_y, bounds)
-  local area_w = SCREEN_W - self.padding * 2
-  local area_h = SCREEN_H - self.padding * 2
-
-  local scale_x = area_w / bounds.width
-  local scale_y = area_h / bounds.height
-  local scale = math.min(scale_x, scale_y)
-
-  local used_w = bounds.width * scale
-  local used_h = bounds.height * scale
-  local offset_x = (area_w - used_w) / 2
-  local offset_y = (area_h - used_h) / 2
-
-  local sx = self.padding + offset_x + (world_x - bounds.min_x) * scale
-  local sy = self.padding + offset_y + (world_y - bounds.min_y) * scale
-  return sx, sy
-end
-
 function MapOverlay:draw()
-  if not self.is_visible then return end
+  if not self.visible then return end
 
   -- 어둠 배경
   love.graphics.setColor(0, 0, 0, 0.85 * self.alpha)
   love.graphics.rectangle("fill", 0, 0, SCREEN_W, SCREEN_H)
 
   if not self.floor then return end
-  local bounds = self:_get_map_bounds()
+  local bounds = MapUtils.get_map_bounds(self.floor)
   if not bounds then return end
 
   -- 타이틀
@@ -140,33 +99,24 @@ function MapOverlay:draw()
   -- 엣지 그리기
   love.graphics.setColor(0.5, 0.5, 0.5, 0.5 * self.alpha)
   love.graphics.setLineWidth(2)
-  for _, edge in ipairs(self.floor.edges) do
+  for _, edge in ipairs(self.floor:get_edges()) do
     local from_pos = edge:get_from_node():get_position()
     local to_pos = edge:get_to_node():get_position()
-    local fx, fy = self:_world_to_screen(from_pos.x, from_pos.y, bounds)
-    local tx, ty = self:_world_to_screen(to_pos.x, to_pos.y, bounds)
+    local fx, fy = MapUtils.world_to_view(from_pos.x, from_pos.y, bounds, 0, 0, SCREEN_W, SCREEN_H, self.padding)
+    local tx, ty = MapUtils.world_to_view(to_pos.x, to_pos.y, bounds, 0, 0, SCREEN_W, SCREEN_H, self.padding)
     love.graphics.line(fx, fy, tx, ty)
   end
 
   -- 노드 그리기
   for _, node in ipairs(self.floor:get_nodes()) do
     local pos = node:get_position()
-    local sx, sy = self:_world_to_screen(pos.x, pos.y, bounds)
-    local node_type = node:get_type()
+    local sx, sy = MapUtils.world_to_view(pos.x, pos.y, bounds, 0, 0, SCREEN_W, SCREEN_H, self.padding)
     local completed = node:is_completed()
     local alpha = (completed and 0.5 or 1.0) * self.alpha
 
-    local radius = 16
-    if node_type == "combat" then
-      if node.is_boss and node:is_boss() then
-        love.graphics.setColor(0.8, 0.1, 0.1, alpha)
-        radius = 22
-      else
-        love.graphics.setColor(0.3, 0.3, 0.8, alpha)
-      end
-    elseif node_type == "event" then
-      love.graphics.setColor(0.2, 0.7, 0.3, alpha)
-    end
+    local color, label, is_boss = MapUtils.get_node_visual(node)
+    local radius = is_boss and 22 or 16
+    love.graphics.setColor(color[1], color[2], color[3], alpha)
 
     love.graphics.circle("fill", sx, sy, radius)
 
@@ -186,16 +136,6 @@ function MapOverlay:draw()
 
     -- 노드 타입 라벨
     love.graphics.setColor(1, 1, 1, alpha)
-    local label = ""
-    if node_type == "combat" then
-      if node.is_boss and node:is_boss() then
-        label = "BOSS"
-      else
-        label = "전투"
-      end
-    elseif node_type == "event" then
-      label = "이벤트"
-    end
     local font = love.graphics.getFont()
     local tw = font:getWidth(label)
     love.graphics.print(label, sx - tw / 2, sy + radius + 4)
@@ -213,21 +153,18 @@ end
 
 ---@param key string
 function MapOverlay:keypressed(key)
-  if not self.is_visible then return false end
+  if not self.visible then return end
   if key == "escape" or key == "m" then
     self:close()
-    return true
   end
-  return false
 end
 
 ---@param mx number
 ---@param my number
 ---@param button number
 function MapOverlay:mousepressed(mx, my, button)
-  if not self.is_visible then return false end
+  if not self.visible then return end
   self.close_button:mousepressed(mx, my, button)
-  return true  -- 이벤트 소비 (아래 UI에 전달하지 않음)
 end
 
 return MapOverlay
