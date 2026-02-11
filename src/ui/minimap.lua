@@ -1,6 +1,7 @@
 local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
 local MapUtils = require("src.ui.map_utils")
+local i18n = require("src.i18n.init")
 
 ---@class Minimap : UIElement
 ---@field floor Floor|nil
@@ -59,7 +60,7 @@ function Minimap:draw()
 
   if not self.floor then
     love.graphics.setColor(0.6, 0.6, 0.6, 1)
-    love.graphics.printf("미니맵", self.x, self.y + self.height / 2 - 7, self.width, "center")
+    love.graphics.printf(i18n.t("ui.minimap"), self.x, self.y + self.height / 2 - 7, self.width, "center")
     return
   end
 

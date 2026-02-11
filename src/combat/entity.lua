@@ -1,4 +1,5 @@
 local class = require('lib.middleclass')
+local i18n = require('src.i18n.init')
 
 ---@class Entity
 ---@field name string
@@ -49,7 +50,7 @@ end
 
 ---@return string
 function Entity:get_name()
-  return self.name
+  return i18n.t(self.name)
 end
 
 ---@return number

@@ -3,6 +3,7 @@ local CombatManager = require('src.combat.combat_manager')
 local Gauge = require('src.ui.gauge')
 local Button = require('src.ui.button')
 local CardHand = require('src.ui.card_hand')
+local i18n = require('src.i18n.init')
 
 ---@class CombatHandler
 ---@field combat_manager CombatManager
@@ -30,10 +31,10 @@ function CombatHandler:initialize()
   self.suspicion_manager = nil
 
   -- UI
-  self.hero_gauge = Gauge:new(50, 520, 200, 25, "용사 HP", {0.2, 0.8, 0.2})
+  self.hero_gauge = Gauge:new(50, 520, 200, 25, "entity.hero", {0.2, 0.8, 0.2})
   self.enemy_gauges = {}
 
-  self.end_turn_button = Button:new(1100, 620, 120, 40, "턴 종료")
+  self.end_turn_button = Button:new(1100, 620, 120, 40, "ui.end_turn")
   self.end_turn_button:set_on_click(function()
     self:_end_demon_lord_turn()
   end)
@@ -167,13 +168,13 @@ function CombatHandler:draw_ui()
 
   -- 턴 정보
   love.graphics.setColor(1, 1, 1, 0.9)
-  local phase_text = "전투 중"
+  local phase_text = i18n.t("combat.in_combat")
   if phase == "DEMON_LORD_TURN" then
-    phase_text = "마왕의 턴 (턴 " .. turn_count .. ")"
+    phase_text = i18n.t("combat.demon_lord_turn", {turn = turn_count})
   elseif phase == "HERO_TURN" then
-    phase_text = "용사의 턴"
+    phase_text = i18n.t("combat.hero_turn")
   elseif phase == "ENEMY_TURN" then
-    phase_text = "적의 턴"
+    phase_text = i18n.t("combat.enemy_turn")
   end
   love.graphics.printf(phase_text, 0, 20, 1280, 'center')
 
@@ -181,7 +182,7 @@ function CombatHandler:draw_ui()
   if self.mana_manager then
     love.graphics.setColor(0, 0.5, 1, 1)
     love.graphics.printf(
-      "마나: " .. self.mana_manager:get_current() .. "/" .. self.mana_manager:get_max(),
+      i18n.t("combat.mana_display", {current = self.mana_manager:get_current(), max = self.mana_manager:get_max()}),
       0, 45, 1280, 'center'
     )
   end
@@ -192,7 +193,7 @@ function CombatHandler:draw_ui()
     local hero_intent = hero:get_intent()
     if hero_intent then
       love.graphics.setColor(1, 0.8, 0, 0.8)
-      love.graphics.print("용사: " .. hero_intent.description .. " (" .. hero_intent.damage .. " 데미지)", 50, 490)
+      love.graphics.print(i18n.t("combat.hero_intent", {desc = hero_intent.description, damage = hero_intent.damage}), 50, 490)
     end
   end
 
@@ -246,7 +247,7 @@ function CombatHandler:_start_demon_lord_turn()
   self.card_hand:set_visible(true)
   self.end_turn_button:set_visible(true)
 
-  table.insert(self.combat_log, "--- 마왕의 턴 (턴 " .. tm:get_turn_count() .. ") ---")
+  table.insert(self.combat_log, i18n.t("combat.demon_lord_turn_log", {turn = tm:get_turn_count()}))
 end
 
 --- 카드 플레이
@@ -282,7 +283,7 @@ function CombatHandler:_play_card(card, index)
   self.deck:discard(card)
 
   -- 로그
-  table.insert(self.combat_log, "마왕이 [" .. card:get_name() .. "]을 사용!")
+  table.insert(self.combat_log, i18n.t("combat.demon_lord_used_card", {card = card:get_name()}))
 
   -- CardHand 갱신
   self.card_hand:set_cards(self.deck:get_hand())
@@ -310,7 +311,7 @@ function CombatHandler:_end_demon_lord_turn()
 
   -- HERO 턴 자동 진행 타이머
   self.phase_timer = 0.8
-  table.insert(self.combat_log, "용사가 행동한다!")
+  table.insert(self.combat_log, i18n.t("combat.hero_acts"))
 end
 
 --- 자동 진행 (HERO/ENEMY 턴)
@@ -330,7 +331,7 @@ function CombatHandler:_auto_advance()
 
     -- ENEMY 턴 타이머
     self.phase_timer = 0.8
-    table.insert(self.combat_log, "적이 행동한다!")
+    table.insert(self.combat_log, i18n.t("combat.enemy_acts"))
 
   elseif phase == "ENEMY_TURN" then
     self.combat_manager:advance_phase()

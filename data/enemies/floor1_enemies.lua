@@ -1,8 +1,7 @@
 ---@class Floor1Enemies
----1층 적 데이터 정의
 local floor1_enemies = {
   slime = {
-    name = "슬라임",
+    name = "enemy.slime",
     stats = {hp = 20, attack = 4, defense = 0},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
@@ -11,7 +10,7 @@ local floor1_enemies = {
   },
 
   goblin = {
-    name = "고블린",
+    name = "enemy.goblin",
     stats = {hp = 30, attack = 6, defense = 1},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
@@ -21,7 +20,7 @@ local floor1_enemies = {
   },
 
   skeleton = {
-    name = "스켈레톤",
+    name = "enemy.skeleton",
     stats = {hp = 25, attack = 8, defense = 2},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
@@ -31,7 +30,7 @@ local floor1_enemies = {
   },
 
   wolf = {
-    name = "늑대",
+    name = "enemy.wolf",
     stats = {hp = 18, attack = 7, defense = 0},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
@@ -40,7 +39,7 @@ local floor1_enemies = {
   },
 
   boss_dark_knight = {
-    name = "암흑기사",
+    name = "enemy.dark_knight",
     stats = {hp = 80, attack = 12, defense = 4},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},

@@ -1,4 +1,5 @@
 local class = require('lib.middleclass')
+local i18n = require('src.i18n.init')
 
 ---@class Event
 ---@field id string
@@ -22,12 +23,12 @@ end
 
 ---@return string
 function Event:get_title()
-  return self.title
+  return i18n.t(self.title)
 end
 
 ---@return string
 function Event:get_description()
-  return self.description
+  return i18n.t(self.description)
 end
 
 ---@return Choice[]

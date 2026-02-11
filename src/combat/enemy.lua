@@ -1,4 +1,5 @@
 local Entity = require('src.combat.entity')
+local i18n = require('src.i18n.init')
 
 ---@class Enemy : Entity
 ---@field action_patterns table[]
@@ -36,14 +37,14 @@ function Enemy:prepare_intent()
     self.intent = {
       type = "attack",
       damage = damage,
-      description = "공격 " .. damage,
+      description = i18n.t("intent.attack") .. " " .. damage,
     }
   elseif pattern.type == "defend" then
     local bonus = pattern.defense_bonus or 0
     self.intent = {
       type = "defend",
       defense_bonus = bonus,
-      description = "방어 +" .. bonus,
+      description = i18n.t("intent.defense") .. " +" .. bonus,
     }
   end
 end

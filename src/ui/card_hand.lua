@@ -1,5 +1,6 @@
 local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
+local i18n = require("src.i18n.init")
 
 ---@class CardHand : UIElement
 ---@field cards Card[]
@@ -117,10 +118,10 @@ function CardHand:draw()
     local susp = card:get_suspicion_delta()
     if susp > 0 then
       love.graphics.setColor(1, 0.3, 0.3, text_alpha)
-      love.graphics.printf("의심 +" .. susp, cx + 4, cy + 55, cw - 8, "center")
+      love.graphics.printf(i18n.t("suspicion.increase", {value = susp}), cx + 4, cy + 55, cw - 8, "center")
     elseif susp < 0 then
       love.graphics.setColor(0.3, 1, 0.3, text_alpha)
-      love.graphics.printf("의심 " .. susp, cx + 4, cy + 55, cw - 8, "center")
+      love.graphics.printf(i18n.t("suspicion.decrease", {value = susp}), cx + 4, cy + 55, cw - 8, "center")
     end
 
     -- hover 시 설명 표시

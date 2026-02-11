@@ -37,9 +37,9 @@ function EdgeSelector:initialize(x, y, edges, on_select_callback)
 		-- 버튼 텍스트: edge의 to_node 타입 표시
 		local button_text = ""
 		if node_type == "combat" then
-			button_text = "전투"
+			button_text = "node.combat"
 		elseif node_type == "event" then
-			button_text = "이벤트"
+			button_text = "node.event"
 		else
 			button_text = node_type
 		end

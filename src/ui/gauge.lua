@@ -1,5 +1,6 @@
 local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
+local i18n = require("src.i18n.init")
 
 ---@class Gauge : UIElement
 ---@field current_value number
@@ -54,8 +55,9 @@ function Gauge:draw()
 
 	-- 라벨 텍스트 표시
 	love.graphics.setColor({1, 1, 1})  -- 흰색
+	local display_label = i18n.t(self.label)
 	love.graphics.print(
-		string.format("%s: %d/%d", self.label, self.current_value, self.max_value),
+		string.format("%s: %d/%d", display_label, self.current_value, self.max_value),
 		self.x + 5,
 		self.y + (self.height - 10) / 2
 	)
