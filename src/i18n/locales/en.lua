@@ -33,8 +33,8 @@ return {
 
   -- Entities
   ["entity.hero"] = "Hero",
-  ["intent.attack"] = "Attack {value}",
-  ["intent.defense"] = "Defense +{value}",
+  ["intent.attack"] = "Attack",
+  ["intent.defense"] = "Defense",
 
   -- Suspicion
   ["suspicion.increase"] = "Suspicion +{value}",

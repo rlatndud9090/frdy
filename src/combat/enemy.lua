@@ -37,14 +37,14 @@ function Enemy:prepare_intent()
     self.intent = {
       type = "attack",
       damage = damage,
-      description = i18n.t("intent.attack", {value = damage}),
+      description = i18n.t("intent.attack") .. " " .. damage,
     }
   elseif pattern.type == "defend" then
     local bonus = pattern.defense_bonus or 0
     self.intent = {
       type = "defend",
       defense_bonus = bonus,
-      description = i18n.t("intent.defense", {value = bonus}),
+      description = i18n.t("intent.defense") .. " +" .. bonus,
     }
   end
 end

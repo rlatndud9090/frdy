@@ -33,8 +33,8 @@ return {
 
   -- Entities
   ["entity.hero"] = "용사",
-  ["intent.attack"] = "공격 {value}",
-  ["intent.defense"] = "방어 +{value}",
+  ["intent.attack"] = "공격",
+  ["intent.defense"] = "방어",
 
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",

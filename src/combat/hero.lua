@@ -23,7 +23,7 @@ function Hero:get_intent()
   return {
     type = "attack",
     damage = self.attack,
-    description = i18n.t("intent.attack", {value = self.attack}),
+    description = i18n.t("intent.attack"),
   }
 end
 
