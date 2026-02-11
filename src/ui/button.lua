@@ -1,5 +1,6 @@
 local class = require("lib.middleclass")
 local UIElement = require("src.ui.ui_element")
+local i18n = require("src.i18n.init")
 
 ---@class Button : UIElement
 ---@field text string
@@ -48,11 +49,12 @@ function Button:draw()
 
 	-- 텍스트 중앙 표시
 	love.graphics.setColor(self.text_color)
-	local text_width = love.graphics.getFont():getWidth(self.text)
+	local display_text = i18n.t(self.text)
+	local text_width = love.graphics.getFont():getWidth(display_text)
 	local text_height = love.graphics.getFont():getHeight()
 	local text_x = self.x + (self.width - text_width) / 2
 	local text_y = self.y + (self.height - text_height) / 2
-	love.graphics.print(self.text, text_x, text_y)
+	love.graphics.print(display_text, text_x, text_y)
 end
 
 ---@param callback function|nil

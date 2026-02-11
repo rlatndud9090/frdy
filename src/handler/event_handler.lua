@@ -1,5 +1,6 @@
 local class = require('lib.middleclass')
 local Button = require('src.ui.button')
+local i18n = require('src.i18n.init')
 
 ---@class EventHandler
 ---@field event Event|nil
@@ -133,10 +134,10 @@ function EventHandler:draw_ui()
         local susp = choices[i]:get_suspicion_delta()
         if susp > 0 then
           love.graphics.setColor(1, 0.3, 0.3, self.panel_alpha)
-          love.graphics.print("의심 +" .. susp, 1070, button.y + 12)
+          love.graphics.print(i18n.t("suspicion.increase", {value = susp}), 1070, button.y + 12)
         elseif susp < 0 then
           love.graphics.setColor(0.3, 1, 0.3, self.panel_alpha)
-          love.graphics.print("의심 " .. susp, 1070, button.y + 12)
+          love.graphics.print(i18n.t("suspicion.decrease", {value = susp}), 1070, button.y + 12)
         end
       end
     end

@@ -1,4 +1,5 @@
 --- 맵 렌더링 공통 유틸리티
+local i18n = require("src.i18n.init")
 local MapUtils = {}
 
 --- 맵 노드들의 월드 좌표 바운드 계산
@@ -68,10 +69,10 @@ function MapUtils.get_node_visual(node)
     if node:is_boss() then
       return {0.8, 0.1, 0.1}, "BOSS", true
     else
-      return {0.3, 0.3, 0.8}, "전투", false
+      return {0.3, 0.3, 0.8}, i18n.t("node.combat"), false
     end
   elseif node_type == "event" then
-    return {0.2, 0.7, 0.3}, "이벤트", false
+    return {0.2, 0.7, 0.3}, i18n.t("node.event"), false
   else
     return {0.5, 0.5, 0.5}, "", false
   end

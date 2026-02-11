@@ -100,11 +100,41 @@ Files to modify:
 
 ---
 
-## Phase 3: Future-Proof Architecture Notes
+## Phase 3: Settings Overlay + Language Dropdown
+
+### 3.1 Create `src/ui/dropdown.lua` - Reusable dropdown UI component
+- Displays current selection as a button
+- On click, expands to show options list
+- On option click, fires callback with selected value and collapses
+- Supports arbitrary key-label pairs (e.g., `{key="en", label="English"}`)
+
+### 3.2 Create `src/ui/settings_overlay.lua` - Settings overlay
+- Full-screen overlay (similar pattern to MapOverlay)
+- Fade-in/out animation
+- Title: "Settings" (i18n key: `ui.settings`)
+- Contains: Language dropdown (`ui.language` label)
+- Close button + ESC key to close
+- Toggle via `Tab` key in GameScene
+
+### 3.3 Integrate into GameScene
+- Add `settings_overlay` field to GameScene
+- `Tab` key toggles settings overlay
+- Settings overlay takes input priority when open (like MapOverlay)
+- Language change via dropdown calls `i18n.set_locale()` → immediate effect
+
+### 3.4 Add i18n keys for settings UI
+```
+ui.settings, ui.language
+locale.en ("English"), locale.ko ("한국어")
+```
+
+---
+
+## Phase 4: Future-Proof Architecture Notes
 
 The i18n module design supports:
-- **Adding new languages**: Just create a new locale file (e.g., `ja.lua`)
+- **Adding new languages**: Just create a new locale file (e.g., `ja.lua`) + add entry to dropdown
 - **Interpolation**: `i18n.t("combat.mana_display", {current=3, max=5})` → "Mana: 3/5"
-- **Locale switching at runtime**: `i18n.set_locale("ko")`
+- **Locale switching at runtime**: `i18n.set_locale("ko")` via settings dropdown
 - **Fallback chain**: requested locale → "en" → raw key
 - **Data-driven content**: Enemy names, event text etc. use i18n keys, so game data files stay language-agnostic

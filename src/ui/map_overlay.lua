@@ -2,6 +2,7 @@ local class = require("lib.middleclass")
 local flux = require("lib.flux")
 local Button = require("src.ui.button")
 local MapUtils = require("src.ui.map_utils")
+local i18n = require("src.i18n.init")
 
 --- 전체 맵 시각화 오버레이. GameScene 내부 UI 모듈.
 --- UIElement를 상속하지 않음: 전체화면 오버레이로 x/y/width/height 위치 개념이 불필요.
@@ -29,7 +30,7 @@ function MapOverlay:initialize()
   self.padding = 60
   self.on_close_callback = nil
 
-  self.close_button = Button:new(SCREEN_W - 80, 20, 60, 30, "닫기")
+  self.close_button = Button:new(SCREEN_W - 80, 20, 60, 30, "ui.close")
   self.close_button:set_visible(false)
   self.close_button:set_on_click(function()
     self:close()
@@ -94,7 +95,7 @@ function MapOverlay:draw()
 
   -- 타이틀
   love.graphics.setColor(1, 1, 1, self.alpha)
-  love.graphics.printf("전체 맵", 0, 20, SCREEN_W, "center")
+  love.graphics.printf(i18n.t("ui.full_map"), 0, 20, SCREEN_W, "center")
 
   -- 엣지 그리기
   love.graphics.setColor(0.5, 0.5, 0.5, 0.5 * self.alpha)
@@ -148,7 +149,7 @@ function MapOverlay:draw()
 
   -- 안내 텍스트
   love.graphics.setColor(0.6, 0.6, 0.6, self.alpha)
-  love.graphics.printf("ESC 또는 M 키로 닫기", 0, SCREEN_H - 30, SCREEN_W, "center")
+  love.graphics.printf(i18n.t("ui.close_hint"), 0, SCREEN_H - 30, SCREEN_W, "center")
 end
 
 ---@param key string

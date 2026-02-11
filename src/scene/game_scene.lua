@@ -6,6 +6,7 @@ local MapGenerator = require('src.map.map_generator')
 local Gauge = require('src.ui.gauge')
 local Minimap = require('src.ui.minimap')
 local MapOverlay = require('src.ui.map_overlay')
+local SettingsOverlay = require('src.ui.settings_overlay')
 local CombatHandler = require('src.handler.combat_handler')
 local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
@@ -17,6 +18,7 @@ local ManaManager = require('src.card.mana_manager')
 local SuspicionManager = require('src.card.suspicion_manager')
 local EventManager = require('src.event.event_manager')
 local Game = require('src.core.game')
+local i18n = require('src.i18n.init')
 
 local SEGMENT_WIDTH = 300
 
@@ -53,6 +55,7 @@ local EDGE_SELECT = "EDGE_SELECT"
 ---@field mana_gauge Gauge
 ---@field minimap Minimap
 ---@field map_overlay MapOverlay
+---@field settings_overlay SettingsOverlay
 local GameScene = class('GameScene', Scene)
 
 function GameScene:initialize()
@@ -103,10 +106,10 @@ function GameScene:initialize()
   self.floor_enemies = require('data.enemies.floor1_enemies')
 
   -- UI 위젯 생성
-  self.suspicion_gauge = Gauge:new(20, 20, 200, 30, "의심", {1, 0, 0})
+  self.suspicion_gauge = Gauge:new(20, 20, 200, 30, "gauge.suspicion", {1, 0, 0})
   self.suspicion_gauge:set_value(0, 100)
 
-  self.mana_gauge = Gauge:new(20, 60, 200, 30, "마나", {0, 0.5, 1})
+  self.mana_gauge = Gauge:new(20, 60, 200, 30, "gauge.mana", {0, 0.5, 1})
   self.mana_gauge:set_value(self.mana_manager:get_current(), self.mana_manager:get_max())
 
   self.minimap = Minimap:new(1280 - 220, 16, 200, 100)
@@ -116,6 +119,7 @@ function GameScene:initialize()
   end)
 
   self.map_overlay = MapOverlay:new()
+  self.settings_overlay = SettingsOverlay:new()
 
   -- 핸들러 생성
   self.combat_handler = CombatHandler:new()
@@ -150,6 +154,7 @@ function GameScene:update(dt)
   self.mana_gauge:update(dt)
   self.minimap:update(dt)
   self.map_overlay:update(dt)
+  self.settings_overlay:update(dt)
 
   -- 페이즈별 업데이트
   if self.phase == TRAVELING then
@@ -189,6 +194,9 @@ function GameScene:draw()
 
   -- 맵 오버레이 (UI 위에 그려야 함)
   self.map_overlay:draw()
+
+  -- 설정 오버레이 (최상위)
+  self.settings_overlay:draw()
 end
 
 --- 월드 요소 그리기 (용사 + 핸들러 월드 요소만. 맵 그래프는 Minimap/MapOverlay에서 표시)
@@ -219,7 +227,7 @@ function GameScene:_draw_ui()
 
   -- 용사 HP (텍스트)
   love.graphics.setColor(0.2, 0.8, 0.2, 1)
-  love.graphics.print("용사 HP: " .. self.hero:get_hp() .. "/" .. self.hero:get_max_hp(), 20, 100)
+  love.graphics.print(i18n.t("gauge.hero_hp", {current = self.hero:get_hp(), max = self.hero:get_max_hp()}), 20, 100)
   love.graphics.setColor(1, 1, 1)
 
   -- 전투 관련 페이즈: 핸들러 UI 그리기
@@ -246,13 +254,21 @@ end
 
 ---@param key string
 function GameScene:keypressed(key)
+  -- 설정 오버레이가 열려있으면 설정에 키 이벤트 우선 전달
+  if self.settings_overlay:is_open() then
+    self.settings_overlay:keypressed(key)
+    return
+  end
+
   -- 맵 오버레이가 열려있으면 오버레이에 키 이벤트 우선 전달
   if self.map_overlay:is_open() then
     self.map_overlay:keypressed(key)
     return
   end
 
-  if key == "escape" then
+  if key == "tab" then
+    self.settings_overlay:open()
+  elseif key == "escape" then
     love.event.quit()
   elseif key == "m" then
     self:_toggle_map_overlay()
@@ -263,6 +279,12 @@ end
 ---@param y number
 ---@param button number
 function GameScene:mousepressed(x, y, button)
+  -- 설정 오버레이가 열려있으면 설정에만 이벤트 전달
+  if self.settings_overlay:is_open() then
+    self.settings_overlay:mousepressed(x, y, button)
+    return
+  end
+
   -- 맵 오버레이가 열려있으면 오버레이에만 이벤트 전달
   if self.map_overlay:is_open() then
     self.map_overlay:mousepressed(x, y, button)
@@ -286,7 +308,7 @@ function GameScene:_check_next_move()
   local edges = floor:get_edges_from(self.current_node)
 
   if #edges == 0 then
-    print("층 클리어!")
+    print(i18n.t("combat.floor_cleared"))
     return
   elseif #edges == 1 then
     self:_start_traveling(edges[1]:get_to_node())
@@ -393,7 +415,7 @@ function GameScene:_on_combat_ended(result)
     self.hero:grow({exp = 30, hp_bonus = 0, attack_bonus = 0})
   elseif result == "defeat" then
     -- 패배 처리 (TODO: 게임 오버 화면)
-    print("패배! 게임 오버")
+    print(i18n.t("combat.defeat"))
   end
 
   flux.to(self.combat_handler, 0.4, {enemy_world_x = self.hero_world_x + 800})

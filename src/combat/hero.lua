@@ -1,4 +1,5 @@
 local Entity = require('src.combat.entity')
+local i18n = require('src.i18n.init')
 
 ---@class Hero : Entity
 ---@field level number
@@ -7,7 +8,7 @@ local Hero = Entity:subclass('Hero')
 
 ---@param stats {hp: number, attack: number, defense: number}
 function Hero:initialize(stats)
-  Entity.initialize(self, "용사", stats)
+  Entity.initialize(self, "entity.hero", stats)
   self.level = 1
   self.experience = 0
 end
@@ -22,7 +23,7 @@ function Hero:get_intent()
   return {
     type = "attack",
     damage = self.attack,
-    description = "공격",
+    description = i18n.t("intent.attack", {value = self.attack}),
   }
 end
 

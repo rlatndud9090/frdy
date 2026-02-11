@@ -1,6 +1,14 @@
+local FontManager = require('src.core.font_manager')
+local i18n = require('src.i18n.init')
 local Game = require('src.core.game')
 
 function love.load()
+  FontManager.init()
+
+  i18n.load("en", require('src.i18n.locales.en'))
+  i18n.load("ko", require('src.i18n.locales.ko'))
+  i18n.set_locale("en")
+
   Game:getInstance():init()
 end
 

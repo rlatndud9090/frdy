@@ -7,6 +7,7 @@
 
 local class = require('lib.middleclass')
 local EdgeSelector = require('src.ui.edge_selector')
+local i18n = require('src.i18n.init')
 
 local EdgeSelectHandler = class('EdgeSelectHandler')
 
@@ -92,7 +93,7 @@ function EdgeSelectHandler:draw()
   -- Draw instruction text at top center
   love.graphics.setColor(1, 1, 1, 1)
   local font = love.graphics.getFont()
-  local text = "다음 경로를 선택하세요"
+  local text = i18n.t("ui.select_next_path")
   local text_width = font:getWidth(text)
   love.graphics.print(text, 640 - text_width / 2, 50)
 

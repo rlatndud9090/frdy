@@ -1,4 +1,5 @@
 local class = require('lib.middleclass')
+local i18n = require('src.i18n.init')
 
 ---@class Choice
 ---@field text string
@@ -15,7 +16,7 @@ end
 
 ---@return string
 function Choice:get_text()
-  return self.text
+  return i18n.t(self.text)
 end
 
 ---@return table[]
