@@ -63,16 +63,19 @@ function CombatManager:get_enemies()
 end
 
 function CombatManager:execute_hero_turn()
-  local pattern = self.hero:get_action_pattern()
-  if pattern == "attack" then
+  local pattern = self.hero:choose_action({
+    target = self.turn_manager:get_living_enemies()[1],
+    enemies = self.turn_manager:get_living_enemies(),
+  })
+
+  if pattern then
     local living = self.turn_manager:get_living_enemies()
     if #living > 0 then
-      local target = living[1]
-      target:take_damage(self.hero:get_attack())
+      pattern:execute(self.hero, living[1])
     end
   end
 
-  -- 승리 체크
+  -- Victory check
   local living = self.turn_manager:get_living_enemies()
   if #living == 0 then
     self.state = "victory"
@@ -82,16 +85,20 @@ end
 function CombatManager:execute_enemy_turn()
   local living = self.turn_manager:get_living_enemies()
   for _, enemy in ipairs(living) do
-    local action = enemy:choose_action()
-    if action.type == "attack" then
-      local damage = math.floor(enemy:get_attack() * (action.damage_mult or 1.0))
-      self.hero:take_damage(damage)
-    elseif action.type == "defend" then
-      enemy.defense = enemy.defense + (action.defense_bonus or 0)
+    local pattern = enemy:choose_action({
+      actor = enemy,
+      target = self.hero,
+    })
+    if pattern then
+      if pattern.type == "attack" then
+        pattern:execute(enemy, self.hero)
+      elseif pattern.type == "defend" then
+        pattern:execute(enemy, enemy)
+      end
     end
   end
 
-  -- 패배 체크
+  -- Defeat check
   if not self.hero:is_alive() then
     self.state = "defeat"
   end
@@ -105,7 +112,6 @@ function CombatManager:advance_phase()
   local phase = self.turn_manager:get_phase()
 
   if phase == "DEMON_LORD_TURN" then
-    -- Phase 7에서 카드 시스템 추가 예정, 현재는 자동 패스
     self.turn_manager:next_turn()
   elseif phase == "HERO_TURN" then
     self:execute_hero_turn()

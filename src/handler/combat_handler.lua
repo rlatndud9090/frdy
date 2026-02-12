@@ -193,7 +193,7 @@ function CombatHandler:draw_ui()
     local hero_intent = hero:get_intent()
     if hero_intent then
       love.graphics.setColor(1, 0.8, 0, 0.8)
-      love.graphics.print(i18n.t("combat.hero_intent", {desc = hero_intent.description, damage = hero_intent.damage}), 50, 490)
+      love.graphics.print(i18n.t("combat.hero_intent", {desc = hero_intent.description, damage = hero_intent.value}), 50, 490)
     end
   end
 
