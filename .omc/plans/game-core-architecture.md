@@ -230,6 +230,9 @@
 | **Hero** | Entity 서브클래스. 용사 고유 로직 | `get_action_pattern()`, `grow(rewards)` |
 | **Enemy** | Entity 서브클래스. 적 고유 로직 및 AI | `choose_action()`, `get_intent()` |
 | **ActionQueue** | 턴 내 행동 대기열. 카드 효과 포함 | `enqueue(action)`, `process_next()`, `is_empty()` |
+| **PredictionEngine** | 마안 예측 엔진. 용사/적 행동 패턴 기반 미래 전투 시뮬레이션 | `generate_timeline(hero, enemies, max_turns)`, `recalculate(interventions)`, `get_timeline()` |
+| **PredictedAction** | 예측된 단일 행동 데이터. 주체, 타입, 대상, 수치 보관 | `get_actor()`, `get_type()`, `get_target()`, `get_value()`, `is_intervention()` |
+| **TimelineManager** | 타임라인 조작 컨트롤러. 삽입/교환/제거/전역 적용 관리 | `insert_at(index, card)`, `swap(a, b)`, `remove_at(index)`, `apply_global(card)`, `confirm()`, `reset()` |
 
 ### Card & Intervention System
 
@@ -260,6 +263,7 @@
 | **Minimap** | 플로팅 미니맵 위젯. 축소된 맵 그래프 표시. 클릭 시 MapOverlay 열기 | `set_map_data(floor, node)`, `set_on_click(callback)`, `update(dt)`, `draw()` |
 | **EdgeSelector** | 경로 선택 UI. 사용 가능한 엣지 표시 | `show_edges(edges)`, `on_select(callback)`, `hide()` |
 | **CardHand** | 카드 패 UI. 펼치기/접기 | `set_cards(cards)`, `on_play(callback)`, `highlight(card)` |
+| **TimelineUI** | 마안 타임라인 시각화. 행동 박스 배열, 삽입 슬롯, 드래그 인터랙션 | `set_timeline(actions)`, `set_drag_mode(card)`, `set_manipulate_mode(card)`, `cancel_mode()` |
 
 ### Screen Management (Scenes & Handlers)
 
@@ -329,7 +333,10 @@ frdy/
 │   │   ├── entity.lua           -- Entity 기본 클래스
 │   │   ├── hero.lua             -- Hero 용사
 │   │   ├── enemy.lua            -- Enemy 적
-│   │   └── action_queue.lua     -- ActionQueue 행동 대기열
+│   │   ├── action_queue.lua     -- ActionQueue 행동 대기열
+│   │   ├── prediction_engine.lua -- 마안 예측 엔진
+│   │   ├── predicted_action.lua  -- 예측된 행동 데이터
+│   │   └── timeline_manager.lua  -- 타임라인 조작 관리
 │   │
 │   ├── card/                    -- 카드/개입 시스템
 │   │   ├── card.lua             -- Card 기본 클래스
@@ -360,7 +367,8 @@ frdy/
 │   │   ├── minimap.lua          -- Minimap 미니맵 (축소 맵 그래프 위젯)
 │   │   ├── map_overlay.lua      -- MapOverlay (전체 맵 오버레이 UI 모듈)
 │   │   ├── edge_selector.lua    -- EdgeSelector 경로 선택 UI
-│   │   └── card_hand.lua        -- CardHand 카드 패 UI
+│   │   ├── card_hand.lua        -- CardHand 카드 패 UI
+│   │   └── timeline_ui.lua     -- TimelineUI 마안 타임라인 위젯
 │   │
 │   └── anim/                    -- 애니메이션 시스템
 │       └── camera.lua           -- Camera (뷰포트, flux 기반 이동)
@@ -983,6 +991,189 @@ frdy/
 
 ---
 
+### Phase 10: 마안(魔眼) - 전투 예측 타임라인 시스템
+
+**목표**: 마왕의 고유 능력 '마안'을 구현. 전투의 미래 행동을 예측하여 타임라인으로 시각화하고, 마왕의 개입 카드를 타임라인에 전략적으로 삽입하는 핵심 전투 메커니즘.
+
+**설계 배경**:
+- 기존 전투 시스템은 단순 턴 순환(마왕 → 용사 → 적)으로 진행
+- 마안 시스템은 전체 전투 흐름을 **미리 예측**하여 보여주고, 마왕이 **정확한 시점에 개입**할 수 있게 함
+- 단순히 카드를 쓰는 것이 아니라 **"언제" 개입하느냐**가 핵심 전략이 됨
+- 카드 타입에 따라 삽입/전역/조작 등 다양한 타임라인 상호작용 제공
+
+**아키텍처 변경**:
+- **Before**: DEMON_LORD_TURN에서 카드를 즉시 사용 → 효과 즉시 적용
+- **After**: DEMON_LORD_TURN에서 마안 타임라인을 확인 → 카드를 타임라인 특정 위치에 삽입 → 전투가 타임라인 순서대로 실행
+
+**턴 구조 변경**:
+```
+기존: [마왕턴(카드즉시사용)] → [용사턴] → [적턴] → 반복
+
+변경: [마왕턴(마안으로 예측 확인 + 카드를 타임라인에 배치)] → [실행 페이즈(타임라인 순서대로 자동 실행)] → 반복
+```
+
+**파일 목록**:
+- `src/combat/prediction_engine.lua` - 예측 엔진 (NEW)
+- `src/combat/predicted_action.lua` - 예측된 행동 데이터 (NEW)
+- `src/combat/timeline_manager.lua` - 타임라인 조작 관리 (NEW)
+- `src/ui/timeline_ui.lua` - 타임라인 시각화 위젯 (NEW)
+- `src/combat/combat_manager.lua` - (수정) 예측 시스템 통합
+- `src/combat/turn_manager.lua` - (수정) 실행 페이즈 추가
+- `src/handler/combat_handler.lua` - (수정) 타임라인 UI 통합
+- `src/card/card.lua` - (수정) 카드 타임라인 타입 추가
+- `src/card/card_effect.lua` - (수정) 전역/조작 효과 타입 추가
+- `data/cards/base_cards.lua` - (수정) 카드 데이터에 timeline_type 필드 추가
+
+**TODO 10.1**: PredictedAction 데이터 클래스 구현
+- 속성:
+  - actor: Entity (행동 주체 - 용사 또는 적)
+  - action_type: string ("attack", "defend", "skill")
+  - target: Entity|nil (행동 대상)
+  - value: number (예상 데미지/회복량 등)
+  - source_type: string ("hero", "enemy", "intervention")
+  - card: Card|nil (개입 카드인 경우 참조)
+  - description: string (UI 표시용 설명)
+  - icon_type: string (UI 아이콘 식별자)
+- 메서드: get_actor(), get_type(), get_target(), get_value(), is_intervention(), get_description()
+- **수락 기준**: PredictedAction 인스턴스 생성 및 속성 접근 가능
+
+**TODO 10.2**: PredictionEngine 구현
+- 핵심 기능: 용사/적의 행동 패턴을 기반으로 미래 N턴의 전투 흐름을 시뮬레이션
+- 메서드:
+  - `generate_timeline(hero, enemies, max_turns)`:
+    - Hero의 행동 패턴(현재는 attack 고정)과 Enemy의 action_patterns를 읽음
+    - 각 턴마다 용사 행동 → 적 행동 순서로 PredictedAction 배열 생성
+    - 적이 여럿이면 각각의 행동이 개별 PredictedAction으로 생성됨
+    - 예측 시 체력 변화도 시뮬레이션하여 중도 사망(예측 기준) 반영
+  - `recalculate(timeline_actions)`:
+    - 마왕 개입 카드가 삽입된 후의 타임라인을 재계산
+    - 삽입된 카드 효과가 이후 행동들의 결과에 영향을 미침
+    - 예: 중간에 힐 카드 삽입 → 이후 예측 HP가 변동 → 사망 예측 시점 변경
+  - `get_timeline()`: 현재 예측된 타임라인(PredictedAction[]) 반환
+- 시뮬레이션 깊이: 기본 5턴 (설정 가능)
+- **수락 기준**: Hero와 Enemy 데이터를 입력하면 유효한 PredictedAction 배열이 생성됨. 카드 삽입 후 recalculate 시 결과가 올바르게 변동됨
+
+**TODO 10.3**: TimelineManager 구현
+- 타임라인에 대한 모든 조작을 관리하는 컨트롤러
+- 속성:
+  - actions: PredictedAction[] (현재 타임라인)
+  - prediction_engine: PredictionEngine (참조)
+  - insertions: table[] (삽입된 개입 목록)
+- 메서드:
+  - `set_timeline(actions)`: 초기 타임라인 설정
+  - `insert_at(index, card)`:
+    - 타임라인 특정 위치에 개입 카드 삽입
+    - 카드의 timeline_type이 "insert"인 경우만 허용
+    - 삽입 후 PredictionEngine:recalculate() 호출
+  - `swap(index_a, index_b)`:
+    - 두 행동의 순서를 교환 (조작형 카드용)
+    - 교환 후 recalculate()
+  - `remove_at(index)`:
+    - 특정 행동을 타임라인에서 제거 (조작형 카드용)
+    - 제거 후 recalculate()
+  - `apply_global(card)`:
+    - 전역형 카드 적용. 위치 무관하게 전체 타임라인에 영향
+    - 적용 후 recalculate()
+  - `get_actions()`: 현재 타임라인 반환
+  - `get_insertion_slots()`: 삽입 가능한 위치 인덱스 목록 반환
+  - `confirm()`: 현재 타임라인을 확정하고 실행 큐에 전달
+  - `reset()`: 모든 개입을 취소하고 원래 예측으로 복원
+- **수락 기준**: insert_at, swap, remove_at, apply_global 모두 정상 동작. 각 조작 후 타임라인이 재계산됨
+
+**TODO 10.4**: Card 클래스 수정 - 타임라인 타입 추가
+- Card에 `timeline_type` 필드 추가:
+  - `"insert"`: 타임라인 특정 위치에 삽입 (기본값)
+  - `"global"`: 전역 적용, 위치 선택 불필요
+  - `"manipulate_swap"`: 두 행동의 순서를 교환
+  - `"manipulate_remove"`: 특정 행동을 제거
+  - `"manipulate_delay"`: 특정 행동을 뒤로 밀어냄
+- 기존 카드들은 timeline_type = "insert"로 기본 설정
+- **수락 기준**: Card에 timeline_type 속성이 존재하고 올바른 값 반환
+
+**TODO 10.5**: CardEffect 확장 - 전역/조작 효과 추가
+- 새 효과 팩토리 함수:
+  - `CardEffect.global_buff(stat, amount)`: 전역 공격력/방어력 변동
+  - `CardEffect.swap()`: 두 행동 순서 교환 (타임라인 조작)
+  - `CardEffect.nullify()`: 행동 무효화 (타임라인에서 제거)
+  - `CardEffect.delay(turns)`: 행동 지연 (타임라인 뒤로 이동)
+- **수락 기준**: 각 효과가 TimelineManager를 통해 타임라인에 올바르게 적용됨
+
+**TODO 10.6**: TimelineUI 위젯 구현
+- UIElement 상속
+- 배치: 화면 중앙 상단 (y: 약 120~180, 게이지 아래, 캐릭터 위)
+- 표시 형태: 가로 배열된 네모 박스들
+- 각 박스:
+  - 크기: 60x45 (또는 내용에 따라 조절)
+  - 색상: 용사 행동 = 파란 계열, 적 행동 = 빨간 계열, 마왕 개입 = 보라 계열
+  - 아이콘/텍스트: 행동 타입 (검 아이콘 = 공격, 방패 = 방어 등)
+  - 예측 수치 표시 (데미지/힐 양)
+- 인터랙션:
+  - hover: 박스 확대 + 상세 정보 툴팁
+  - 카드 드래그 모드: 삽입 가능 슬롯이 박스 사이에 하이라이트됨
+  - 삽입 슬롯 클릭: 해당 위치에 카드 삽입
+  - 조작형 카드 모드: 행동 박스를 직접 클릭하여 대상 선택
+- 가로 스크롤: 타임라인이 화면 너비를 초과하면 좌우 스크롤 지원
+- 메서드:
+  - `set_timeline(actions)`: 타임라인 데이터 설정
+  - `set_drag_mode(card)`: 카드 삽입 모드 진입 (삽입 슬롯 표시)
+  - `set_manipulate_mode(card)`: 조작 모드 진입 (대상 행동 선택)
+  - `cancel_mode()`: 모드 취소
+  - `update(dt)`, `draw()`, `mousepressed(x,y,btn)`, `mousemoved(x,y)`
+- **수락 기준**: 타임라인이 네모 박스 배열로 표시됨. 카드 드래그 시 삽입 슬롯 하이라이트. 클릭으로 삽입 완료
+
+**TODO 10.7**: TurnManager 수정 - 실행 페이즈 추가
+- 기존 페이즈: DEMON_LORD_TURN → HERO_TURN → ENEMY_TURN
+- 변경된 페이즈: PLANNING_PHASE → EXECUTION_PHASE
+  - `PLANNING_PHASE`: 마왕이 마안 타임라인을 보고 카드를 배치하는 단계
+  - `EXECUTION_PHASE`: 확정된 타임라인이 순서대로 자동 실행되는 단계
+- 실행 페이즈에서는 타임라인의 PredictedAction을 하나씩 꺼내 실행
+  - 각 행동 실행 시 짧은 애니메이션 딜레이 (0.5초)
+  - 마왕 개입 카드 실행 시 별도 연출 (보라색 이펙트)
+- 1라운드 = PLANNING + EXECUTION 1세트
+- **수락 기준**: 페이즈가 PLANNING → EXECUTION으로 정상 순환. EXECUTION에서 타임라인 순서대로 행동 실행
+
+**TODO 10.8**: CombatManager 수정 - 예측 시스템 통합
+- start_combat 시 PredictionEngine, TimelineManager 인스턴스 생성
+- PLANNING_PHASE 시작 시:
+  - PredictionEngine:generate_timeline() 호출
+  - TimelineManager에 초기 타임라인 설정
+- EXECUTION_PHASE 시작 시:
+  - TimelineManager:confirm()으로 확정된 타임라인을 ActionQueue에 변환
+  - ActionQueue에서 순서대로 실행
+- 전투 종료 조건: 실행 중 용사/적 사망 시 즉시 종료
+- **수락 기준**: 전투가 예측 → 계획 → 실행 루프로 정상 진행
+
+**TODO 10.9**: CombatHandler 수정 - 타임라인 UI 통합
+- TimelineUI 위젯 추가 (화면 상단 중앙)
+- PLANNING_PHASE에서:
+  - TimelineUI에 예측 타임라인 표시
+  - CardHand에서 카드 선택 → TimelineUI에서 삽입 위치 선택
+  - 카드 timeline_type에 따라 UI 모드 자동 전환
+  - "턴 종료" 버튼 → TimelineManager:confirm() → EXECUTION_PHASE 전환
+  - "리셋" 버튼 → TimelineManager:reset() → 개입 취소
+- EXECUTION_PHASE에서:
+  - TimelineUI에서 현재 실행 중인 행동을 하이라이트
+  - 각 행동 실행 시 해당 박스가 강조 + 페이드 아웃
+- **수락 기준**: 마왕 턴에 타임라인 표시 + 카드 삽입 가능. 실행 시 진행 상황 시각화
+
+**TODO 10.10**: 카드 데이터 업데이트
+- 기존 카드들에 `timeline_type = "insert"` 추가
+- 새 카드 추가:
+  - `"time_warp"` (조작형): 두 행동 순서 교환, cost 2, suspicion +8
+  - `"nullify"` (조작형): 적 행동 하나 제거, cost 3, suspicion +12
+  - `"delay_strike"` (조작형): 적 행동을 2턴 뒤로 밀기, cost 1, suspicion +5
+  - `"chaos_field"` (전역형): 모든 적 공격력 -2, cost 2, suspicion +7
+  - `"dark_blessing"` (전역형): 용사 방어력 +3 (전체 전투), cost 1, suspicion +4
+- **수락 기준**: 카드 데이터 파일에서 모든 카드 로딩 가능. timeline_type 속성이 올바르게 설정됨
+
+**커밋 1**: `feat(combat): 마안 예측 엔진 및 타임라인 데이터 구조 구현`
+**커밋 2**: `feat(combat): TimelineManager 타임라인 조작 시스템 구현`
+**커밋 3**: `feat(ui): TimelineUI 예측 타임라인 시각화 위젯 구현`
+**커밋 4**: `feat(combat): 전투 시스템에 마안 예측 통합 (CombatManager, TurnManager)`
+**커밋 5**: `feat(card): 전역/조작형 카드 타입 및 데이터 추가`
+
+---
+
 ## 8. Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
@@ -994,6 +1185,9 @@ frdy/
 | **전투 밸런스** | 높 | 낮 | 이번 범위에서는 밸런싱 제외. 테스트용 수치만 사용 |
 | **카드 효과 조합 복잡도** | 중 | 중 | Strategy 패턴으로 효과 분리. 초기에는 단순 효과만 구현 |
 | **애니메이션 타이밍 이슈** | 중 | 낮 | flux tween 라이브러리의 완료 콜백으로 동기화. 강제 스킵 옵션 제공 |
+| **예측 시뮬레이션 성능** | 중 | 중 | 시뮬레이션 깊이를 5턴으로 제한. 재계산은 카드 삽입 시에만 수행 |
+| **타임라인 UI 복잡도** | 높 | 중 | 단계적 구현: 먼저 삽입형만 구현 → 조작형 추가. 드래그 앤 드롭 대신 클릭 기반 인터랙션으로 시작 |
+| **예측 정확도와 실행 불일치** | 중 | 높 | 예측은 결정론적 패턴 기반으로 수행. 랜덤 요소는 시드 기반으로 일관성 보장 |
 
 ---
 
@@ -1092,6 +1286,11 @@ frdy/
 10. 1개 층 전체 플레이 가능
 11. 마왕이 경로 선택에 개입(진로 수정)할 수 있고 의심 수치에 반영됨
 12. GameScene의 페이즈 전환 시 flux 기반 fade/전환 효과 재생
+13. 마안 예측 타임라인이 전투 시작 시 정상 생성되고 UI에 표시됨
+14. 삽입형 카드를 타임라인 특정 위치에 끼워넣을 수 있고 재계산됨
+15. 전역형 카드가 위치 무관하게 전체 타임라인에 영향을 미침
+16. 조작형 카드로 행동 순서 교환/제거/지연이 가능함
+17. PLANNING → EXECUTION 페이즈 순환이 정상 동작함
 
 ### 아키텍처 개선 검증
 
