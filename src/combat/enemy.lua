@@ -49,4 +49,17 @@ function Enemy:prepare_intent()
   end
 end
 
+function Enemy:snapshot()
+  local snap = Entity.snapshot(self)
+  snap.current_pattern_index = self.current_pattern_index
+  snap.intent = self.intent
+  return snap
+end
+
+function Enemy:restore(snap)
+  Entity.restore(self, snap)
+  self.current_pattern_index = snap.current_pattern_index
+  self.intent = snap.intent
+end
+
 return Enemy

@@ -45,4 +45,17 @@ function Hero:grow(rewards)
   end
 end
 
+function Hero:snapshot()
+  local snap = Entity.snapshot(self)
+  snap.level = self.level
+  snap.experience = self.experience
+  return snap
+end
+
+function Hero:restore(snap)
+  Entity.restore(self, snap)
+  self.level = snap.level
+  self.experience = snap.experience
+end
+
 return Hero

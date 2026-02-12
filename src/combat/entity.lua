@@ -73,4 +73,24 @@ function Entity:get_defense()
   return self.defense
 end
 
+--- Create a snapshot of current state for simulation
+---@return table
+function Entity:snapshot()
+  return {
+    hp = self.hp,
+    max_hp = self.max_hp,
+    attack = self.attack,
+    defense = self.defense,
+  }
+end
+
+--- Restore state from a snapshot
+---@param snap table
+function Entity:restore(snap)
+  self.hp = snap.hp
+  self.max_hp = snap.max_hp
+  self.attack = snap.attack
+  self.defense = snap.defense
+end
+
 return Entity
