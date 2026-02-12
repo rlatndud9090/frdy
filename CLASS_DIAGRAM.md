@@ -66,7 +66,15 @@
 │         ├───────────→│ ActionQueue  │    │          │         │
 │         │            └──────────────┘  ┌─┴──┐  ┌───┴───┐     │
 │         │                              │Hero│  │Enemy  │     │
-│         │                              └────┘  └───────┘     │
+│         │                              └──┬─┘  └──┬────┘     │
+│         │                                 │       │           │
+│         │                              ┌──┴───────┴──┐        │
+│         │                              │ActionPattern │        │
+│         │                              │(행동 패턴)   │        │
+│         │                              │ +condition   │        │
+│         │                              │ +cooldown    │        │
+│         │                              │ +priority    │        │
+│         │                              └─────────────┘        │
 │         │                                                      │
 │         │  ┌────────────────────────────────────────────┐      │
 │         └─→│ PREDICTION SYSTEM (마안)                    │      │
@@ -156,14 +164,21 @@
 
 ---
 
+## 행동 패턴 시스템 클래스 설명
+
+| Class | Responsibility | Key Methods |
+|-------|---------------|-------------|
+| **ActionPattern** | 단일 행동 패턴 정의. 조건, 쿨타임, 우선순위 기반 행동 선택의 단위 | `can_use(context)`, `get_priority()`, `get_cooldown()`, `execute(actor, target)`, `get_preview(actor)` |
+| **PatternResolver** | 엔티티의 패턴 목록에서 현재 상태에 맞는 최적 행동을 결정하는 알고리즘 | `resolve(patterns, context)`, `resolve_sequence(patterns, context, count)` |
+
 ## 예측 시스템 (마안) 클래스 설명
 
 | Class | Responsibility | Key Methods |
 |-------|---------------|-------------|
-| **PredictionEngine** | 용사/적의 행동 패턴을 기반으로 미래 전투 흐름을 시뮬레이션하여 예측 타임라인을 생성 | `generate_timeline(hero, enemies, turn_count)`, `recalculate(interventions)`, `get_timeline()` |
-| **PredictedAction** | 예측된 단일 행동을 나타내는 데이터 객체. 행동 주체, 타입, 대상, 예상 수치를 보관 | `get_actor()`, `get_type()`, `get_target()`, `get_value()`, `is_intervention()` |
-| **TimelineManager** | 타임라인에 대한 조작(삽입, 교환, 제거)을 관리. 카드 삽입 시 타임라인 재계산 트리거 | `insert_at(index, card)`, `swap(index_a, index_b)`, `remove_at(index)`, `get_actions()`, `get_insertion_slots()` |
-| **TimelineUI** | 타임라인을 네모 박스 배열로 화면에 렌더링. 카드 드래그 앤 드롭, 삽입 슬롯 하이라이트 지원 | `set_timeline(actions)`, `set_drag_mode(card)`, `draw()`, `update(dt)`, `mousepressed(x,y,btn)` |
+| **PredictionEngine** | PatternResolver를 활용하여 미래 전투 흐름을 시뮬레이션. 상태 스냅샷 기반 예측 | `generate_timeline(hero, enemies, max_turns)`, `recalculate_from(index, interventions)`, `get_timeline()` |
+| **PredictedAction** | 예측된 단일 행동을 나타내는 데이터 객체. 행동 주체, 패턴, 대상, 예상 수치, 시뮬레이션 시점의 상태 스냅샷 보관 | `get_actor()`, `get_pattern()`, `get_target()`, `get_value()`, `is_intervention()`, `get_state_snapshot()` |
+| **TimelineManager** | 타임라인에 대한 조작(삽입, 교환, 제거, 변화)을 관리. 조작 시 변경 지점부터 타임라인 재계산 트리거 | `insert_at(index, card)`, `swap(index_a, index_b)`, `remove_at(index)`, `modify_at(index, card)`, `get_actions()` |
+| **TimelineUI** | 타임라인을 네모 박스 배열로 화면에 렌더링. 카드 타입별 인터랙션 모드 지원 | `set_timeline(actions)`, `set_insert_mode(card)`, `set_manipulate_mode(card)`, `draw()`, `update(dt)` |
 
 ## 설계 패턴
 

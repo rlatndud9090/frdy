@@ -227,8 +227,10 @@
 | **CombatManager** | 전투 전체 흐름 관리. 승리/패배 판정 | `start_combat(hero, enemies)`, `end_combat()`, `is_combat_over()` |
 | **TurnManager** | 턴 순서 관리 | `next_turn()`, `get_current_entity()`, `get_phase()` |
 | **Entity** | 전투 참여자 기본 클래스. HP, 공격력 등 | `take_damage(amount)`, `heal(amount)`, `is_alive()`, `get_stats()` |
-| **Hero** | Entity 서브클래스. 용사 고유 로직 | `get_action_pattern()`, `grow(rewards)` |
-| **Enemy** | Entity 서브클래스. 적 고유 로직 및 AI | `choose_action()`, `get_intent()` |
+| **ActionPattern** | 단일 행동 패턴 정의. 조건, 쿨타임, 우선순위 기반 행동 선택 단위 | `can_use(context)`, `get_priority()`, `get_cooldown()`, `execute(actor, target)`, `get_preview(actor)` |
+| **PatternResolver** | 패턴 목록에서 현재 상태에 맞는 최적 행동 결정 알고리즘 | `resolve(patterns, cooldown_tracker, context)`, `resolve_sequence(patterns, cooldown_tracker, context, count)` |
+| **Hero** | Entity 서브클래스. 행동 패턴 목록 보유. 보상으로 패턴 획득 | `choose_action(context)`, `add_pattern(pattern)`, `get_patterns()`, `grow(rewards)` |
+| **Enemy** | Entity 서브클래스. 데이터 기반 행동 패턴 | `choose_action(context)`, `get_patterns()` |
 | **ActionQueue** | 턴 내 행동 대기열. 카드 효과 포함 | `enqueue(action)`, `process_next()`, `is_empty()` |
 | **PredictionEngine** | 마안 예측 엔진. 용사/적 행동 패턴 기반 미래 전투 시뮬레이션 | `generate_timeline(hero, enemies, max_turns)`, `recalculate(interventions)`, `get_timeline()` |
 | **PredictedAction** | 예측된 단일 행동 데이터. 주체, 타입, 대상, 수치 보관 | `get_actor()`, `get_type()`, `get_target()`, `get_value()`, `is_intervention()` |
@@ -296,6 +298,8 @@
 | **Singleton** | Game | 전역 접근 필요한 최소 객체만 싱글턴. Game 하나로 한정 |
 | **Composite** | Panel > UIElement | UI 요소의 트리 구조. Panel이 자식 요소 관리 |
 | **Command** | ActionQueue | 전투 행동을 객체화. 큐잉, 취소, 재실행 지원 |
+| **Chain of Responsibility** | PatternResolver | 패턴 목록을 우선순위/조건/쿨타임 순으로 평가하여 최적 행동 결정 |
+| **Memento** | Entity.snapshot/restore | 예측 시뮬레이션을 위한 상태 스냅샷 저장/복원 |
 
 ---
 
@@ -333,6 +337,8 @@ frdy/
 │   │   ├── entity.lua           -- Entity 기본 클래스
 │   │   ├── hero.lua             -- Hero 용사
 │   │   ├── enemy.lua            -- Enemy 적
+│   │   ├── action_pattern.lua   -- ActionPattern 행동 패턴 데이터
+│   │   ├── pattern_resolver.lua -- PatternResolver 행동 선택 알고리즘
 │   │   ├── action_queue.lua     -- ActionQueue 행동 대기열
 │   │   ├── prediction_engine.lua -- 마안 예측 엔진
 │   │   ├── predicted_action.lua  -- 예측된 행동 데이터
@@ -761,6 +767,8 @@ frdy/
 
 **파일 목록**:
 - `src/combat/entity.lua`
+- `src/combat/action_pattern.lua` - ActionPattern 데이터 클래스 (NEW)
+- `src/combat/pattern_resolver.lua` - PatternResolver 행동 선택 알고리즘 (NEW)
 - `src/combat/hero.lua`
 - `src/combat/enemy.lua`
 - `src/combat/turn_manager.lua`
@@ -771,44 +779,98 @@ frdy/
 
 **TODO 6.1**: Entity 기본 클래스 구현
 - 속성: name, hp, max_hp, attack, defense
-- 메서드: take_damage(amount), heal(amount), is_alive(), get_stats()
-- **수락 기준**: Entity 인스턴스 생성, 데미지 적용 시 HP 감소, 0 이하 시 is_alive() == false
+- 메서드: take_damage(amount), heal(amount), is_alive(), get_stats(), snapshot(), restore(snapshot)
+- snapshot(): 현재 상태를 테이블로 복제 (예측 시뮬레이션용)
+- restore(snapshot): 스냅샷 상태로 복원
+- **수락 기준**: Entity 인스턴스 생성, 데미지 적용 시 HP 감소, 0 이하 시 is_alive() == false. snapshot/restore 동작
 
-**TODO 6.2**: Hero 클래스 구현
+**TODO 6.2**: ActionPattern 데이터 클래스 구현
+- 각 행동 패턴을 정의하는 데이터 클래스 (용사/적 공용)
+- 속성:
+  - id: string (고유 식별자, 예: "attack", "fatal_strike")
+  - name: string (표시명)
+  - type: string ("attack", "defend", "skill")
+  - priority: number (높을수록 우선 선택. 기본 0)
+  - condition: string (사용 조건 타입)
+  - condition_params: table (조건 파라미터, 예: {threshold = 30})
+  - cooldown: number (N행동마다 1회 사용 가능. 1 = 매턴 가능)
+  - params: table (행동별 고유 파라미터: damage_mult, defense_bonus 등)
+- 메서드:
+  - `can_use(context)`: 조건 충족 여부 확인
+    - context = {actor: Entity, target: Entity, enemies: Entity[], turn: number, last_used_turn: number}
+  - `get_priority()`: 우선순위 반환
+  - `get_cooldown()`: 쿨타임 반환
+  - `execute(actor, target)`: 행동 실행 (데미지/방어 등)
+  - `get_preview(actor)`: 예측용 미리보기 데이터 반환 (type, value, description)
+- 조건(Condition) 타입:
+  - `"always"`: 항상 사용 가능 (쿨타임만 체크)
+  - `"hp_below"`: 자신 체력이 condition_params.threshold% 이하
+  - `"hp_above"`: 자신 체력이 condition_params.threshold% 이상
+  - `"target_hp_below"`: 대상 체력이 condition_params.threshold% 이하
+  - `"enemy_count_above"`: 살아있는 적 수가 condition_params.count 이상
+  - `"fallback"`: 다른 조건 충족 패턴이 없을 때만 사용
+- **수락 기준**: ActionPattern 인스턴스 생성 가능. can_use()가 조건에 따라 true/false 반환. 다양한 condition 타입 동작
+
+**TODO 6.3**: PatternResolver 모듈 구현
+- 엔티티의 패턴 목록에서 최적 행동을 결정하는 알고리즘 모듈 (클래스가 아닌 유틸리티 모듈)
+- 메서드:
+  - `resolve(patterns, cooldown_tracker, context)`:
+    1. 모든 패턴에 대해 쿨타임 확인 (cooldown_tracker에서 마지막 사용 행동번호 조회)
+    2. 쿨타임 통과한 패턴 중 condition 충족 여부 확인 (fallback 제외)
+    3. 조건 충족 패턴이 있으면 → priority 내림차순 정렬 → 최상위 선택
+    4. 조건 충족 패턴이 없으면 → fallback 조건 패턴 중 최상위 선택
+    5. fallback도 없으면 → nil (행동 불가)
+  - `resolve_sequence(patterns, cooldown_tracker, context, count)`:
+    - count만큼 연속으로 resolve를 수행하여 행동 시퀀스 생성
+    - 매 resolve 후 cooldown_tracker와 context 상태(HP 등)를 업데이트하며 진행
+    - PredictionEngine에서 타임라인 생성 시 사용
+- **수락 기준**: 조건/쿨타임/우선순위에 따라 올바른 패턴이 선택됨. fallback이 최후 수단으로 동작. resolve_sequence가 상태 변화를 반영하며 시퀀스 생성
+
+**TODO 6.4**: Hero 클래스 구현
 - Entity 상속
-- 추가 속성: level, experience
-- grow(rewards): 전투 승리 시 능력치 성장
-- 행동 패턴: 기본 공격 (자동 실행, AI 제어)
-- **수락 기준**: Hero 생성 및 성장 적용 가능
+- 추가 속성:
+  - level, experience
+  - action_patterns: ActionPattern[] (보유 행동 패턴 목록)
+  - cooldown_tracker: table (각 패턴 id별 마지막 사용 행동번호 기록)
+  - action_count: number (총 행동 횟수 카운터, 쿨타임 계산용)
+- 초기 패턴:
+  - "공격" (type: attack, condition: fallback, cooldown: 1, priority: 0, params: {damage_mult: 1.0})
+  - "방어" (type: defend, condition: fallback, cooldown: 1, priority: 0, params: {defense_bonus: 3})
+- 메서드:
+  - `choose_action(context)`: PatternResolver.resolve() 호출하여 행동 선택
+  - `add_pattern(pattern)`: 새 행동 패턴 추가 (보상으로 획득)
+  - `remove_pattern(id)`: 패턴 제거
+  - `get_patterns()`: 보유 패턴 목록 반환
+  - `grow(rewards)`: 전투 승리 시 능력치 성장 + 패턴 보상 처리
+- **수락 기준**: Hero 생성 시 기본 패턴 2개 보유. 행동 선택이 조건/쿨타임에 따라 동작. 패턴 추가/제거 가능
 
-**TODO 6.3**: Enemy 클래스 구현
+**TODO 6.5**: Enemy 클래스 구현
 - Entity 상속
-- 행동 패턴 데이터 기반 정의
-- choose_action(): 패턴에 따라 다음 행동 결정
-- get_intent(): 현재 의도(행동 예고) 표시용
-- **수락 기준**: Enemy가 데이터 기반으로 생성되고 행동 선택 가능
+- 추가 속성:
+  - action_patterns: ActionPattern[] (행동 패턴 목록, 데이터 파일에서 로딩)
+  - cooldown_tracker: table
+  - action_count: number
+- 메서드:
+  - `choose_action(context)`: PatternResolver.resolve() 호출
+  - `get_patterns()`: 패턴 목록 반환
+- **수락 기준**: Enemy가 데이터 기반으로 생성되고 조건/쿨타임에 따라 행동 선택 가능
 
-**TODO 6.4**: TurnManager 구현
-- 턴 순서: (마왕 개입) → 용사 → 적 → 반복
-- 페이즈: DEMON_LORD_TURN, HERO_TURN, ENEMY_TURN
-- **예약 시스템 (Reservation System)**:
-  - 마왕의 카드는 즉시 실행되지 않고 '예약'됨
-  - 카드 효과는 특정 트리거 시점에 발동 (예: "공격받을 때", "공격할 때", "턴 시작 시")
-  - 예시: '방어막 부여' 카드 → 효과: "공격받을 때 방어도 5 부여" → 용사에게 사용 → 용사가 적의 공격을 받을 때 효과 발동
-- **의도 표시 (Intent Display)**:
-  - 마왕 턴에 용사와 적의 다음 행동을 미리 표시 (슬레이 더 스파이어 스타일)
-  - Hero와 Enemy는 각각 get_intent()를 통해 다음 행동(공격/방어/스킬)과 대상 표시
-  - UI에 "용사 → 적1 공격 (데미지 5)", "적1 → 용사 공격 (데미지 8)" 형태로 표시
+**TODO 6.6**: TurnManager 구현
+- 행동 교대 순서: 용사 1행동 → 적 1행동 → 용사 1행동 → 적 1행동 ... (너 한번, 나 한번)
+- 적이 여럿이면: 용사 → 적1 → 적2 → 용사 → 적1 → 적2 → ...
+- 페이즈: PLANNING_PHASE, EXECUTION_PHASE (Phase 10에서 전환)
+  - 기본 구현: DEMON_LORD_TURN → HERO_TURN → ENEMY_TURN 순환
+  - Phase 10 적용 후: PLANNING_PHASE → EXECUTION_PHASE 순환
 - next_turn(): 다음 턴으로 진행
-- **수락 기준**: 턴 순서가 (마왕 → 용사 → 적)으로 올바르게 순환. 마왕 턴에 용사/적의 의도 표시. 예약된 카드 효과가 트리거 시점에 발동
+- **수락 기준**: 행동이 용사/적 교대로 올바르게 순환
 
-**TODO 6.5**: ActionQueue 구현
+**TODO 6.7**: ActionQueue 구현
 - 행동(Action) 객체 큐잉
 - process_next(): 다음 행동 실행
 - 카드 효과도 Action으로 삽입
 - **수락 기준**: 여러 행동을 큐에 넣고 순서대로 실행
 
-**TODO 6.6**: CombatManager 구현
+**TODO 6.8**: CombatManager 구현
 - start_combat(hero, enemy_group): 전투 시작
 - TurnManager, ActionQueue 조율
 - 승리 조건: 모든 적 HP 0
@@ -816,20 +878,34 @@ frdy/
 - 전투 종료 시 EventBus로 "combat_end" 이벤트 발행
 - **수락 기준**: 전투가 턴 단위로 진행. 승리/패배 판정 동작
 
-**TODO 6.7**: CombatScene 실제 전투 연결
+**TODO 6.9**: CombatScene 실제 전투 연결
 - CombatManager와 연결
 - 턴 진행 시각화 (용사 공격, 적 공격 표시)
 - 마왕 개입 턴에 카드 사용 UI (Phase 7과 연결, 여기선 "패스" 버튼)
 - 전투 종료 시 결과 표시 → MapScene 복귀
 - **수락 기준**: 전투 노드에서 실제 턴제 전투가 진행되고 결과에 따라 진행
 
-**TODO 6.8**: 적 데이터 파일 작성
+**TODO 6.10**: 적 데이터 파일 작성
 - `data/enemies/floor1_enemies.lua`: 3~5종 기본 적 정의
-- 이름, HP, 공격력, 행동 패턴
-- **수락 기준**: 데이터 파일에서 적 정보 로딩 가능
+- 이름, HP, 공격력, ActionPattern 기반 행동 패턴 (조건/쿨타임/우선순위 포함)
+- 예시:
+  ```lua
+  goblin = {
+    name = "enemy.goblin",
+    stats = {hp = 30, attack = 6, defense = 1},
+    action_patterns = {
+      {id = "goblin_attack", type = "attack", condition = "fallback", cooldown = 1, priority = 0, params = {damage_mult = 1.0}},
+      {id = "goblin_defend", type = "defend", condition = "hp_below", condition_params = {threshold = 40}, cooldown = 2, priority = 30, params = {defense_bonus = 3}},
+      {id = "goblin_frenzy", type = "attack", condition = "hp_below", condition_params = {threshold = 20}, cooldown = 3, priority = 50, params = {damage_mult = 2.0}},
+    },
+  }
+  ```
+- **수락 기준**: 데이터 파일에서 적 정보 로딩 가능. 패턴에 조건/쿨타임이 포함됨
 
-**커밋 1**: `feat(combat): Entity/Hero/Enemy 전투 엔티티 구현`
-**커밋 2**: `feat(combat): 턴제 전투 시스템 구현 (TurnManager, CombatManager)`
+**커밋 1**: `feat(combat): Entity 기본 클래스 및 스냅샷 시스템 구현`
+**커밋 2**: `feat(combat): ActionPattern/PatternResolver 조건/쿨타임 기반 행동 선택 구현`
+**커밋 3**: `feat(combat): Hero/Enemy 엔티티 구현 (ActionPattern 기반)`
+**커밋 4**: `feat(combat): 턴제 전투 시스템 구현 (TurnManager, CombatManager)`
 
 ---
 
@@ -1027,6 +1103,7 @@ frdy/
 **TODO 10.1**: PredictedAction 데이터 클래스 구현
 - 속성:
   - actor: Entity (행동 주체 - 용사 또는 적)
+  - pattern: ActionPattern|nil (선택된 행동 패턴, 개입이 아닌 경우)
   - action_type: string ("attack", "defend", "skill")
   - target: Entity|nil (행동 대상)
   - value: number (예상 데미지/회복량 등)
@@ -1034,55 +1111,70 @@ frdy/
   - card: Card|nil (개입 카드인 경우 참조)
   - description: string (UI 표시용 설명)
   - icon_type: string (UI 아이콘 식별자)
-- 메서드: get_actor(), get_type(), get_target(), get_value(), is_intervention(), get_description()
-- **수락 기준**: PredictedAction 인스턴스 생성 및 속성 접근 가능
+  - state_snapshot: table (이 행동 시점의 전투 상태 스냅샷 - 모든 엔티티의 HP, 쿨타임 등)
+- 메서드: get_actor(), get_pattern(), get_type(), get_target(), get_value(), is_intervention(), get_description(), get_state_snapshot()
+- **수락 기준**: PredictedAction 인스턴스 생성 및 속성 접근 가능. state_snapshot이 시점별 전투 상태를 보관
 
 **TODO 10.2**: PredictionEngine 구현
-- 핵심 기능: 용사/적의 행동 패턴을 기반으로 미래 N턴의 전투 흐름을 시뮬레이션
+- 핵심 기능: PatternResolver를 활용하여 미래 N턴의 전투 흐름을 결정론적으로 시뮬레이션
+- 내부 동작:
+  - 실제 엔티티를 변경하지 않고 **스냅샷 기반 시뮬레이션** 수행
+  - Entity:snapshot()으로 초기 상태 복제 → 시뮬레이션용 가상 상태에서 진행
+  - 각 행동마다 가상 상태를 업데이트 (HP 변동, 쿨타임 갱신)
 - 메서드:
-  - `generate_timeline(hero, enemies, max_turns)`:
-    - Hero의 행동 패턴(현재는 attack 고정)과 Enemy의 action_patterns를 읽음
-    - 각 턴마다 용사 행동 → 적 행동 순서로 PredictedAction 배열 생성
-    - 적이 여럿이면 각각의 행동이 개별 PredictedAction으로 생성됨
-    - 예측 시 체력 변화도 시뮬레이션하여 중도 사망(예측 기준) 반영
-  - `recalculate(timeline_actions)`:
-    - 마왕 개입 카드가 삽입된 후의 타임라인을 재계산
-    - 삽입된 카드 효과가 이후 행동들의 결과에 영향을 미침
-    - 예: 중간에 힐 카드 삽입 → 이후 예측 HP가 변동 → 사망 예측 시점 변경
+  - `generate_timeline(hero, enemies, max_actions)`:
+    - Hero와 각 Enemy의 ActionPattern 목록 + cooldown_tracker를 읽음
+    - 교대 순서(용사→적1→적2→용사→...)로 PatternResolver.resolve() 호출
+    - 매 행동마다:
+      1. 현재 가상 상태에서 PatternResolver가 최적 패턴 선택
+      2. 패턴의 get_preview()로 예상 수치 계산
+      3. 가상 상태에 행동 결과 반영 (HP 변동 등)
+      4. PredictedAction 생성 (state_snapshot 포함)
+      5. 엔티티 사망 시 해당 엔티티 이후 행동 제외
+    - max_actions개의 행동 또는 전투 종료까지 생성
+  - `recalculate_from(index, fixed_actions, interventions)`:
+    - **변경 지점(index)부터** 타임라인을 재계산하는 핵심 메서드
+    - index 이전의 행동(fixed_actions)은 그대로 유지
+    - index 시점의 state_snapshot을 기반으로 시뮬레이션 재시작
+    - interventions(마왕 개입 카드)의 효과를 해당 위치에서 적용
+    - 개입으로 인한 상태 변화가 **조건 기반 패턴 선택에 영향** → 이후 행동이 달라질 수 있음
+    - 예: 힐 삽입 → HP 30% 이상 회복 → "필살의 일격" 조건 불충족 → 이후 행동 변경
   - `get_timeline()`: 현재 예측된 타임라인(PredictedAction[]) 반환
-- 시뮬레이션 깊이: 기본 5턴 (설정 가능)
-- **수락 기준**: Hero와 Enemy 데이터를 입력하면 유효한 PredictedAction 배열이 생성됨. 카드 삽입 후 recalculate 시 결과가 올바르게 변동됨
+- 시뮬레이션 깊이: 기본 20행동 (설정 가능, 교대 순서 기준)
+- **수락 기준**: 조건/쿨타임 기반 패턴 선택이 시뮬레이션에서 정상 동작. 개입 삽입 후 recalculate_from 시 변경 지점부터 행동이 재계산됨. 조건 변동(HP 변화 등)이 이후 패턴 선택에 영향을 미침
 
 **TODO 10.3**: TimelineManager 구현
 - 타임라인에 대한 모든 조작을 관리하는 컨트롤러
 - 속성:
   - actions: PredictedAction[] (현재 타임라인)
+  - original_actions: PredictedAction[] (개입 전 원본 타임라인, reset용)
   - prediction_engine: PredictionEngine (참조)
-  - insertions: table[] (삽입된 개입 목록)
+  - interventions: table[] (삽입된 개입 목록: {index, card})
 - 메서드:
-  - `set_timeline(actions)`: 초기 타임라인 설정
+  - `set_timeline(actions)`: 초기 타임라인 설정 + original_actions 백업
   - `insert_at(index, card)`:
     - 타임라인 특정 위치에 개입 카드 삽입
     - 카드의 timeline_type이 "insert"인 경우만 허용
-    - 삽입 후 PredictionEngine:recalculate() 호출
+    - 삽입 후 PredictionEngine:recalculate_from(index) 호출 → **삽입 지점부터 재계산**
   - `swap(index_a, index_b)`:
     - 두 행동의 순서를 교환 (조작형 카드용)
-    - 교환 후 recalculate()
+    - 교환 후 recalculate_from(min(index_a, index_b)) → **더 앞쪽 지점부터 재계산**
   - `remove_at(index)`:
     - 특정 행동을 타임라인에서 제거 (조작형 카드용)
-    - 제거 후 recalculate()
+    - 제거 후 recalculate_from(index) → **제거 지점부터 재계산**
   - `modify_at(index, card)`:
     - 특정 행동의 수치를 변화 (변화형 카드용)
     - 카드의 효과량만큼 대상 행동의 value를 증감
-    - 변화 후 recalculate()
+    - 변화 후 recalculate_from(index) → **변화 지점부터 재계산** (수치 변동이 HP에 영향 → 조건 변동 가능)
   - `apply_global(card)`:
     - 전역형 카드 적용. 위치 무관하게 전체 타임라인에 영향
-    - 적용 후 recalculate()
+    - 적용 후 recalculate_from(0) → **처음부터 전체 재계산** (전역 효과가 모든 행동에 영향)
   - `get_actions()`: 현재 타임라인 반환
   - `get_insertion_slots()`: 삽입 가능한 위치 인덱스 목록 반환
   - `confirm()`: 현재 타임라인을 확정하고 실행 큐에 전달
-  - `reset()`: 모든 개입을 취소하고 원래 예측으로 복원
-- **수락 기준**: insert_at, swap, remove_at, modify_at, apply_global 모두 정상 동작. 각 조작 후 타임라인이 재계산됨
+  - `reset()`: original_actions로 복원하고 모든 개입(interventions) 초기화
+- **재계산 원칙**: 모든 조작은 **변경 지점부터** 타임라인을 재계산. 변경 이전의 행동은 그대로 유지. 개입으로 인한 상태 변화(HP, 쿨타임)가 이후 행동의 조건 판정에 영향을 미쳐 **패턴 선택 자체가 달라질 수 있음**
+- **수락 기준**: insert_at, swap, remove_at, modify_at, apply_global 모두 정상 동작. 각 조작 후 변경 지점부터 타임라인이 재계산됨. 조건 변동으로 인한 행동 변경이 올바르게 반영됨
 
 **TODO 10.4**: Card 클래스 수정 - 타임라인 타입 추가
 - Card에 `timeline_type` 필드 추가:
