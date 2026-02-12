@@ -1,9 +1,11 @@
 local Entity = require('src.combat.entity')
-local i18n = require('src.i18n.init')
+local PatternResolver = require('src.combat.pattern_resolver')
 
 ---@class Enemy : Entity
----@field action_patterns table[]
+---@field action_patterns ActionPattern[]
+---@field legacy_patterns table[]
 ---@field current_pattern_index number
+---@field cooldown_tracker table
 ---@field intent table|nil
 local Enemy = Entity:subclass('Enemy')
 
@@ -12,13 +14,18 @@ local Enemy = Entity:subclass('Enemy')
 ---@param action_patterns table[]
 function Enemy:initialize(name, stats, action_patterns)
   Entity.initialize(self, name, stats)
-  self.action_patterns = action_patterns or {{type = "attack", damage_mult = 1.0}}
+  self.legacy_patterns = action_patterns or {{type = "attack", damage_mult = 1.0}}
+  self.action_patterns = PatternResolver.from_legacy_list(self.legacy_patterns)
   self.current_pattern_index = 1
+  self.cooldown_tracker = {}
   self.intent = nil
 end
 
----@return table current action pattern
-function Enemy:choose_action()
+--- Choose action using round-robin (legacy compat) with PatternResolver
+---@param context? table
+---@return ActionPattern|nil
+function Enemy:choose_action(context)
+  -- Use round-robin index for legacy patterns
   local pattern = self.action_patterns[self.current_pattern_index]
   self.current_pattern_index = self.current_pattern_index % #self.action_patterns + 1
   return pattern
@@ -29,24 +36,25 @@ function Enemy:get_intent()
   return self.intent
 end
 
----적의 다음 행동 미리보기를 계산
+--- Prepare next action preview
 function Enemy:prepare_intent()
   local pattern = self.action_patterns[self.current_pattern_index]
-  if pattern.type == "attack" then
-    local damage = math.floor(self.attack * (pattern.damage_mult or 1.0))
-    self.intent = {
-      type = "attack",
-      damage = damage,
-      description = i18n.t("intent.attack") .. " " .. damage,
-    }
-  elseif pattern.type == "defend" then
-    local bonus = pattern.defense_bonus or 0
-    self.intent = {
-      type = "defend",
-      defense_bonus = bonus,
-      description = i18n.t("intent.defense") .. " +" .. bonus,
-    }
+  if pattern then
+    self.intent = pattern:get_preview(self)
   end
+end
+
+function Enemy:snapshot()
+  local snap = Entity.snapshot(self)
+  snap.current_pattern_index = self.current_pattern_index
+  snap.intent = self.intent
+  return snap
+end
+
+function Enemy:restore(snap)
+  Entity.restore(self, snap)
+  self.current_pattern_index = snap.current_pattern_index
+  self.intent = snap.intent
 end
 
 return Enemy

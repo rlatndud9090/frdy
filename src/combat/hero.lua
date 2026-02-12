@@ -1,9 +1,12 @@
 local Entity = require('src.combat.entity')
-local i18n = require('src.i18n.init')
+local ActionPattern = require('src.combat.action_pattern')
+local PatternResolver = require('src.combat.pattern_resolver')
 
 ---@class Hero : Entity
 ---@field level number
 ---@field experience number
+---@field action_patterns ActionPattern[]
+---@field cooldown_tracker table
 local Hero = Entity:subclass('Hero')
 
 ---@param stats {hp: number, attack: number, defense: number}
@@ -11,20 +14,38 @@ function Hero:initialize(stats)
   Entity.initialize(self, "entity.hero", stats)
   self.level = 1
   self.experience = 0
-end
+  self.cooldown_tracker = {}
 
----@return string
-function Hero:get_action_pattern()
-  return "attack"
-end
-
----@return {type: string, damage: number, description: string}
-function Hero:get_intent()
-  return {
-    type = "attack",
-    damage = self.attack,
-    description = i18n.t("intent.attack"),
+  -- Hero default patterns: always attack
+  self.action_patterns = {
+    ActionPattern:new({
+      id = "hero_attack",
+      name = "attack",
+      type = "attack",
+      priority = 1,
+      condition = "always",
+      params = {damage_mult = 1.0},
+    }),
   }
+end
+
+--- Choose action using PatternResolver
+---@param context? table
+---@return ActionPattern|nil
+function Hero:choose_action(context)
+  context = context or {}
+  context.actor = self
+  context.cooldown_tracker = self.cooldown_tracker
+  return PatternResolver.resolve(self.action_patterns, context)
+end
+
+---@return {type: string, value: number, description: string}|nil
+function Hero:get_intent()
+  local pattern = self:choose_action()
+  if pattern then
+    return pattern:get_preview(self)
+  end
+  return nil
 end
 
 ---@param rewards {exp: number, hp_bonus: number, attack_bonus: number}
@@ -43,6 +64,19 @@ function Hero:grow(rewards)
     self.attack = self.attack + 1
     threshold = 100 * self.level
   end
+end
+
+function Hero:snapshot()
+  local snap = Entity.snapshot(self)
+  snap.level = self.level
+  snap.experience = self.experience
+  return snap
+end
+
+function Hero:restore(snap)
+  Entity.restore(self, snap)
+  self.level = snap.level
+  self.experience = snap.experience
 end
 
 return Hero

@@ -12,10 +12,10 @@ local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
 local Hero = require('src.combat.hero')
 local Enemy = require('src.combat.enemy')
-local Card = require('src.card.card')
-local Deck = require('src.card.deck')
-local ManaManager = require('src.card.mana_manager')
-local SuspicionManager = require('src.card.suspicion_manager')
+local Spell = require('src.spell.spell')
+local SpellBook = require('src.spell.spell_book')
+local ManaManager = require('src.spell.mana_manager')
+local SuspicionManager = require('src.spell.suspicion_manager')
 local EventManager = require('src.event.event_manager')
 local Game = require('src.core.game')
 local i18n = require('src.i18n.init')
@@ -42,7 +42,7 @@ local EDGE_SELECT = "EDGE_SELECT"
 ---@field hero_world_y number
 ---@field camera Camera
 ---@field hero Hero
----@field deck Deck
+---@field spell_book SpellBook
 ---@field mana_manager ManaManager
 ---@field suspicion_manager SuspicionManager
 ---@field event_manager EventManager
@@ -85,17 +85,17 @@ function GameScene:initialize()
   -- 게임 객체 생성
   self.hero = Hero:new({hp = 50, attack = 8, defense = 2})
 
-  -- 카드 덱 생성
-  local base_cards_data = require('data.cards.base_cards')
-  local cards = {}
-  for _, card_data in ipairs(base_cards_data) do
-    table.insert(cards, Card:new(card_data))
+  -- 마법서 생성
+  local base_spells_data = require('data.spells.base_spells')
+  local spells = {}
+  for _, spell_data in ipairs(base_spells_data) do
+    table.insert(spells, Spell:new(spell_data))
   end
-  self.deck = Deck:new(cards)
+  self.spell_book = SpellBook:new(spells)
 
   -- 매니저 생성
   local event_bus = Game:getInstance().event_bus
-  self.mana_manager = ManaManager:new(3)
+  self.mana_manager = ManaManager:new(100)
   self.suspicion_manager = SuspicionManager:new(event_bus)
 
   -- 이벤트 매니저 생성
@@ -220,15 +220,19 @@ end
 function GameScene:_draw_ui()
   love.graphics.setColor(1, 1, 1)
 
-  -- 게이지 및 미니맵
-  self.suspicion_gauge:draw()
-  self.mana_gauge:draw()
-  self.minimap:draw()
+  -- 전투 중이 아닐 때만 좌측 게이지 표시 (전투 중에는 SpellBookOverlay가 표시)
+  if self.phase ~= COMBAT and self.phase ~= ENTERING_COMBAT and self.phase ~= EXITING_COMBAT then
+    self.suspicion_gauge:draw()
+    self.mana_gauge:draw()
 
-  -- 용사 HP (텍스트)
-  love.graphics.setColor(0.2, 0.8, 0.2, 1)
-  love.graphics.print(i18n.t("gauge.hero_hp", {current = self.hero:get_hp(), max = self.hero:get_max_hp()}), 20, 100)
-  love.graphics.setColor(1, 1, 1)
+    -- 용사 HP (텍스트)
+    love.graphics.setColor(0.2, 0.8, 0.2, 1)
+    love.graphics.print(i18n.t("gauge.hero_hp", {current = self.hero:get_hp(), max = self.hero:get_max_hp()}), 20, 100)
+    love.graphics.setColor(1, 1, 1)
+  end
+
+  -- 미니맵은 항상 표시 (우측 상단이므로 충돌 없음)
+  self.minimap:draw()
 
   -- 전투 관련 페이즈: 핸들러 UI 그리기
   if self.phase == ENTERING_COMBAT or self.phase == COMBAT or self.phase == EXITING_COMBAT then
@@ -361,7 +365,7 @@ function GameScene:_enter_combat()
   local enemies = self:_create_enemies()
 
   -- combat_handler에 전투 데이터 전달
-  self.combat_handler:start_combat(self.hero, enemies, self.deck, self.mana_manager, self.suspicion_manager)
+  self.combat_handler:start_combat(self.hero, enemies, self.spell_book, self.mana_manager, self.suspicion_manager)
 
   -- 애니메이션
   self.combat_handler.enemy_world_x = self.hero_world_x + 800
@@ -409,6 +413,9 @@ end
 function GameScene:_on_combat_ended(result)
   self.phase = EXITING_COMBAT
   self.combat_handler:deactivate()
+
+  -- 전투 후 마나 회복
+  self.mana_manager:recover_after_combat(30)
 
   if result == "victory" then
     -- 용사 성장
@@ -498,6 +505,14 @@ end
 ---@param edge Edge
 function GameScene:_on_edge_selected(edge)
   self:_start_traveling(edge:get_to_node())
+end
+
+---@param x number
+---@param y number
+function GameScene:wheelmoved(x, y)
+  if self.phase == COMBAT then
+    self.combat_handler:wheelmoved(x, y)
+  end
 end
 
 --- 맵 오버레이 토글

@@ -27,3 +27,7 @@ end
 function love.mousepressed(x, y, button)
   Game:getInstance():mousepressed(x, y, button)
 end
+
+function love.wheelmoved(x, y)
+  Game:getInstance():wheelmoved(x, y)
+end

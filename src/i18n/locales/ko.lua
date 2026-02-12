@@ -24,10 +24,21 @@ return {
   ["combat.enemy_turn"] = "적의 턴",
   ["combat.mana_display"] = "마나: {current}/{max}",
   ["combat.hero_intent"] = "용사: {desc} ({damage} 데미지)",
-  ["combat.demon_lord_used_card"] = "마왕이 [{card}]을 사용!",
+  ["combat.demon_lord_used_spell"] = "마왕이 [{spell}]을 사용!",
   ["combat.hero_acts"] = "용사가 행동한다!",
   ["combat.enemy_acts"] = "적이 행동한다!",
   ["combat.demon_lord_turn_log"] = "--- 마왕의 턴 (턴 {turn}) ---",
+  ["combat.planning_phase"] = "마안의 시야 (턴 {turn})",
+  ["combat.execution_phase"] = "실행 중...",
+  ["combat.planning_phase_log"] = "--- 마안의 시야 (턴 {turn}) ---",
+  ["combat.execution_start"] = "실행 개시!",
+  ["combat.planning_reset"] = "배치 초기화",
+  ["combat.spell_placed"] = "[{spell}] 배치 완료",
+  ["combat.suspicion_preview"] = "의심도 변화 예상: +{value}",
+  ["combat.select_target"] = "조작할 행동을 선택하세요",
+  ["combat.select_destination"] = "교환할 대상을 선택하세요",
+  ["combat.manipulate_applied"] = "[{spell}] 조작 적용!",
+  ["combat.global_applied"] = "[{spell}] 전역 효과 적용!",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
 
@@ -35,6 +46,14 @@ return {
   ["entity.hero"] = "용사",
   ["intent.attack"] = "공격",
   ["intent.defense"] = "방어",
+
+  -- UI buttons
+  ["ui.confirm"] = "확정",
+  ["ui.reset"] = "리셋",
+
+  -- Spell status
+  ["spell.used"] = "사용됨",
+  ["spell.reserved"] = "배치됨",
 
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",

@@ -67,4 +67,12 @@ function Game:mousepressed(x, y, button)
     end
 end
 
+---@param x number
+---@param y number
+function Game:wheelmoved(x, y)
+    if self.scene_manager then
+        self.scene_manager:wheelmoved(x, y)
+    end
+end
+
 return Game
