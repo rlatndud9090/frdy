@@ -1071,6 +1071,10 @@ frdy/
   - `remove_at(index)`:
     - 특정 행동을 타임라인에서 제거 (조작형 카드용)
     - 제거 후 recalculate()
+  - `modify_at(index, card)`:
+    - 특정 행동의 수치를 변화 (변화형 카드용)
+    - 카드의 효과량만큼 대상 행동의 value를 증감
+    - 변화 후 recalculate()
   - `apply_global(card)`:
     - 전역형 카드 적용. 위치 무관하게 전체 타임라인에 영향
     - 적용 후 recalculate()
@@ -1078,17 +1082,21 @@ frdy/
   - `get_insertion_slots()`: 삽입 가능한 위치 인덱스 목록 반환
   - `confirm()`: 현재 타임라인을 확정하고 실행 큐에 전달
   - `reset()`: 모든 개입을 취소하고 원래 예측으로 복원
-- **수락 기준**: insert_at, swap, remove_at, apply_global 모두 정상 동작. 각 조작 후 타임라인이 재계산됨
+- **수락 기준**: insert_at, swap, remove_at, modify_at, apply_global 모두 정상 동작. 각 조작 후 타임라인이 재계산됨
 
 **TODO 10.4**: Card 클래스 수정 - 타임라인 타입 추가
 - Card에 `timeline_type` 필드 추가:
   - `"insert"`: 타임라인 특정 위치에 삽입 (기본값)
   - `"global"`: 전역 적용, 위치 선택 불필요
-  - `"manipulate_swap"`: 두 행동의 순서를 교환
-  - `"manipulate_remove"`: 특정 행동을 제거
-  - `"manipulate_delay"`: 특정 행동을 뒤로 밀어냄
+  - `"manipulate_swap"`: 두 행동의 순서를 교환 (2단계: 행동 선택 → 이동 위치 선택)
+  - `"manipulate_remove"`: 특정 행동을 제거 (1단계: 행동만 선택)
+  - `"manipulate_delay"`: 특정 행동을 뒤로 밀어냄 (2단계: 행동 선택 → 이동 위치 선택)
+  - `"manipulate_modify"`: 특정 행동의 수치를 강화/약화 (1단계: 행동만 선택)
+- 조작 방식 분류:
+  - **2단계 조작** (swap, delay): 대상 행동 클릭 → 타임라인에서 이동 목적지 클릭
+  - **1단계 조작** (remove, modify): 대상 행동만 클릭하면 즉시 효과 적용
 - 기존 카드들은 timeline_type = "insert"로 기본 설정
-- **수락 기준**: Card에 timeline_type 속성이 존재하고 올바른 값 반환
+- **수락 기준**: Card에 timeline_type 속성이 존재하고 올바른 값 반환. 조작 단계 수가 타입에 따라 정확히 구분됨
 
 **TODO 10.5**: CardEffect 확장 - 전역/조작 효과 추가
 - 새 효과 팩토리 함수:
@@ -1096,6 +1104,7 @@ frdy/
   - `CardEffect.swap()`: 두 행동 순서 교환 (타임라인 조작)
   - `CardEffect.nullify()`: 행동 무효화 (타임라인에서 제거)
   - `CardEffect.delay(turns)`: 행동 지연 (타임라인 뒤로 이동)
+  - `CardEffect.modify(amount)`: 행동 수치 변화 (+amount면 강화, -amount면 약화)
 - **수락 기준**: 각 효과가 TimelineManager를 통해 타임라인에 올바르게 적용됨
 
 **TODO 10.6**: TimelineUI 위젯 구현
@@ -1107,19 +1116,28 @@ frdy/
   - 색상: 용사 행동 = 파란 계열, 적 행동 = 빨간 계열, 마왕 개입 = 보라 계열
   - 아이콘/텍스트: 행동 타입 (검 아이콘 = 공격, 방패 = 방어 등)
   - 예측 수치 표시 (데미지/힐 양)
+  - 변화형 카드 적용 시: 원래 수치 취소선 + 변경된 수치 표시 (예: ~~8~~ → 5)
 - 인터랙션:
   - hover: 박스 확대 + 상세 정보 툴팁
-  - 카드 드래그 모드: 삽입 가능 슬롯이 박스 사이에 하이라이트됨
-  - 삽입 슬롯 클릭: 해당 위치에 카드 삽입
-  - 조작형 카드 모드: 행동 박스를 직접 클릭하여 대상 선택
+  - **삽입 모드** (insert 카드): 삽입 가능 슬롯이 박스 사이에 하이라이트 → 슬롯 클릭으로 삽입
+  - **2단계 조작 모드** (swap, delay 카드):
+    - 1단계: 행동 박스가 선택 가능하게 하이라이트 → 대상 행동 클릭
+    - 2단계: 이동 가능한 위치(슬롯)가 하이라이트 → 목적지 클릭으로 확정
+  - **1단계 조작 모드** (remove, modify 카드):
+    - 행동 박스가 선택 가능하게 하이라이트 → 대상 행동 클릭하면 즉시 효과 적용
 - 가로 스크롤: 타임라인이 화면 너비를 초과하면 좌우 스크롤 지원
+- 내부 상태 머신:
+  - `IDLE`: 기본 상태 (표시만)
+  - `INSERT_MODE`: 삽입 슬롯 선택 대기
+  - `MANIPULATE_SELECT_TARGET`: 조작 대상 행동 선택 대기 (모든 조작형)
+  - `MANIPULATE_SELECT_DESTINATION`: 이동 목적지 선택 대기 (swap, delay만)
 - 메서드:
   - `set_timeline(actions)`: 타임라인 데이터 설정
-  - `set_drag_mode(card)`: 카드 삽입 모드 진입 (삽입 슬롯 표시)
-  - `set_manipulate_mode(card)`: 조작 모드 진입 (대상 행동 선택)
-  - `cancel_mode()`: 모드 취소
+  - `set_insert_mode(card)`: 삽입 모드 진입 (삽입 슬롯 표시)
+  - `set_manipulate_mode(card)`: 조작 모드 진입 (timeline_type에 따라 1단계/2단계 자동 결정)
+  - `cancel_mode()`: 모드 취소, IDLE로 복귀
   - `update(dt)`, `draw()`, `mousepressed(x,y,btn)`, `mousemoved(x,y)`
-- **수락 기준**: 타임라인이 네모 박스 배열로 표시됨. 카드 드래그 시 삽입 슬롯 하이라이트. 클릭으로 삽입 완료
+- **수락 기준**: 타임라인이 네모 박스 배열로 표시됨. 삽입형은 슬롯 클릭으로 삽입. 2단계 조작은 행동→위치 두 번 클릭. 1단계 조작은 행동 클릭 한 번으로 완료
 
 **TODO 10.7**: TurnManager 수정 - 실행 페이즈 추가
 - 기존 페이즈: DEMON_LORD_TURN → HERO_TURN → ENEMY_TURN
@@ -1159,12 +1177,14 @@ frdy/
 **TODO 10.10**: 카드 데이터 업데이트
 - 기존 카드들에 `timeline_type = "insert"` 추가
 - 새 카드 추가:
-  - `"time_warp"` (조작형): 두 행동 순서 교환, cost 2, suspicion +8
-  - `"nullify"` (조작형): 적 행동 하나 제거, cost 3, suspicion +12
-  - `"delay_strike"` (조작형): 적 행동을 2턴 뒤로 밀기, cost 1, suspicion +5
-  - `"chaos_field"` (전역형): 모든 적 공격력 -2, cost 2, suspicion +7
-  - `"dark_blessing"` (전역형): 용사 방어력 +3 (전체 전투), cost 1, suspicion +4
-- **수락 기준**: 카드 데이터 파일에서 모든 카드 로딩 가능. timeline_type 속성이 올바르게 설정됨
+  - `"time_warp"` (manipulate_swap): 두 행동 순서 교환, cost 2, suspicion +8
+  - `"nullify"` (manipulate_remove): 적 행동 하나 제거, cost 3, suspicion +12
+  - `"delay_strike"` (manipulate_delay): 적 행동을 2턴 뒤로 밀기, cost 1, suspicion +5
+  - `"weaken_blow"` (manipulate_modify): 적 행동 데미지 -5, cost 1, suspicion +4
+  - `"empower_strike"` (manipulate_modify): 용사 행동 데미지 +4, cost 2, suspicion +7
+  - `"chaos_field"` (global): 모든 적 공격력 -2, cost 2, suspicion +7
+  - `"dark_blessing"` (global): 용사 방어력 +3 (전체 전투), cost 1, suspicion +4
+- **수락 기준**: 카드 데이터 파일에서 모든 카드 로딩 가능. timeline_type 속성이 올바르게 설정됨. 조작형 세부타입(swap/delay = 2단계, remove/modify = 1단계)이 올바르게 구분됨
 
 **커밋 1**: `feat(combat): 마안 예측 엔진 및 타임라인 데이터 구조 구현`
 **커밋 2**: `feat(combat): TimelineManager 타임라인 조작 시스템 구현`
