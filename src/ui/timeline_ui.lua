@@ -31,7 +31,7 @@ function TimelineUI:initialize()
   self.box_height = 60
   self.box_spacing = 6
   self.scroll_offset = 0
-  self.max_visible = 18
+  self.max_visible = 15
   self.on_insert_callback = nil
   self.on_manipulate_callback = nil
   self.on_global_callback = nil
@@ -91,10 +91,12 @@ end
 
 function TimelineUI:_get_box_rect(index)
   local visible_index = index - self.scroll_offset
+  local area_x = 280
+  local area_width = 1000  -- 1280 - 280
   local total_width = math.min(self.max_visible, self:_get_count()) * (self.box_width + self.box_spacing)
-  local start_x = (1280 - total_width) / 2
+  local start_x = area_x + (area_width - total_width) / 2
   local x = start_x + (visible_index - 1) * (self.box_width + self.box_spacing)
-  local y = 10
+  local y = 140
   return x, y, self.box_width, self.box_height
 end
 
@@ -151,7 +153,7 @@ function TimelineUI:draw()
   if self.mode == "INSERT_MODE" and self.insert_index then
     local ix = self:_get_insert_x(self.insert_index)
     love.graphics.setColor(0.6, 0.3, 1, 0.8)
-    love.graphics.rectangle("fill", ix - 2, 8, 4, self.box_height + 4, 2, 2)
+    love.graphics.rectangle("fill", ix - 2, 138, 4, self.box_height + 4, 2, 2)
   end
 
   for i = 1, count do
@@ -225,7 +227,7 @@ function TimelineUI:draw()
     else
       love.graphics.setColor(0.3, 1, 0.3, 0.9)
     end
-    love.graphics.printf(susp_text, 0, self.box_height + 18, 1280, "center")
+    love.graphics.printf(susp_text, 280, 208, 1000, "center")
   end
 
   -- Scroll indicator
@@ -233,23 +235,23 @@ function TimelineUI:draw()
     love.graphics.setColor(0.7, 0.7, 0.7, 0.5)
     local info = string.format("%d-%d / %d", self.scroll_offset + 1,
       math.min(self.scroll_offset + self.max_visible, #timeline), #timeline)
-    love.graphics.printf(info, 0, self.box_height + 18, 1280, "right")
+    love.graphics.printf(info, 280, 208, 1000, "right")
   end
 
   -- Hovered action tooltip
   if self.hovered_index and timeline[self.hovered_index] then
     local action = timeline[self.hovered_index]
     love.graphics.setColor(1, 1, 1, 0.9)
-    love.graphics.printf(action:get_description(), 0, self.box_height + 34, 1280, "center")
+    love.graphics.printf(action:get_description(), 280, 224, 1000, "center")
   end
 
   -- Mode hint text
   if self.mode == "MANIPULATE_SELECT_TARGET" then
     love.graphics.setColor(1, 0.8, 0, 0.9)
-    love.graphics.printf(i18n.t("combat.select_target"), 0, self.box_height + 50, 1280, "center")
+    love.graphics.printf(i18n.t("combat.select_target"), 280, 120, 1000, "center")
   elseif self.mode == "MANIPULATE_SELECT_DEST" then
     love.graphics.setColor(1, 0.5, 0, 0.9)
-    love.graphics.printf(i18n.t("combat.select_destination"), 0, self.box_height + 50, 1280, "center")
+    love.graphics.printf(i18n.t("combat.select_destination"), 280, 120, 1000, "center")
   end
 
   love.graphics.setColor(1, 1, 1, 1)
@@ -257,8 +259,10 @@ end
 
 function TimelineUI:_get_insert_x(index)
   local visible_index = index - self.scroll_offset
+  local area_x = 280
+  local area_width = 1000
   local total_width = math.min(self.max_visible, self:_get_count()) * (self.box_width + self.box_spacing)
-  local start_x = (1280 - total_width) / 2
+  local start_x = area_x + (area_width - total_width) / 2
   return start_x + (visible_index - 1) * (self.box_width + self.box_spacing)
 end
 

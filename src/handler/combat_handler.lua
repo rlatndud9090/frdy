@@ -2,8 +2,7 @@ local class = require('lib.middleclass')
 local CombatManager = require('src.combat.combat_manager')
 local PredictedAction = require('src.combat.predicted_action')
 local Gauge = require('src.ui.gauge')
-local Button = require('src.ui.button')
-local SpellPanel = require('src.ui.spell_panel')
+local SpellBookOverlay = require('src.ui.spell_book_overlay')
 local TimelineUI = require('src.ui.timeline_ui')
 local i18n = require('src.i18n.init')
 
@@ -14,9 +13,7 @@ local i18n = require('src.i18n.init')
 ---@field suspicion_manager SuspicionManager|nil
 ---@field hero_gauge Gauge
 ---@field enemy_gauges Gauge[]
----@field confirm_button Button
----@field reset_button Button
----@field spell_panel SpellPanel
+---@field spell_book_overlay SpellBookOverlay
 ---@field timeline_ui TimelineUI
 ---@field on_combat_end function|nil
 ---@field enemy_world_x number
@@ -39,25 +36,17 @@ function CombatHandler:initialize()
   self.hero_gauge = Gauge:new(50, 520, 200, 25, "entity.hero", {0.2, 0.8, 0.2})
   self.enemy_gauges = {}
 
-  -- Confirm button
-  self.confirm_button = Button:new(1100, 580, 120, 40, "ui.confirm")
-  self.confirm_button:set_on_click(function()
+  -- SpellBook Overlay (replaces SpellPanel + confirm/reset buttons)
+  self.spell_book_overlay = SpellBookOverlay:new()
+  self.spell_book_overlay:set_visible(false)
+  self.spell_book_overlay:set_on_play(function(spell)
+    self:_on_spell_selected(spell)
+  end)
+  self.spell_book_overlay:set_on_confirm(function()
     self:_confirm_planning()
   end)
-  self.confirm_button:set_visible(false)
-
-  -- Reset button
-  self.reset_button = Button:new(1100, 630, 120, 40, "ui.reset")
-  self.reset_button:set_on_click(function()
+  self.spell_book_overlay:set_on_reset(function()
     self:_reset_planning()
-  end)
-  self.reset_button:set_visible(false)
-
-  -- Spell panel
-  self.spell_panel = SpellPanel:new()
-  self.spell_panel:set_visible(false)
-  self.spell_panel:set_on_play(function(spell, index)
-    self:_on_spell_selected(spell, index)
   end)
 
   -- Timeline UI
@@ -117,6 +106,12 @@ function CombatHandler:start_combat(hero, enemies, spell_book, mana_manager, sus
 
   self.hero_gauge:set_value(hero:get_hp(), hero:get_max_hp())
 
+  -- Initialize SpellBookOverlay references
+  self.spell_book_overlay:set_spell_book(spell_book)
+  self.spell_book_overlay:set_mana_manager(mana_manager)
+  self.spell_book_overlay:set_suspicion_manager(suspicion_manager)
+  self.spell_book_overlay:set_hero(hero)
+
   -- Start first planning phase
   self:_start_planning()
 end
@@ -127,10 +122,8 @@ end
 
 function CombatHandler:deactivate()
   self.active = false
-  self.spell_panel:set_visible(false)
+  self.spell_book_overlay:set_visible(false)
   self.timeline_ui:set_visible(false)
-  self.confirm_button:set_visible(false)
-  self.reset_button:set_visible(false)
 end
 
 function CombatHandler:update(dt)
@@ -155,10 +148,8 @@ function CombatHandler:update(dt)
   end
 
   -- UI updates
-  self.spell_panel:update(dt)
+  self.spell_book_overlay:update(dt)
   self.timeline_ui:update(dt)
-  self.confirm_button:update(dt)
-  self.reset_button:update(dt)
 
   -- Gauge updates
   self:_update_gauges()
@@ -188,33 +179,22 @@ function CombatHandler:draw_world()
 end
 
 function CombatHandler:draw_ui()
-  -- Timeline UI (drawn outside ui_offset_y translate)
+  -- Timeline UI (absolute coordinates, outside translate)
   self.timeline_ui:draw()
+
+  -- SpellBookOverlay (absolute coordinates, outside translate)
+  self.spell_book_overlay:draw()
 
   love.graphics.push()
   love.graphics.translate(0, self.ui_offset_y)
 
-  local tm = self.combat_manager:get_turn_manager()
-  local phase = tm and tm:get_phase() or ""
-  local turn_count = tm and tm:get_turn_count() or 0
-
-  -- Phase info
-  love.graphics.setColor(1, 1, 1, 0.9)
-  local phase_text = i18n.t("combat.in_combat")
-  if phase == "PLANNING_PHASE" then
-    phase_text = i18n.t("combat.planning_phase", {turn = turn_count})
-  elseif phase == "EXECUTION_PHASE" then
-    phase_text = i18n.t("combat.execution_phase")
-  end
-  love.graphics.printf(phase_text, 0, 20, 1280, 'center')
-
-  -- Mana display
-  if self.mana_manager then
-    love.graphics.setColor(0, 0.5, 1, 1)
-    love.graphics.printf(
-      i18n.t("combat.mana_display", {current = self.mana_manager:get_current(), max = self.mana_manager:get_max()}),
-      0, 45, 1280, 'center'
-    )
+  -- Combat log (last 3)
+  love.graphics.setColor(1, 1, 1, 0.7)
+  local log_y = 30
+  local start_idx = math.max(1, #self.combat_log - 2)
+  for i = start_idx, #self.combat_log do
+    love.graphics.printf(self.combat_log[i], 280, log_y, 1000, 'center')
+    log_y = log_y + 18
   end
 
   -- Gauges
@@ -223,20 +203,6 @@ function CombatHandler:draw_ui()
     g:draw()
   end
 
-  -- Combat log (last 3)
-  love.graphics.setColor(1, 1, 1, 0.7)
-  local log_y = 70
-  local start_idx = math.max(1, #self.combat_log - 2)
-  for i = start_idx, #self.combat_log do
-    love.graphics.printf(self.combat_log[i], 300, log_y, 680, 'center')
-    log_y = log_y + 18
-  end
-
-  -- SpellPanel + Buttons
-  self.spell_panel:draw()
-  self.confirm_button:draw()
-  self.reset_button:draw()
-
   love.graphics.pop()
   love.graphics.setColor(1, 1, 1, 1)
 end
@@ -244,18 +210,21 @@ end
 function CombatHandler:mousepressed(x, y, button)
   if not self.active then return end
 
-  -- Timeline UI uses absolute coordinates
-  self.timeline_ui:mousepressed(x, y, button)
+  -- SpellBookOverlay (absolute coordinates) - block event propagation
+  if self.spell_book_overlay:mousepressed(x, y, button) then return end
 
-  local adjusted_y = y - self.ui_offset_y
-  self.spell_panel:mousepressed(x, adjusted_y, button)
-  self.confirm_button:mousepressed(x, adjusted_y, button)
-  self.reset_button:mousepressed(x, adjusted_y, button)
+  -- Timeline UI (absolute coordinates)
+  if self.timeline_ui:mousepressed(x, y, button) then return end
 end
 
 function CombatHandler:wheelmoved(x, y)
   if not self.active then return end
-  self.timeline_ui:wheelmoved(x, y)
+  local mx, my = love.mouse.getPosition()
+  if self.spell_book_overlay.visible and self.spell_book_overlay:hit_test(mx, my) then
+    self.spell_book_overlay:wheelmoved(x, y)
+  else
+    self.timeline_ui:wheelmoved(x, y)
+  end
 end
 
 --- Start planning phase
@@ -276,20 +245,15 @@ function CombatHandler:_start_planning()
   end
 
   -- Show UI
-  self.spell_panel:set_spell_book(self.spell_book)
-  self.spell_panel:set_mana_manager(self.mana_manager)
-  self.spell_panel:set_visible(true)
+  self.spell_book_overlay:set_visible(true)
   self.timeline_ui:set_visible(true)
-  self.confirm_button:set_visible(true)
-  self.reset_button:set_visible(true)
 
   table.insert(self.combat_log, i18n.t("combat.planning_phase_log", {turn = tm:get_turn_count()}))
 end
 
 --- Spell selected from panel: route by timeline_type
 ---@param spell Spell
----@param index number
-function CombatHandler:_on_spell_selected(spell, index)
+function CombatHandler:_on_spell_selected(spell)
   -- Reserve mana first
   if not spell:reserve(self.mana_manager) then return end
   self.spell_book:reserve(spell)
@@ -401,9 +365,7 @@ function CombatHandler:_confirm_planning()
   end
 
   -- Hide planning UI
-  self.spell_panel:set_visible(false)
-  self.confirm_button:set_visible(false)
-  self.reset_button:set_visible(false)
+  self.spell_book_overlay:set_visible(false)
 
   -- Start execution
   self.combat_manager:start_execution()

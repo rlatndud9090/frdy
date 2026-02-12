@@ -220,15 +220,19 @@ end
 function GameScene:_draw_ui()
   love.graphics.setColor(1, 1, 1)
 
-  -- 게이지 및 미니맵
-  self.suspicion_gauge:draw()
-  self.mana_gauge:draw()
-  self.minimap:draw()
+  -- 전투 중이 아닐 때만 좌측 게이지 표시 (전투 중에는 SpellBookOverlay가 표시)
+  if self.phase ~= COMBAT and self.phase ~= ENTERING_COMBAT and self.phase ~= EXITING_COMBAT then
+    self.suspicion_gauge:draw()
+    self.mana_gauge:draw()
 
-  -- 용사 HP (텍스트)
-  love.graphics.setColor(0.2, 0.8, 0.2, 1)
-  love.graphics.print(i18n.t("gauge.hero_hp", {current = self.hero:get_hp(), max = self.hero:get_max_hp()}), 20, 100)
-  love.graphics.setColor(1, 1, 1)
+    -- 용사 HP (텍스트)
+    love.graphics.setColor(0.2, 0.8, 0.2, 1)
+    love.graphics.print(i18n.t("gauge.hero_hp", {current = self.hero:get_hp(), max = self.hero:get_max_hp()}), 20, 100)
+    love.graphics.setColor(1, 1, 1)
+  end
+
+  -- 미니맵은 항상 표시 (우측 상단이므로 충돌 없음)
+  self.minimap:draw()
 
   -- 전투 관련 페이즈: 핸들러 UI 그리기
   if self.phase == ENTERING_COMBAT or self.phase == COMBAT or self.phase == EXITING_COMBAT then

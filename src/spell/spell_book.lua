@@ -71,6 +71,27 @@ function SpellBook:get_all_spells()
   return self.spells
 end
 
+--- Filter spells by timeline type
+---@param type_filter string "all"|"insert"|"manipulate"|"global"
+---@return Spell[]
+function SpellBook:get_spells_by_type(type_filter)
+  if type_filter == "all" then
+    return self.spells
+  end
+  local result = {}
+  for _, spell in ipairs(self.spells) do
+    local ttype = spell:get_timeline_type()
+    if type_filter == "insert" and ttype == "insert" then
+      table.insert(result, spell)
+    elseif type_filter == "manipulate" and ttype:sub(1,10) == "manipulate" then
+      table.insert(result, spell)
+    elseif type_filter == "global" and ttype == "global" then
+      table.insert(result, spell)
+    end
+  end
+  return result
+end
+
 --- Get available (playable) spells
 ---@return Spell[]
 function SpellBook:get_available_spells()
