@@ -238,8 +238,8 @@ function CombatHandler:_start_demon_lord_turn()
   -- 새 턴 시작: 사용 기록 초기화
   self.spell_book:start_planning()
 
-  -- SpellPanel 갱신 (전체 마법 표시)
-  self.spell_panel:set_spells(self.spell_book:get_all_spells())
+  -- SpellPanel 갱신
+  self.spell_panel:set_spell_book(self.spell_book)
   self.spell_panel:set_mana_manager(self.mana_manager)
   self.spell_panel:set_visible(true)
   self.end_turn_button:set_visible(true)
@@ -281,9 +281,6 @@ function CombatHandler:_play_spell(spell, index)
 
   -- 로그
   table.insert(self.combat_log, i18n.t("combat.demon_lord_used_spell", {spell = spell:get_name()}))
-
-  -- SpellPanel 갱신 (전체 마법 표시)
-  self.spell_panel:set_spells(self.spell_book:get_all_spells())
 
   -- 게이지 갱신
   self:_update_gauges()

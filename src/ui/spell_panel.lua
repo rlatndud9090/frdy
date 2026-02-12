@@ -3,7 +3,7 @@ local UIElement = require("src.ui.ui_element")
 local i18n = require("src.i18n.init")
 
 ---@class SpellPanel : UIElement
----@field spells Spell[]
+---@field spell_book SpellBook|nil
 ---@field mana_manager ManaManager|nil
 ---@field on_play_callback function|nil  -- function(spell, index)
 ---@field on_pass_callback function|nil  -- function()
@@ -15,7 +15,7 @@ local SpellPanel = class("SpellPanel", UIElement)
 
 function SpellPanel:initialize()
   UIElement.initialize(self, 0, 0, 1280, 200)
-  self.spells = {}
+  self.spell_book = nil
   self.mana_manager = nil
   self.on_play_callback = nil
   self.on_pass_callback = nil
@@ -25,8 +25,10 @@ function SpellPanel:initialize()
   self.spell_spacing = 10
 end
 
-function SpellPanel:set_spells(spells)
-  self.spells = spells or {}
+--- Set the SpellBook reference (replaces set_spells)
+---@param spell_book SpellBook
+function SpellPanel:set_spell_book(spell_book)
+  self.spell_book = spell_book
 end
 
 function SpellPanel:set_mana_manager(mana_manager)
@@ -42,11 +44,44 @@ function SpellPanel:set_on_pass(callback) -- callback()
 end
 
 function SpellPanel:get_spell_count()
-  return #self.spells
+  if not self.spell_book then return 0 end
+  return #self.spell_book:get_all_spells()
+end
+
+--- Check if a spell is playable (available + affordable)
+---@param spell Spell
+---@return boolean
+function SpellPanel:_is_playable(spell)
+  if not self.spell_book or not self.mana_manager then return false end
+  return self.spell_book:is_available(spell) and spell:can_play(self.mana_manager)
+end
+
+--- Get spell status for visual rendering
+---@param spell Spell
+---@return string "playable"|"no_mana"|"used"|"reserved"
+function SpellPanel:_get_spell_status(spell)
+  if not self.spell_book then return "no_mana" end
+
+  local id = spell:get_id()
+  if self.spell_book.used_this_turn[id] then
+    return "used"
+  elseif self.spell_book.reserved[id] then
+    return "reserved"
+  elseif self.mana_manager and not spell:can_play(self.mana_manager) then
+    return "no_mana"
+  else
+    return "playable"
+  end
+end
+
+function SpellPanel:_get_spells()
+  if not self.spell_book then return {} end
+  return self.spell_book:get_all_spells()
 end
 
 function SpellPanel:_get_spell_rect(index)
-  local total_width = #self.spells * (self.spell_width + self.spell_spacing) - self.spell_spacing
+  local spells = self:_get_spells()
+  local total_width = #spells * (self.spell_width + self.spell_spacing) - self.spell_spacing
   local start_x = (1280 - total_width) / 2
   local x = start_x + (index - 1) * (self.spell_width + self.spell_spacing)
   local y = 720 - self.spell_height - 20
@@ -61,7 +96,8 @@ function SpellPanel:update(dt)
   local mx, my = love.mouse.getPosition()
   self.hovered_index = nil
 
-  for i = #self.spells, 1, -1 do
+  local spells = self:_get_spells()
+  for i = #spells, 1, -1 do
     local cx, cy, cw, ch = self:_get_spell_rect(i)
     if mx >= cx and mx <= cx + cw and my >= cy and my <= cy + ch then
       self.hovered_index = i
@@ -72,39 +108,52 @@ end
 
 function SpellPanel:draw()
   if not self.visible then return end
-  if #self.spells == 0 then return end
+  local spells = self:_get_spells()
+  if #spells == 0 then return end
 
-  for i, spell in ipairs(self.spells) do
+  for i, spell in ipairs(spells) do
     local cx, cy, cw, ch = self:_get_spell_rect(i)
-    local playable = self.mana_manager and spell:can_play(self.mana_manager)
+    local status = self:_get_spell_status(spell)
     local is_hovered = (i == self.hovered_index)
+    local playable = (status == "playable")
 
-    if is_hovered then
+    -- Background
+    if is_hovered and playable then
       love.graphics.setColor(0.3, 0.3, 0.4, 1)
+    elseif status == "used" then
+      love.graphics.setColor(0.12, 0.12, 0.12, 0.8)
+    elseif status == "reserved" then
+      love.graphics.setColor(0.2, 0.15, 0.3, 0.9)
     elseif playable then
       love.graphics.setColor(0.2, 0.2, 0.3, 0.95)
-    else
+    else -- no_mana
       love.graphics.setColor(0.15, 0.15, 0.15, 0.7)
     end
     love.graphics.rectangle("fill", cx, cy, cw, ch, 6, 6)
 
-    if playable then
+    -- Border
+    if status == "reserved" then
+      love.graphics.setColor(0.6, 0.3, 1, 1)
+    elseif playable then
       love.graphics.setColor(0.6, 0.8, 1, 1)
     else
       love.graphics.setColor(0.4, 0.4, 0.4, 0.6)
     end
     love.graphics.rectangle("line", cx, cy, cw, ch, 6, 6)
 
+    -- Mana cost circle
     local cost = spell:get_cost()
     love.graphics.setColor(0, 0.4, 0.9, 1)
     love.graphics.circle("fill", cx + 16, cy + 16, 12)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.printf(tostring(cost), cx + 4, cy + 10, 24, "center")
 
+    -- Spell name
     local text_alpha = playable and 1 or 0.5
     love.graphics.setColor(1, 1, 1, text_alpha)
     love.graphics.printf(spell:get_name(), cx + 4, cy + 35, cw - 8, "center")
 
+    -- Suspicion delta
     local susp = spell:get_suspicion_delta()
     if susp > 0 then
       love.graphics.setColor(1, 0.3, 0.3, text_alpha)
@@ -114,6 +163,16 @@ function SpellPanel:draw()
       love.graphics.printf(i18n.t("suspicion.decrease", {value = susp}), cx + 4, cy + 55, cw - 8, "center")
     end
 
+    -- Status overlay text
+    if status == "used" then
+      love.graphics.setColor(0.6, 0.6, 0.6, 0.8)
+      love.graphics.printf(i18n.t("spell.used"), cx + 4, cy + ch / 2 - 8, cw - 8, "center")
+    elseif status == "reserved" then
+      love.graphics.setColor(0.7, 0.5, 1, 0.9)
+      love.graphics.printf(i18n.t("spell.reserved"), cx + 4, cy + ch / 2 - 8, cw - 8, "center")
+    end
+
+    -- Hover description
     if is_hovered then
       love.graphics.setColor(0.8, 0.8, 0.8, 1)
       love.graphics.printf(spell:get_description(), cx + 4, cy + 80, cw - 8, "center")
@@ -126,11 +185,12 @@ end
 function SpellPanel:mousepressed(mx, my, button)
   if not self.visible or button ~= 1 then return end
 
-  for i = #self.spells, 1, -1 do
+  local spells = self:_get_spells()
+  for i = #spells, 1, -1 do
     local cx, cy, cw, ch = self:_get_spell_rect(i)
     if mx >= cx and mx <= cx + cw and my >= cy and my <= cy + ch then
-      local spell = self.spells[i]
-      if self.mana_manager and spell:can_play(self.mana_manager) then
+      local spell = spells[i]
+      if self:_is_playable(spell) then
         if self.on_play_callback then
           self.on_play_callback(spell, i)
         end

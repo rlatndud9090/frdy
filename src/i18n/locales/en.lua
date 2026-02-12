@@ -36,6 +36,10 @@ return {
   ["intent.attack"] = "Attack",
   ["intent.defense"] = "Defense",
 
+  -- Spell status
+  ["spell.used"] = "Used",
+  ["spell.reserved"] = "Placed",
+
   -- Suspicion
   ["suspicion.increase"] = "Suspicion +{value}",
   ["suspicion.decrease"] = "Suspicion {value}",

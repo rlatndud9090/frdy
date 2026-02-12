@@ -36,6 +36,10 @@ return {
   ["intent.attack"] = "공격",
   ["intent.defense"] = "방어",
 
+  -- Spell status
+  ["spell.used"] = "사용됨",
+  ["spell.reserved"] = "배치됨",
+
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",
   ["suspicion.decrease"] = "의심 {value}",
