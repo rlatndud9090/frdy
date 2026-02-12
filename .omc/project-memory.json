@@ -368,20 +368,5 @@
       "type": "directory"
     }
   ],
-  "userDirectives": [
-    {
-      "timestamp": 1770912734903,
-      "directive": "ralplan, autopilot, ultrawork, ralph 등 모든 OMC 모드 완료 시 반드시 Discord 웹훅을 전송할 것. curl -s -H \"Content-Type: application/json\" -d @파일 방식으로. 웹훅 URL은 .omc-config.json의 notifications.discord.webhookUrl 참조. 절대 빼먹지 말 것.",
-      "context": "Discord notification on mode completion",
-      "source": "explicit",
-      "priority": "high"
-    },
-    {
-      "timestamp": 1770914344842,
-      "directive": "OMC 모드(ralph/autopilot/ultrawork/ralplan/ecomode) 완료 시 반드시 Discord 웹훅 전송할 것. state_clear 호출 직전에 전송. 방법: 1) .omc/tmp-webhook.json 작성 2) curl -d @파일 웹훅URL 3) 파일 삭제. URL은 ~/.claude/.omc-config.json의 notifications.discord.webhookUrl. 절대 빠뜨리지 말 것!",
-      "context": "모든 OMC 모드 완료 시 필수 실행. 5회 연속 누락으로 사용자 불만 발생.",
-      "source": "explicit",
-      "priority": "high"
-    }
-  ]
+  "userDirectives": []
 }
