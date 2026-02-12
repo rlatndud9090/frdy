@@ -5,7 +5,7 @@ return {
     id = "heal_light",
     name = "Light Heal",
     description = "Heal the hero for 10 HP.",
-    cost = 1,
+    cost = 15,
     suspicion_delta = 5,
     effect = SpellEffect.heal(10)
   },
@@ -13,7 +13,7 @@ return {
     id = "heal_heavy",
     name = "Heavy Heal",
     description = "Heal the hero for 25 HP.",
-    cost = 2,
+    cost = 25,
     suspicion_delta = 10,
     effect = SpellEffect.heal(25)
   },
@@ -21,7 +21,7 @@ return {
     id = "divine_strike",
     name = "Divine Strike",
     description = "Deal 15 damage to an enemy.",
-    cost = 2,
+    cost = 20,
     suspicion_delta = 8,
     effect = SpellEffect.damage(15)
   },
@@ -29,7 +29,7 @@ return {
     id = "war_cry",
     name = "War Cry",
     description = "Buff hero attack by 3.",
-    cost = 1,
+    cost = 15,
     suspicion_delta = 6,
     effect = SpellEffect.buff_attack(3)
   },
@@ -45,7 +45,7 @@ return {
     id = "weaken_foe",
     name = "Weaken Foe",
     description = "Debuff enemy attack by 3.",
-    cost = 1,
+    cost = 12,
     suspicion_delta = 3,
     effect = SpellEffect.debuff_attack(3)
   },
@@ -53,7 +53,7 @@ return {
     id = "dark_pact",
     name = "Dark Pact",
     description = "Hinder the hero for 10 damage.",
-    cost = 1,
+    cost = 10,
     suspicion_delta = -15,
     effect = SpellEffect.hinder(10)
   },
