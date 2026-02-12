@@ -1,15 +1,15 @@
 local class = require('lib.middleclass')
 
 ---@class Deck
----@field draw_pile Card[]
----@field hand Card[]
----@field discard_pile Card[]
+---@field draw_pile Spell[]
+---@field hand Spell[]
+---@field discard_pile Spell[]
 ---@field hand_size number
----@field new fun(self: Deck, cards: Card[]): Deck
+---@field new fun(self: Deck, cards: Spell[]): Deck
 local Deck = class('Deck')
 
 --- Initialize deck with a list of cards
----@param cards Card[]
+---@param cards Spell[]
 function Deck:initialize(cards)
   self.draw_pile = {}
   self.hand = {}
@@ -56,7 +56,7 @@ function Deck:draw(count)
 end
 
 --- Discard a specific card from hand
----@param card Card
+---@param card Spell
 ---@return boolean
 function Deck:discard(card)
   for i = #self.hand, 1, -1 do
@@ -78,13 +78,13 @@ function Deck:discard_hand()
 end
 
 --- Add a card to the discard pile
----@param card Card
+---@param card Spell
 function Deck:add_card(card)
   self.discard_pile[#self.discard_pile + 1] = card
 end
 
 --- Remove a card from all piles
----@param card Card
+---@param card Spell
 ---@return boolean
 function Deck:remove_card(card)
   --- Check hand
@@ -114,7 +114,7 @@ function Deck:remove_card(card)
   return false
 end
 
----@return Card[]
+---@return Spell[]
 function Deck:get_hand()
   return self.hand
 end

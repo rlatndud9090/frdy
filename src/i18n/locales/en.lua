@@ -24,7 +24,7 @@ return {
   ["combat.enemy_turn"] = "Enemy's Turn",
   ["combat.mana_display"] = "Mana: {current}/{max}",
   ["combat.hero_intent"] = "Hero: {desc} ({damage} dmg)",
-  ["combat.demon_lord_used_card"] = "Demon Lord used [{card}]!",
+  ["combat.demon_lord_used_spell"] = "Demon Lord used [{spell}]!",
   ["combat.hero_acts"] = "Hero acts!",
   ["combat.enemy_acts"] = "Enemy acts!",
   ["combat.demon_lord_turn_log"] = "--- Demon Lord's Turn (Turn {turn}) ---",

@@ -1,4 +1,4 @@
-local CardEffect = require('src.card.card_effect')
+local SpellEffect = require('src.spell.spell_effect')
 
 return {
   {
@@ -7,7 +7,7 @@ return {
     description = "Heal the hero for 10 HP.",
     cost = 1,
     suspicion_delta = 5,
-    effect = CardEffect.heal(10)
+    effect = SpellEffect.heal(10)
   },
   {
     id = "heal_heavy",
@@ -15,7 +15,7 @@ return {
     description = "Heal the hero for 25 HP.",
     cost = 2,
     suspicion_delta = 10,
-    effect = CardEffect.heal(25)
+    effect = SpellEffect.heal(25)
   },
   {
     id = "divine_strike",
@@ -23,7 +23,7 @@ return {
     description = "Deal 15 damage to an enemy.",
     cost = 2,
     suspicion_delta = 8,
-    effect = CardEffect.damage(15)
+    effect = SpellEffect.damage(15)
   },
   {
     id = "war_cry",
@@ -31,7 +31,7 @@ return {
     description = "Buff hero attack by 3.",
     cost = 1,
     suspicion_delta = 6,
-    effect = CardEffect.buff_attack(3)
+    effect = SpellEffect.buff_attack(3)
   },
   {
     id = "stumble",
@@ -39,7 +39,7 @@ return {
     description = "Hinder the hero for 5 damage.",
     cost = 0,
     suspicion_delta = -8,
-    effect = CardEffect.hinder(5)
+    effect = SpellEffect.hinder(5)
   },
   {
     id = "weaken_foe",
@@ -47,7 +47,7 @@ return {
     description = "Debuff enemy attack by 3.",
     cost = 1,
     suspicion_delta = 3,
-    effect = CardEffect.debuff_attack(3)
+    effect = SpellEffect.debuff_attack(3)
   },
   {
     id = "dark_pact",
@@ -55,7 +55,7 @@ return {
     description = "Hinder the hero for 10 damage.",
     cost = 1,
     suspicion_delta = -15,
-    effect = CardEffect.hinder(10)
+    effect = SpellEffect.hinder(10)
   },
   {
     id = "minor_heal",
@@ -63,6 +63,6 @@ return {
     description = "Heal the hero for 5 HP.",
     cost = 0,
     suspicion_delta = 3,
-    effect = CardEffect.heal(5)
+    effect = SpellEffect.heal(5)
   }
 }

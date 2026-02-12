@@ -1,18 +1,18 @@
----@module CardEffect
+---@module SpellEffect
 --- Factory functions returning effect objects (tables with apply method).
 --- Each factory returns a table {type, amount, apply(self, target, context)}.
 
----@class CardEffectObject
+---@class SpellEffectObject
 ---@field type string
 ---@field amount number
----@field apply fun(self: CardEffectObject, target: any, context: any)
+---@field apply fun(self: SpellEffectObject, target: any, context: any)
 
-local CardEffect = {}
+local SpellEffect = {}
 
 --- Create a healing effect
 ---@param amount number
----@return CardEffectObject
-function CardEffect.heal(amount)
+---@return SpellEffectObject
+function SpellEffect.heal(amount)
   return {
     type = "heal",
     amount = amount,
@@ -24,8 +24,8 @@ end
 
 --- Create a damage effect
 ---@param amount number
----@return CardEffectObject
-function CardEffect.damage(amount)
+---@return SpellEffectObject
+function SpellEffect.damage(amount)
   return {
     type = "damage",
     amount = amount,
@@ -37,8 +37,8 @@ end
 
 --- Create an attack buff effect
 ---@param amount number
----@return CardEffectObject
-function CardEffect.buff_attack(amount)
+---@return SpellEffectObject
+function SpellEffect.buff_attack(amount)
   return {
     type = "buff_attack",
     amount = amount,
@@ -50,8 +50,8 @@ end
 
 --- Create an attack debuff effect
 ---@param amount number
----@return CardEffectObject
-function CardEffect.debuff_attack(amount)
+---@return SpellEffectObject
+function SpellEffect.debuff_attack(amount)
   return {
     type = "debuff_attack",
     amount = amount,
@@ -63,8 +63,8 @@ end
 
 --- Create a hinder effect (damage to hero)
 ---@param damage_amount number
----@return CardEffectObject
-function CardEffect.hinder(damage_amount)
+---@return SpellEffectObject
+function SpellEffect.hinder(damage_amount)
   return {
     type = "hinder",
     amount = damage_amount,
@@ -74,4 +74,4 @@ function CardEffect.hinder(damage_amount)
   }
 end
 
-return CardEffect
+return SpellEffect

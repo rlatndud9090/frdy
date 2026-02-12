@@ -12,10 +12,10 @@ local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
 local Hero = require('src.combat.hero')
 local Enemy = require('src.combat.enemy')
-local Card = require('src.card.card')
-local Deck = require('src.card.deck')
-local ManaManager = require('src.card.mana_manager')
-local SuspicionManager = require('src.card.suspicion_manager')
+local Spell = require('src.spell.spell')
+local Deck = require('src.spell.deck')
+local ManaManager = require('src.spell.mana_manager')
+local SuspicionManager = require('src.spell.suspicion_manager')
 local EventManager = require('src.event.event_manager')
 local Game = require('src.core.game')
 local i18n = require('src.i18n.init')
@@ -85,13 +85,13 @@ function GameScene:initialize()
   -- 게임 객체 생성
   self.hero = Hero:new({hp = 50, attack = 8, defense = 2})
 
-  -- 카드 덱 생성
-  local base_cards_data = require('data.cards.base_cards')
-  local cards = {}
-  for _, card_data in ipairs(base_cards_data) do
-    table.insert(cards, Card:new(card_data))
+  -- 마법 덱 생성
+  local base_spells_data = require('data.spells.base_spells')
+  local spells = {}
+  for _, spell_data in ipairs(base_spells_data) do
+    table.insert(spells, Spell:new(spell_data))
   end
-  self.deck = Deck:new(cards)
+  self.deck = Deck:new(spells)
 
   -- 매니저 생성
   local event_bus = Game:getInstance().event_bus

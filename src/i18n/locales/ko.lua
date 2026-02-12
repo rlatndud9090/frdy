@@ -24,7 +24,7 @@ return {
   ["combat.enemy_turn"] = "적의 턴",
   ["combat.mana_display"] = "마나: {current}/{max}",
   ["combat.hero_intent"] = "용사: {desc} ({damage} 데미지)",
-  ["combat.demon_lord_used_card"] = "마왕이 [{card}]을 사용!",
+  ["combat.demon_lord_used_spell"] = "마왕이 [{spell}]을 사용!",
   ["combat.hero_acts"] = "용사가 행동한다!",
   ["combat.enemy_acts"] = "적이 행동한다!",
   ["combat.demon_lord_turn_log"] = "--- 마왕의 턴 (턴 {turn}) ---",

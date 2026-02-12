@@ -2,7 +2,7 @@ local class = require('lib.middleclass')
 local CombatManager = require('src.combat.combat_manager')
 local Gauge = require('src.ui.gauge')
 local Button = require('src.ui.button')
-local CardHand = require('src.ui.card_hand')
+local SpellPanel = require('src.ui.spell_panel')
 local i18n = require('src.i18n.init')
 
 ---@class CombatHandler
@@ -13,7 +13,7 @@ local i18n = require('src.i18n.init')
 ---@field hero_gauge Gauge
 ---@field enemy_gauges Gauge[]
 ---@field end_turn_button Button
----@field card_hand CardHand
+---@field spell_panel SpellPanel
 ---@field on_combat_end function|nil
 ---@field enemy_world_x number
 ---@field enemy_world_y number
@@ -40,10 +40,10 @@ function CombatHandler:initialize()
   end)
   self.end_turn_button:set_visible(false)
 
-  self.card_hand = CardHand:new()
-  self.card_hand:set_visible(false)
-  self.card_hand:set_on_play(function(card, index)
-    self:_play_card(card, index)
+  self.spell_panel = SpellPanel:new()
+  self.spell_panel:set_visible(false)
+  self.spell_panel:set_on_play(function(spell, index)
+    self:_play_spell(spell, index)
   end)
 
   self.on_combat_end = nil
@@ -99,7 +99,7 @@ end
 
 function CombatHandler:deactivate()
   self.active = false
-  self.card_hand:set_visible(false)
+  self.spell_panel:set_visible(false)
   self.end_turn_button:set_visible(false)
 end
 
@@ -125,7 +125,7 @@ function CombatHandler:update(dt)
   end
 
   -- UI 업데이트
-  self.card_hand:update(dt)
+  self.spell_panel:update(dt)
   self.end_turn_button:update(dt)
 
   -- 게이지 업데이트
@@ -212,8 +212,8 @@ function CombatHandler:draw_ui()
     log_y = log_y + 18
   end
 
-  -- CardHand + 턴 종료 버튼
-  self.card_hand:draw()
+  -- SpellPanel + 턴 종료 버튼
+  self.spell_panel:draw()
   self.end_turn_button:draw()
 
   love.graphics.pop()
@@ -224,7 +224,7 @@ function CombatHandler:mousepressed(x, y, button)
   if not self.active then return end
   local adjusted_y = y - self.ui_offset_y
 
-  self.card_hand:mousepressed(x, adjusted_y, button)
+  self.spell_panel:mousepressed(x, adjusted_y, button)
   self.end_turn_button:mousepressed(x, adjusted_y, button)
 end
 
@@ -241,25 +241,25 @@ function CombatHandler:_start_demon_lord_turn()
   -- 카드 드로우
   self.deck:start_turn(5)
 
-  -- CardHand 갱신
-  self.card_hand:set_cards(self.deck:get_hand())
-  self.card_hand:set_mana_manager(self.mana_manager)
-  self.card_hand:set_visible(true)
+  -- SpellPanel 갱신
+  self.spell_panel:set_spells(self.deck:get_hand())
+  self.spell_panel:set_mana_manager(self.mana_manager)
+  self.spell_panel:set_visible(true)
   self.end_turn_button:set_visible(true)
 
   table.insert(self.combat_log, i18n.t("combat.demon_lord_turn_log", {turn = tm:get_turn_count()}))
 end
 
---- 카드 플레이
----@param card Card
+--- 마법 사용
+---@param spell Spell
 ---@param index number
-function CombatHandler:_play_card(card, index)
+function CombatHandler:_play_spell(spell, index)
   local hero = self.combat_manager:get_hero()
   local enemies = self.combat_manager:get_enemies()
   if not hero or not enemies then return end
 
   -- 타겟 결정: effect type에 따라
-  local effect = card:get_effect()
+  local effect = spell:get_effect()
   ---@type Entity
   local target = hero  -- 기본: hero
   if effect and (effect.type == "damage" or effect.type == "debuff_attack") then
@@ -270,23 +270,23 @@ function CombatHandler:_play_card(card, index)
     end
   end
 
-  -- 카드 플레이
+  -- 마법 사용
   local context = {
     hero = hero,
     enemies = enemies,
     mana_manager = self.mana_manager,
     suspicion_manager = self.suspicion_manager,
   }
-  card:play(target, context)
+  spell:play(target, context)
 
   -- 핸드에서 제거
-  self.deck:discard(card)
+  self.deck:discard(spell)
 
   -- 로그
-  table.insert(self.combat_log, i18n.t("combat.demon_lord_used_card", {card = card:get_name()}))
+  table.insert(self.combat_log, i18n.t("combat.demon_lord_used_spell", {spell = spell:get_name()}))
 
-  -- CardHand 갱신
-  self.card_hand:set_cards(self.deck:get_hand())
+  -- SpellPanel 갱신
+  self.spell_panel:set_spells(self.deck:get_hand())
 
   -- 게이지 갱신
   self:_update_gauges()
@@ -294,10 +294,10 @@ end
 
 --- 마왕 턴 종료
 function CombatHandler:_end_demon_lord_turn()
-  self.card_hand:set_visible(false)
+  self.spell_panel:set_visible(false)
   self.end_turn_button:set_visible(false)
 
-  -- 남은 카드 discard
+  -- 남은 마법 discard
   self.deck:discard_hand()
 
   -- advance_phase: DEMON_LORD → HERO
