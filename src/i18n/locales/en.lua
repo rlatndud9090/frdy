@@ -35,6 +35,10 @@ return {
   ["combat.planning_reset"] = "Planning reset",
   ["combat.spell_placed"] = "[{spell}] placed",
   ["combat.suspicion_preview"] = "Suspicion change: +{value}",
+  ["combat.select_target"] = "Select action to manipulate",
+  ["combat.select_destination"] = "Select swap destination",
+  ["combat.manipulate_applied"] = "[{spell}] manipulation applied!",
+  ["combat.global_applied"] = "[{spell}] global effect applied!",
   ["combat.floor_cleared"] = "Floor cleared!",
   ["combat.defeat"] = "Defeat! Game Over",
 

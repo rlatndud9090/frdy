@@ -4,16 +4,19 @@ local i18n = require("src.i18n.init")
 
 ---@class TimelineUI : UIElement
 ---@field timeline_manager TimelineManager|nil
----@field mode string "IDLE"|"INSERT_MODE"
+---@field mode string "IDLE"|"INSERT_MODE"|"MANIPULATE_SELECT_TARGET"|"MANIPULATE_SELECT_DEST"
 ---@field hovered_index number|nil
 ---@field selected_spell Spell|nil
 ---@field insert_index number|nil
+---@field manipulate_target_index number|nil
 ---@field box_width number
 ---@field box_height number
 ---@field box_spacing number
 ---@field scroll_offset number
 ---@field max_visible number
 ---@field on_insert_callback function|nil
+---@field on_manipulate_callback function|nil
+---@field on_global_callback function|nil
 local TimelineUI = class("TimelineUI", UIElement)
 
 function TimelineUI:initialize()
@@ -23,12 +26,15 @@ function TimelineUI:initialize()
   self.hovered_index = nil
   self.selected_spell = nil
   self.insert_index = nil
+  self.manipulate_target_index = nil
   self.box_width = 50
   self.box_height = 60
   self.box_spacing = 6
   self.scroll_offset = 0
   self.max_visible = 18
   self.on_insert_callback = nil
+  self.on_manipulate_callback = nil
+  self.on_global_callback = nil
 end
 
 ---@param timeline_manager TimelineManager
@@ -54,6 +60,33 @@ function TimelineUI:exit_insert_mode()
   self.mode = "IDLE"
   self.selected_spell = nil
   self.insert_index = nil
+  self.manipulate_target_index = nil
+end
+
+---@param callback function(spell, target_index, dest_index)
+function TimelineUI:set_on_manipulate(callback)
+  self.on_manipulate_callback = callback
+end
+
+---@param callback function(spell)
+function TimelineUI:set_on_global(callback)
+  self.on_global_callback = callback
+end
+
+--- Enter manipulate mode: select a target action on the timeline
+---@param spell Spell
+function TimelineUI:enter_manipulate_mode(spell)
+  self.mode = "MANIPULATE_SELECT_TARGET"
+  self.selected_spell = spell
+  self.manipulate_target_index = nil
+end
+
+--- Enter global mode: apply immediately, no target needed
+---@param spell Spell
+function TimelineUI:enter_global_mode(spell)
+  if self.on_global_callback then
+    self.on_global_callback(spell)
+  end
 end
 
 function TimelineUI:_get_box_rect(index)
@@ -139,13 +172,24 @@ function TimelineUI:draw()
       end
       love.graphics.rectangle("fill", bx, by, bw, bh, 4, 4)
 
-      -- Border
-      if is_hovered then
+      -- Border: highlight for manipulation modes
+      local is_manip_target = (self.mode == "MANIPULATE_SELECT_DEST" and actual_index == self.manipulate_target_index)
+      local is_manip_hover = ((self.mode == "MANIPULATE_SELECT_TARGET" or self.mode == "MANIPULATE_SELECT_DEST") and is_hovered)
+      if is_manip_target then
+        love.graphics.setColor(1, 0.8, 0, 1)
+        love.graphics.setLineWidth(2)
+      elseif is_manip_hover then
+        love.graphics.setColor(1, 0.5, 0, 1)
+        love.graphics.setLineWidth(2)
+      elseif is_hovered then
         love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setLineWidth(1)
       else
         love.graphics.setColor(0.5, 0.5, 0.5, 0.6)
+        love.graphics.setLineWidth(1)
       end
       love.graphics.rectangle("line", bx, by, bw, bh, 4, 4)
+      love.graphics.setLineWidth(1)
 
       -- Action type icon (text)
       love.graphics.setColor(1, 1, 1, 0.9)
@@ -199,6 +243,15 @@ function TimelineUI:draw()
     love.graphics.printf(action:get_description(), 0, self.box_height + 34, 1280, "center")
   end
 
+  -- Mode hint text
+  if self.mode == "MANIPULATE_SELECT_TARGET" then
+    love.graphics.setColor(1, 0.8, 0, 0.9)
+    love.graphics.printf(i18n.t("combat.select_target"), 0, self.box_height + 50, 1280, "center")
+  elseif self.mode == "MANIPULATE_SELECT_DEST" then
+    love.graphics.setColor(1, 0.5, 0, 0.9)
+    love.graphics.printf(i18n.t("combat.select_destination"), 0, self.box_height + 50, 1280, "center")
+  end
+
   love.graphics.setColor(1, 1, 1, 1)
 end
 
@@ -215,6 +268,30 @@ function TimelineUI:mousepressed(mx, my, button)
   if self.mode == "INSERT_MODE" and self.insert_index and self.selected_spell then
     if self.on_insert_callback then
       self.on_insert_callback(self.selected_spell, self.insert_index)
+    end
+    self:exit_insert_mode()
+    return true
+  end
+
+  if self.mode == "MANIPULATE_SELECT_TARGET" and self.hovered_index then
+    local timeline_type = self.selected_spell:get_timeline_type()
+    if timeline_type == "manipulate_swap" then
+      -- Swap needs a second target
+      self.manipulate_target_index = self.hovered_index
+      self.mode = "MANIPULATE_SELECT_DEST"
+    else
+      -- remove, delay, modify: single target
+      if self.on_manipulate_callback then
+        self.on_manipulate_callback(self.selected_spell, self.hovered_index, nil)
+      end
+      self:exit_insert_mode()
+    end
+    return true
+  end
+
+  if self.mode == "MANIPULATE_SELECT_DEST" and self.hovered_index then
+    if self.on_manipulate_callback then
+      self.on_manipulate_callback(self.selected_spell, self.manipulate_target_index, self.hovered_index)
     end
     self:exit_insert_mode()
     return true

@@ -35,6 +35,10 @@ return {
   ["combat.planning_reset"] = "배치 초기화",
   ["combat.spell_placed"] = "[{spell}] 배치 완료",
   ["combat.suspicion_preview"] = "의심도 변화 예상: +{value}",
+  ["combat.select_target"] = "조작할 행동을 선택하세요",
+  ["combat.select_destination"] = "교환할 대상을 선택하세요",
+  ["combat.manipulate_applied"] = "[{spell}] 조작 적용!",
+  ["combat.global_applied"] = "[{spell}] 전역 효과 적용!",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
 
