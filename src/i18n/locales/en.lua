@@ -28,6 +28,13 @@ return {
   ["combat.hero_acts"] = "Hero acts!",
   ["combat.enemy_acts"] = "Enemy acts!",
   ["combat.demon_lord_turn_log"] = "--- Demon Lord's Turn (Turn {turn}) ---",
+  ["combat.planning_phase"] = "Evil Eye Vision (Turn {turn})",
+  ["combat.execution_phase"] = "Executing...",
+  ["combat.planning_phase_log"] = "--- Evil Eye Vision (Turn {turn}) ---",
+  ["combat.execution_start"] = "Execution begins!",
+  ["combat.planning_reset"] = "Planning reset",
+  ["combat.spell_placed"] = "[{spell}] placed",
+  ["combat.suspicion_preview"] = "Suspicion change: +{value}",
   ["combat.floor_cleared"] = "Floor cleared!",
   ["combat.defeat"] = "Defeat! Game Over",
 
@@ -35,6 +42,10 @@ return {
   ["entity.hero"] = "Hero",
   ["intent.attack"] = "Attack",
   ["intent.defense"] = "Defense",
+
+  -- UI buttons
+  ["ui.confirm"] = "Confirm",
+  ["ui.reset"] = "Reset",
 
   -- Spell status
   ["spell.used"] = "Used",

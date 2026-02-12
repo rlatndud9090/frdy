@@ -1,14 +1,20 @@
 local class = require('lib.middleclass')
 local TurnManager = require('src.combat.turn_manager')
 local ActionQueue = require('src.combat.action_queue')
+local PredictionEngine = require('src.combat.prediction_engine')
+local TimelineManager = require('src.combat.timeline_manager')
 
 ---@class CombatManager
 ---@field hero Hero|nil
 ---@field enemies Enemy[]|nil
 ---@field turn_manager TurnManager|nil
 ---@field action_queue ActionQueue|nil
+---@field prediction_engine PredictionEngine|nil
+---@field timeline_manager TimelineManager|nil
 ---@field state string
 ---@field on_combat_end function|nil
+---@field execution_index number
+---@field _suspicion_manager SuspicionManager|nil
 local CombatManager = class('CombatManager')
 
 function CombatManager:initialize()
@@ -16,8 +22,12 @@ function CombatManager:initialize()
   self.enemies = nil
   self.turn_manager = nil
   self.action_queue = nil
+  self.prediction_engine = nil
+  self.timeline_manager = nil
   self.state = "idle"
   self.on_combat_end = nil
+  self.execution_index = 0
+  self._suspicion_manager = nil
 end
 
 ---@param hero Hero
@@ -27,7 +37,11 @@ function CombatManager:start_combat(hero, enemies)
   self.enemies = enemies
   self.turn_manager = TurnManager:new(hero, enemies)
   self.action_queue = ActionQueue:new()
+  self.prediction_engine = PredictionEngine:new(20)
+  self.timeline_manager = TimelineManager:new(self.prediction_engine)
+  self.timeline_manager:setup(hero, enemies)
   self.state = "active"
+  self.execution_index = 0
   self.turn_manager:prepare_enemy_intents()
 end
 
@@ -62,64 +76,90 @@ function CombatManager:get_enemies()
   return self.enemies
 end
 
-function CombatManager:execute_hero_turn()
-  local pattern = self.hero:choose_action({
-    target = self.turn_manager:get_living_enemies()[1],
-    enemies = self.turn_manager:get_living_enemies(),
-  })
+---@return TimelineManager|nil
+function CombatManager:get_timeline_manager()
+  return self.timeline_manager
+end
 
-  if pattern then
-    local living = self.turn_manager:get_living_enemies()
-    if #living > 0 then
-      pattern:execute(self.hero, living[1])
+---@return PredictionEngine|nil
+function CombatManager:get_prediction_engine()
+  return self.prediction_engine
+end
+
+--- Start execution phase: prepare to step through timeline
+function CombatManager:start_execution()
+  self.turn_manager:start_execution()
+  self.execution_index = 0
+end
+
+--- Execute next action in timeline
+---@return PredictedAction|nil action that was executed, or nil if done
+function CombatManager:execute_next_action()
+  if not self.timeline_manager then return nil end
+
+  self.execution_index = self.execution_index + 1
+  local action = self.timeline_manager:get_action(self.execution_index)
+
+  if not action then
+    return nil
+  end
+
+  local source = action:get_source_type()
+  if source == "hero" then
+    if action.pattern and action.target and action.target:is_alive() then
+      action.pattern:execute(self.hero, action.target)
+    end
+  elseif source == "enemy" then
+    if action.pattern and action.actor and action.actor:is_alive() then
+      if action.pattern.type == "attack" then
+        action.pattern:execute(action.actor, self.hero)
+      elseif action.pattern.type == "defend" then
+        action.pattern:execute(action.actor, action.actor)
+      end
+    end
+  elseif source == "spell" then
+    if action.spell and action.target then
+      local context = {
+        hero = self.hero,
+        enemies = self.enemies,
+        suspicion_manager = self._suspicion_manager,
+      }
+      action.spell:execute(action.target, context)
     end
   end
 
-  -- Victory check
+  -- Check victory/defeat
   local living = self.turn_manager:get_living_enemies()
   if #living == 0 then
     self.state = "victory"
-  end
-end
-
-function CombatManager:execute_enemy_turn()
-  local living = self.turn_manager:get_living_enemies()
-  for _, enemy in ipairs(living) do
-    local pattern = enemy:choose_action({
-      actor = enemy,
-      target = self.hero,
-    })
-    if pattern then
-      if pattern.type == "attack" then
-        pattern:execute(enemy, self.hero)
-      elseif pattern.type == "defend" then
-        pattern:execute(enemy, enemy)
-      end
-    end
-  end
-
-  -- Defeat check
-  if not self.hero:is_alive() then
+  elseif not self.hero:is_alive() then
     self.state = "defeat"
   end
+
+  return action
 end
 
-function CombatManager:advance_phase()
-  if self:is_combat_over() then
-    return
-  end
+--- Check if execution is complete
+---@return boolean
+function CombatManager:is_execution_done()
+  if not self.timeline_manager then return true end
+  return self.execution_index >= self.timeline_manager:get_count()
+      or self:is_combat_over()
+end
 
-  local phase = self.turn_manager:get_phase()
-
-  if phase == "DEMON_LORD_TURN" then
-    self.turn_manager:next_turn()
-  elseif phase == "HERO_TURN" then
-    self:execute_hero_turn()
-    self.turn_manager:next_turn()
-  elseif phase == "ENEMY_TURN" then
-    self:execute_enemy_turn()
-    self.turn_manager:next_turn()
+--- Start next planning phase
+function CombatManager:next_planning()
+  self.turn_manager:next_planning()
+  self.execution_index = 0
+  if self.timeline_manager then
+    self.timeline_manager:setup(self.hero, self.enemies)
   end
+end
+
+--- Set suspicion manager reference for spell execution
+---@param sm SuspicionManager
+function CombatManager:set_suspicion_manager(sm)
+  self._suspicion_manager = sm
 end
 
 ---@param callback function

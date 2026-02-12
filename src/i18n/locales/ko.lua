@@ -28,6 +28,13 @@ return {
   ["combat.hero_acts"] = "용사가 행동한다!",
   ["combat.enemy_acts"] = "적이 행동한다!",
   ["combat.demon_lord_turn_log"] = "--- 마왕의 턴 (턴 {turn}) ---",
+  ["combat.planning_phase"] = "마안의 시야 (턴 {turn})",
+  ["combat.execution_phase"] = "실행 중...",
+  ["combat.planning_phase_log"] = "--- 마안의 시야 (턴 {turn}) ---",
+  ["combat.execution_start"] = "실행 개시!",
+  ["combat.planning_reset"] = "배치 초기화",
+  ["combat.spell_placed"] = "[{spell}] 배치 완료",
+  ["combat.suspicion_preview"] = "의심도 변화 예상: +{value}",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
 
@@ -35,6 +42,10 @@ return {
   ["entity.hero"] = "용사",
   ["intent.attack"] = "공격",
   ["intent.defense"] = "방어",
+
+  -- UI buttons
+  ["ui.confirm"] = "확정",
+  ["ui.reset"] = "리셋",
 
   -- Spell status
   ["spell.used"] = "사용됨",

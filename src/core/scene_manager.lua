@@ -90,4 +90,14 @@ function SceneManager:mousepressed(x, y, button)
     end
 end
 
+--- Delegate wheelmoved to the top scene
+---@param x number
+---@param y number
+function SceneManager:wheelmoved(x, y)
+    local current = self:peek()
+    if current and current.wheelmoved then
+        current:wheelmoved(x, y)
+    end
+end
+
 return SceneManager

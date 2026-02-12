@@ -3,7 +3,7 @@ local class = require('lib.middleclass')
 ---@class TurnManager
 ---@field hero Hero
 ---@field enemies Enemy[]
----@field phase string
+---@field phase string "PLANNING_PHASE"|"EXECUTION_PHASE"
 ---@field turn_count number
 local TurnManager = class('TurnManager')
 
@@ -12,7 +12,7 @@ local TurnManager = class('TurnManager')
 function TurnManager:initialize(hero, enemies)
   self.hero = hero
   self.enemies = enemies
-  self.phase = "DEMON_LORD_TURN"
+  self.phase = "PLANNING_PHASE"
   self.turn_count = 1
 end
 
@@ -26,28 +26,16 @@ function TurnManager:get_turn_count()
   return self.turn_count
 end
 
----@return Entity|nil
-function TurnManager:get_current_entity()
-  if self.phase == "DEMON_LORD_TURN" then
-    return nil
-  elseif self.phase == "HERO_TURN" then
-    return self.hero
-  elseif self.phase == "ENEMY_TURN" then
-    return self.enemies[1]
-  end
-  return nil
+--- Transition to execution phase
+function TurnManager:start_execution()
+  self.phase = "EXECUTION_PHASE"
 end
 
-function TurnManager:next_turn()
-  if self.phase == "DEMON_LORD_TURN" then
-    self.phase = "HERO_TURN"
-  elseif self.phase == "HERO_TURN" then
-    self.phase = "ENEMY_TURN"
-  elseif self.phase == "ENEMY_TURN" then
-    self.phase = "DEMON_LORD_TURN"
-    self.turn_count = self.turn_count + 1
-    self:prepare_enemy_intents()
-  end
+--- Transition to next planning phase (new turn)
+function TurnManager:next_planning()
+  self.turn_count = self.turn_count + 1
+  self.phase = "PLANNING_PHASE"
+  self:prepare_enemy_intents()
 end
 
 ---@return Enemy[]

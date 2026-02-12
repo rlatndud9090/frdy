@@ -503,6 +503,14 @@ function GameScene:_on_edge_selected(edge)
   self:_start_traveling(edge:get_to_node())
 end
 
+---@param x number
+---@param y number
+function GameScene:wheelmoved(x, y)
+  if self.phase == COMBAT then
+    self.combat_handler:wheelmoved(x, y)
+  end
+end
+
 --- 맵 오버레이 토글
 function GameScene:_toggle_map_overlay()
   if self.map_overlay:is_open() then
