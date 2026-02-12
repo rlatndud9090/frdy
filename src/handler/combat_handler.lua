@@ -66,6 +66,12 @@ function CombatHandler:initialize()
   self.timeline_ui:set_on_insert(function(spell, insert_index)
     self:_insert_spell_at(spell, insert_index)
   end)
+  self.timeline_ui:set_on_manipulate(function(spell, target_index, dest_index)
+    self:_on_manipulate_applied(spell, target_index, dest_index)
+  end)
+  self.timeline_ui:set_on_global(function(spell)
+    self:_on_global_applied(spell)
+  end)
 
   self.on_combat_end = nil
 
@@ -280,23 +286,23 @@ function CombatHandler:_start_planning()
   table.insert(self.combat_log, i18n.t("combat.planning_phase_log", {turn = tm:get_turn_count()}))
 end
 
---- Spell selected from panel: enter insert mode on timeline
+--- Spell selected from panel: route by timeline_type
 ---@param spell Spell
 ---@param index number
 function CombatHandler:_on_spell_selected(spell, index)
+  -- Reserve mana first
+  if not spell:reserve(self.mana_manager) then return end
+  self.spell_book:reserve(spell)
+
   local timeline_type = spell:get_timeline_type()
 
   if timeline_type == "insert" then
-    -- Reserve mana
-    if not spell:reserve(self.mana_manager) then return end
-    self.spell_book:reserve(spell)
-
-    -- Enter timeline insert mode
     self.timeline_ui:enter_insert_mode(spell)
+  elseif timeline_type == "global" then
+    self.timeline_ui:enter_global_mode(spell)
   else
-    -- For manipulate/global types, handle directly (expanded in Step 5-3B)
-    if not spell:reserve(self.mana_manager) then return end
-    self.spell_book:reserve(spell)
+    -- manipulate_swap, manipulate_remove, manipulate_delay, manipulate_modify
+    self.timeline_ui:enter_manipulate_mode(spell)
   end
 end
 
@@ -337,6 +343,50 @@ function CombatHandler:_insert_spell_at(spell, insert_index)
   end
 
   table.insert(self.combat_log, i18n.t("combat.spell_placed", {spell = spell:get_name()}))
+end
+
+--- Handle manipulation spell applied to timeline
+---@param spell Spell
+---@param target_index number
+---@param dest_index number|nil (only for swap)
+function CombatHandler:_on_manipulate_applied(spell, target_index, dest_index)
+  local tlm = self.combat_manager:get_timeline_manager()
+  if not tlm then return end
+
+  local timeline_type = spell:get_timeline_type()
+
+  if timeline_type == "manipulate_swap" and dest_index then
+    tlm:swap(target_index, dest_index)
+    table.insert(tlm.interventions, {index = target_index, spell = spell})
+  elseif timeline_type == "manipulate_remove" then
+    tlm:remove_at(target_index)
+    table.insert(tlm.interventions, {index = target_index, spell = spell})
+  elseif timeline_type == "manipulate_delay" then
+    local effect = spell:get_effect()
+    local positions = effect and effect.amount or 1
+    local count = tlm:get_count()
+    for _ = 1, positions do
+      if target_index < count then
+        tlm:swap(target_index, target_index + 1)
+        target_index = target_index + 1
+      end
+    end
+    table.insert(tlm.interventions, {index = target_index, spell = spell})
+  elseif timeline_type == "manipulate_modify" then
+    tlm:modify_at(target_index, spell)
+  end
+
+  table.insert(self.combat_log, i18n.t("combat.manipulate_applied", {spell = spell:get_name()}))
+end
+
+--- Handle global spell applied to entire timeline
+---@param spell Spell
+function CombatHandler:_on_global_applied(spell)
+  local tlm = self.combat_manager:get_timeline_manager()
+  if not tlm then return end
+
+  tlm:apply_global(spell)
+  table.insert(self.combat_log, i18n.t("combat.global_applied", {spell = spell:get_name()}))
 end
 
 --- Confirm planning: transition to execution
