@@ -7,6 +7,7 @@ return {
     description = "Heal the hero for 10 HP.",
     cost = 15,
     suspicion_delta = 5,
+    timeline_type = "insert",
     effect = SpellEffect.heal(10)
   },
   {
@@ -15,6 +16,7 @@ return {
     description = "Heal the hero for 25 HP.",
     cost = 25,
     suspicion_delta = 10,
+    timeline_type = "insert",
     effect = SpellEffect.heal(25)
   },
   {
@@ -23,6 +25,7 @@ return {
     description = "Deal 15 damage to an enemy.",
     cost = 20,
     suspicion_delta = 8,
+    timeline_type = "insert",
     effect = SpellEffect.damage(15)
   },
   {
@@ -31,6 +34,7 @@ return {
     description = "Buff hero attack by 3.",
     cost = 15,
     suspicion_delta = 6,
+    timeline_type = "insert",
     effect = SpellEffect.buff_attack(3)
   },
   {
@@ -39,6 +43,7 @@ return {
     description = "Hinder the hero for 5 damage.",
     cost = 0,
     suspicion_delta = -8,
+    timeline_type = "insert",
     effect = SpellEffect.hinder(5)
   },
   {
@@ -47,6 +52,7 @@ return {
     description = "Debuff enemy attack by 3.",
     cost = 12,
     suspicion_delta = 3,
+    timeline_type = "insert",
     effect = SpellEffect.debuff_attack(3)
   },
   {
@@ -55,6 +61,7 @@ return {
     description = "Hinder the hero for 10 damage.",
     cost = 10,
     suspicion_delta = -15,
+    timeline_type = "insert",
     effect = SpellEffect.hinder(10)
   },
   {
@@ -63,6 +70,7 @@ return {
     description = "Heal the hero for 5 HP.",
     cost = 0,
     suspicion_delta = 3,
+    timeline_type = "insert",
     effect = SpellEffect.heal(5)
   }
 }
