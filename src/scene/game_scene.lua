@@ -13,7 +13,7 @@ local EdgeSelectHandler = require('src.handler.edge_select_handler')
 local Hero = require('src.combat.hero')
 local Enemy = require('src.combat.enemy')
 local Spell = require('src.spell.spell')
-local Deck = require('src.spell.deck')
+local SpellBook = require('src.spell.spell_book')
 local ManaManager = require('src.spell.mana_manager')
 local SuspicionManager = require('src.spell.suspicion_manager')
 local EventManager = require('src.event.event_manager')
@@ -42,7 +42,7 @@ local EDGE_SELECT = "EDGE_SELECT"
 ---@field hero_world_y number
 ---@field camera Camera
 ---@field hero Hero
----@field deck Deck
+---@field spell_book SpellBook
 ---@field mana_manager ManaManager
 ---@field suspicion_manager SuspicionManager
 ---@field event_manager EventManager
@@ -85,13 +85,13 @@ function GameScene:initialize()
   -- 게임 객체 생성
   self.hero = Hero:new({hp = 50, attack = 8, defense = 2})
 
-  -- 마법 덱 생성
+  -- 마법서 생성
   local base_spells_data = require('data.spells.base_spells')
   local spells = {}
   for _, spell_data in ipairs(base_spells_data) do
     table.insert(spells, Spell:new(spell_data))
   end
-  self.deck = Deck:new(spells)
+  self.spell_book = SpellBook:new(spells)
 
   -- 매니저 생성
   local event_bus = Game:getInstance().event_bus
@@ -361,7 +361,7 @@ function GameScene:_enter_combat()
   local enemies = self:_create_enemies()
 
   -- combat_handler에 전투 데이터 전달
-  self.combat_handler:start_combat(self.hero, enemies, self.deck, self.mana_manager, self.suspicion_manager)
+  self.combat_handler:start_combat(self.hero, enemies, self.spell_book, self.mana_manager, self.suspicion_manager)
 
   -- 애니메이션
   self.combat_handler.enemy_world_x = self.hero_world_x + 800

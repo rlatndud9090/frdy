@@ -7,7 +7,7 @@ local i18n = require('src.i18n.init')
 
 ---@class CombatHandler
 ---@field combat_manager CombatManager
----@field deck Deck|nil
+---@field spell_book SpellBook|nil
 ---@field mana_manager ManaManager|nil
 ---@field suspicion_manager SuspicionManager|nil
 ---@field hero_gauge Gauge
@@ -26,7 +26,7 @@ local CombatHandler = class('CombatHandler')
 
 function CombatHandler:initialize()
   self.combat_manager = CombatManager:new()
-  self.deck = nil
+  self.spell_book = nil
   self.mana_manager = nil
   self.suspicion_manager = nil
 
@@ -65,8 +65,8 @@ function CombatHandler:set_on_combat_end(callback)
 end
 
 --- 전투 시작
-function CombatHandler:start_combat(hero, enemies, deck, mana_manager, suspicion_manager)
-  self.deck = deck
+function CombatHandler:start_combat(hero, enemies, spell_book, mana_manager, suspicion_manager)
+  self.spell_book = spell_book
   self.mana_manager = mana_manager
   self.suspicion_manager = suspicion_manager
   self.combat_log = {}
@@ -230,7 +230,7 @@ end
 
 --- 마왕 턴 시작
 function CombatHandler:_start_demon_lord_turn()
-  if not self.deck or not self.mana_manager then return end
+  if not self.spell_book or not self.mana_manager then return end
 
   local tm = self.combat_manager:get_turn_manager()
   if not tm then return end
@@ -238,11 +238,11 @@ function CombatHandler:_start_demon_lord_turn()
   -- 마나 충전
   self.mana_manager:start_turn(tm:get_turn_count())
 
-  -- 카드 드로우
-  self.deck:start_turn(5)
+  -- 새 턴 시작: 사용 기록 초기화
+  self.spell_book:start_planning()
 
-  -- SpellPanel 갱신
-  self.spell_panel:set_spells(self.deck:get_hand())
+  -- SpellPanel 갱신 (전체 마법 표시)
+  self.spell_panel:set_spells(self.spell_book:get_all_spells())
   self.spell_panel:set_mana_manager(self.mana_manager)
   self.spell_panel:set_visible(true)
   self.end_turn_button:set_visible(true)
@@ -279,14 +279,14 @@ function CombatHandler:_play_spell(spell, index)
   }
   spell:play(target, context)
 
-  -- 핸드에서 제거
-  self.deck:discard(spell)
+  -- 사용 기록
+  self.spell_book:mark_used(spell)
 
   -- 로그
   table.insert(self.combat_log, i18n.t("combat.demon_lord_used_spell", {spell = spell:get_name()}))
 
-  -- SpellPanel 갱신
-  self.spell_panel:set_spells(self.deck:get_hand())
+  -- SpellPanel 갱신 (전체 마법 표시)
+  self.spell_panel:set_spells(self.spell_book:get_all_spells())
 
   -- 게이지 갱신
   self:_update_gauges()
@@ -297,8 +297,7 @@ function CombatHandler:_end_demon_lord_turn()
   self.spell_panel:set_visible(false)
   self.end_turn_button:set_visible(false)
 
-  -- 남은 마법 discard
-  self.deck:discard_hand()
+  -- 턴 종료 (추가 처리 없음, start_planning에서 초기화)
 
   -- advance_phase: DEMON_LORD → HERO
   self.combat_manager:advance_phase()
