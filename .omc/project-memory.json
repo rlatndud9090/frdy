@@ -1,11 +1,387 @@
 {
-  "projectName": "FRDY - 마왕의 은밀한 조력",
-  "genre": "로그라이트 덱빌딩",
-  "engine": "Love2D (Lua)",
-  "storyConcept": "환생한 일반인 마왕이 부하들 몰래 용사를 도와 자신을 죽이게 만들어 원래 세계로 돌아가는 게임",
-  "coreGameplay": "부하들에게 들키지 않으면서 용사가 마왕성을 돌파하도록 조력",
-  "techStack": "Love2D, Lua",
   "version": "1.0.0",
-  "lastScanned": 1770454253368,
-  "projectRoot": "D:/codes/games/frdy"
+  "lastScanned": 1770906664333,
+  "projectRoot": "d:\\codes\\games\\frdy",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "assets",
+      "lib",
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "assets": {
+      "path": "assets",
+      "purpose": "Static assets",
+      "fileCount": 0,
+      "lastAccessed": 1770906663875,
+      "keyFiles": []
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 0,
+      "lastAccessed": 1770906663877,
+      "keyFiles": []
+    },
+    "lib": {
+      "path": "lib",
+      "purpose": "Library code",
+      "fileCount": 3,
+      "lastAccessed": 1770906663878,
+      "keyFiles": [
+        "flux.lua",
+        "lume.lua",
+        "middleclass.lua"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1770906663878,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src\\handler\\combat_handler.lua",
+      "accessCount": 67,
+      "lastAccessed": 1770913508171,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\timeline_ui.lua",
+      "accessCount": 32,
+      "lastAccessed": 1770913492961,
+      "type": "file"
+    },
+    {
+      "path": "src\\scene\\game_scene.lua",
+      "accessCount": 29,
+      "lastAccessed": 1770913493627,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 22,
+      "lastAccessed": 1770916503787,
+      "type": "directory"
+    },
+    {
+      "path": "data\\spells\\base_spells.lua",
+      "accessCount": 15,
+      "lastAccessed": 1770911538961,
+      "type": "file"
+    },
+    {
+      "path": "src\\spell\\spell_book.lua",
+      "accessCount": 14,
+      "lastAccessed": 1770913492046,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\admin\\.claude\\settings.json",
+      "accessCount": 14,
+      "lastAccessed": 1770916573423,
+      "type": "file"
+    },
+    {
+      "path": "main.lua",
+      "accessCount": 12,
+      "lastAccessed": 1770916431110,
+      "type": "directory"
+    },
+    {
+      "path": "src\\i18n\\locales\\en.lua",
+      "accessCount": 11,
+      "lastAccessed": 1770909602271,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\spell_panel.lua",
+      "accessCount": 11,
+      "lastAccessed": 1770912866586,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 11,
+      "lastAccessed": 1770915628560,
+      "type": "directory"
+    },
+    {
+      "path": "src\\i18n\\locales\\ko.lua",
+      "accessCount": 10,
+      "lastAccessed": 1770909601782,
+      "type": "file"
+    },
+    {
+      "path": "src\\spell\\spell.lua",
+      "accessCount": 10,
+      "lastAccessed": 1770912872867,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\hero.lua",
+      "accessCount": 7,
+      "lastAccessed": 1770909583192,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\combat_manager.lua",
+      "accessCount": 7,
+      "lastAccessed": 1770911322938,
+      "type": "file"
+    },
+    {
+      "path": ".claude\\settings.local.json",
+      "accessCount": 7,
+      "lastAccessed": 1770915618680,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\admin\\.claude\\hooks\\discord-notify.mjs",
+      "accessCount": 7,
+      "lastAccessed": 1770916530647,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\enemy.lua",
+      "accessCount": 6,
+      "lastAccessed": 1770909583668,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\timeline_manager.lua",
+      "accessCount": 6,
+      "lastAccessed": 1770911317751,
+      "type": "file"
+    },
+    {
+      "path": "src\\spell\\spell_effect.lua",
+      "accessCount": 6,
+      "lastAccessed": 1770911322487,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\gauge.lua",
+      "accessCount": 6,
+      "lastAccessed": 1770912867239,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\turn_manager.lua",
+      "accessCount": 5,
+      "lastAccessed": 1770909590975,
+      "type": "file"
+    },
+    {
+      "path": "src\\spell\\mana_manager.lua",
+      "accessCount": 5,
+      "lastAccessed": 1770911539699,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\ui_element.lua",
+      "accessCount": 5,
+      "lastAccessed": 1770912866908,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\button.lua",
+      "accessCount": 5,
+      "lastAccessed": 1770912873266,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\entity.lua",
+      "accessCount": 4,
+      "lastAccessed": 1770909582777,
+      "type": "file"
+    },
+    {
+      "path": "src\\core\\game.lua",
+      "accessCount": 4,
+      "lastAccessed": 1770909593936,
+      "type": "file"
+    },
+    {
+      "path": "src\\core\\scene_manager.lua",
+      "accessCount": 4,
+      "lastAccessed": 1770909594386,
+      "type": "file"
+    },
+    {
+      "path": "src\\spell\\deck.lua",
+      "accessCount": 3,
+      "lastAccessed": 1770908057055,
+      "type": "file"
+    },
+    {
+      "path": "data\\enemies\\floor1_enemies.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770908535923,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\action_pattern.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770909581913,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\pattern_resolver.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770909582365,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\predicted_action.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770909584022,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\prediction_engine.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770909584500,
+      "type": "file"
+    },
+    {
+      "path": "src\\spell\\suspicion_manager.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770911540150,
+      "type": "file"
+    },
+    {
+      "path": "conf.lua",
+      "accessCount": 2,
+      "lastAccessed": 1770915651905,
+      "type": "file"
+    },
+    {
+      "path": "src\\card\\card.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907671366,
+      "type": "file"
+    },
+    {
+      "path": "src\\card\\card_effect.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907671741,
+      "type": "file"
+    },
+    {
+      "path": "src\\card\\deck.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907672177,
+      "type": "file"
+    },
+    {
+      "path": "src\\card\\mana_manager.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907672539,
+      "type": "file"
+    },
+    {
+      "path": "src\\card\\suspicion_manager.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907672909,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\card_hand.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907673466,
+      "type": "file"
+    },
+    {
+      "path": "data\\cards\\base_cards.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907673798,
+      "type": "file"
+    },
+    {
+      "path": "src\\combat\\action_queue.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770907685057,
+      "type": "file"
+    },
+    {
+      "path": "data",
+      "accessCount": 1,
+      "lastAccessed": 1770908065647,
+      "type": "directory"
+    },
+    {
+      "path": "src\\core",
+      "accessCount": 1,
+      "lastAccessed": 1770909170479,
+      "type": "directory"
+    },
+    {
+      "path": "C:\\Users\\admin\\.claude\\hooks\\debug-hook.mjs",
+      "accessCount": 1,
+      "lastAccessed": 1770910757245,
+      "type": "file"
+    },
+    {
+      "path": "src\\ui\\panel.lua",
+      "accessCount": 1,
+      "lastAccessed": 1770911310506,
+      "type": "file"
+    },
+    {
+      "path": "src\\handler",
+      "accessCount": 1,
+      "lastAccessed": 1770911336481,
+      "type": "directory"
+    },
+    {
+      "path": "src\\scene",
+      "accessCount": 1,
+      "lastAccessed": 1770911555119,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": [
+    {
+      "timestamp": 1770912734903,
+      "directive": "ralplan, autopilot, ultrawork, ralph 등 모든 OMC 모드 완료 시 반드시 Discord 웹훅을 전송할 것. curl -s -H \"Content-Type: application/json\" -d @파일 방식으로. 웹훅 URL은 .omc-config.json의 notifications.discord.webhookUrl 참조. 절대 빼먹지 말 것.",
+      "context": "Discord notification on mode completion",
+      "source": "explicit",
+      "priority": "high"
+    },
+    {
+      "timestamp": 1770914344842,
+      "directive": "OMC 모드(ralph/autopilot/ultrawork/ralplan/ecomode) 완료 시 반드시 Discord 웹훅 전송할 것. state_clear 호출 직전에 전송. 방법: 1) .omc/tmp-webhook.json 작성 2) curl -d @파일 웹훅URL 3) 파일 삭제. URL은 ~/.claude/.omc-config.json의 notifications.discord.webhookUrl. 절대 빠뜨리지 말 것!",
+      "context": "모든 OMC 모드 완료 시 필수 실행. 5회 연속 누락으로 사용자 불만 발생.",
+      "source": "explicit",
+      "priority": "high"
+    }
+  ]
 }
