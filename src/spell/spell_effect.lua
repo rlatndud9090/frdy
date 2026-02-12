@@ -74,4 +74,69 @@ function SpellEffect.hinder(damage_amount)
   }
 end
 
+--- Create a swap effect (swap two timeline positions)
+--- Applied via TimelineManager:swap(), not target.apply
+---@return SpellEffectObject
+function SpellEffect.swap()
+  return {
+    type = "manipulate_swap",
+    amount = 0,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager:swap(a, b)
+    end
+  }
+end
+
+--- Create a nullify effect (remove a timeline action)
+--- Applied via TimelineManager:remove_at()
+---@return SpellEffectObject
+function SpellEffect.nullify()
+  return {
+    type = "manipulate_remove",
+    amount = 0,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager:remove_at(index)
+    end
+  }
+end
+
+--- Create a delay effect (push action back by N positions)
+---@param positions number
+---@return SpellEffectObject
+function SpellEffect.delay(positions)
+  return {
+    type = "manipulate_delay",
+    amount = positions,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager swap chain
+    end
+  }
+end
+
+--- Create a modify effect (change action value by amount)
+---@param delta number positive = buff, negative = debuff
+---@return SpellEffectObject
+function SpellEffect.modify(delta)
+  return {
+    type = "manipulate_modify",
+    amount = delta,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager:modify_at(index, spell)
+    end
+  }
+end
+
+--- Create a global buff effect (buff all hero actions)
+---@param attack_delta number
+---@return SpellEffectObject
+function SpellEffect.global_buff(attack_delta)
+  return {
+    type = "global",
+    amount = attack_delta,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager:apply_global(spell)
+    end
+  }
+end
+
 return SpellEffect
