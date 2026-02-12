@@ -70,10 +70,8 @@ function TimelineManager:modify_at(index, spell)
     local action = self.timeline[index]
     local effect = spell:get_effect()
     if effect and action then
-      -- Modify the action's value based on spell effect
-      if effect.type == "damage" then
-        action.value = math.max(0, action.value - effect.amount)
-      end
+      -- Apply delta to action value (positive = buff, negative = debuff)
+      action.value = math.max(0, action.value + effect.amount)
     end
     table.insert(self.interventions, {index = index, spell = spell, modify = true})
   end

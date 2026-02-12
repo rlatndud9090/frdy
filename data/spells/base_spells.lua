@@ -72,5 +72,70 @@ return {
     suspicion_delta = 3,
     timeline_type = "insert",
     effect = SpellEffect.heal(5)
+  },
+  -- Manipulation spells
+  {
+    id = "time_warp",
+    name = "Time Warp",
+    description = "Swap two actions on the timeline.",
+    cost = 20,
+    suspicion_delta = 8,
+    timeline_type = "manipulate_swap",
+    effect = SpellEffect.swap()
+  },
+  {
+    id = "nullify",
+    name = "Nullify",
+    description = "Remove an action from the timeline.",
+    cost = 30,
+    suspicion_delta = 12,
+    timeline_type = "manipulate_remove",
+    effect = SpellEffect.nullify()
+  },
+  {
+    id = "delay_strike",
+    name = "Delay Strike",
+    description = "Push an action back by 2 positions.",
+    cost = 12,
+    suspicion_delta = 5,
+    timeline_type = "manipulate_delay",
+    effect = SpellEffect.delay(2)
+  },
+  {
+    id = "weaken_blow",
+    name = "Weaken Blow",
+    description = "Reduce an action's damage by 5.",
+    cost = 12,
+    suspicion_delta = 4,
+    timeline_type = "manipulate_modify",
+    effect = SpellEffect.modify(-5)
+  },
+  {
+    id = "empower_strike",
+    name = "Empower Strike",
+    description = "Increase an action's damage by 5.",
+    cost = 20,
+    suspicion_delta = 7,
+    timeline_type = "manipulate_modify",
+    effect = SpellEffect.modify(5)
+  },
+  -- Global spells
+  {
+    id = "chaos_field",
+    name = "Chaos Field",
+    description = "Apply chaos to the entire timeline.",
+    cost = 25,
+    suspicion_delta = 7,
+    timeline_type = "global",
+    effect = SpellEffect.global_buff(2)
+  },
+  {
+    id = "dark_blessing",
+    name = "Dark Blessing",
+    description = "Bless all hero actions on the timeline.",
+    cost = 15,
+    suspicion_delta = 4,
+    timeline_type = "global",
+    effect = SpellEffect.global_buff(1)
   }
 }
