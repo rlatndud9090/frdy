@@ -3,15 +3,15 @@ local class = require('lib.middleclass')
 ---@class ManaManager
 ---@field current_mana number
 ---@field max_mana number
----@field turn_mana number
----@field new fun(self: ManaManager, initial_max?: number): ManaManager
+---@field reserved_mana number
+---@field new fun(self: ManaManager, max_mana?: number): ManaManager
 local ManaManager = class('ManaManager')
 
----@param initial_max? number
-function ManaManager:initialize(initial_max)
-  self.max_mana = initial_max or 3
+---@param max_mana? number
+function ManaManager:initialize(max_mana)
+  self.max_mana = max_mana or 100
   self.current_mana = self.max_mana
-  self.turn_mana = self.max_mana
+  self.reserved_mana = 0
 end
 
 ---@return number
@@ -22,6 +22,11 @@ end
 ---@return number
 function ManaManager:get_max()
   return self.max_mana
+end
+
+---@return number
+function ManaManager:get_reserved()
+  return self.reserved_mana
 end
 
 --- Check if the player can afford a cost
@@ -48,12 +53,34 @@ function ManaManager:restore(amount)
   self.current_mana = math.min(self.max_mana, self.current_mana + amount)
 end
 
---- Start a new turn: set mana based on turn count (capped at 10)
----@param turn_count number
-function ManaManager:start_turn(turn_count)
-  self.turn_mana = math.min(10, turn_count)
-  self.max_mana = self.turn_mana
-  self.current_mana = self.turn_mana
+--- Reserve mana (for timeline placement)
+---@param amount number
+---@return boolean
+function ManaManager:reserve(amount)
+  if not self:can_afford(amount) then
+    return false
+  end
+  self.current_mana = self.current_mana - amount
+  self.reserved_mana = self.reserved_mana + amount
+  return true
+end
+
+--- Unreserve mana (refund from timeline removal)
+---@param amount number
+function ManaManager:unreserve(amount)
+  self.current_mana = self.current_mana + amount
+  self.reserved_mana = math.max(0, self.reserved_mana - amount)
+end
+
+--- Reset reserved tracking for new planning phase
+function ManaManager:start_planning()
+  self.reserved_mana = 0
+end
+
+--- Recover mana after combat (capped at max)
+---@param amount number
+function ManaManager:recover_after_combat(amount)
+  self.current_mana = math.min(self.max_mana, self.current_mana + amount)
 end
 
 return ManaManager

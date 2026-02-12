@@ -95,7 +95,7 @@ function GameScene:initialize()
 
   -- 매니저 생성
   local event_bus = Game:getInstance().event_bus
-  self.mana_manager = ManaManager:new(3)
+  self.mana_manager = ManaManager:new(100)
   self.suspicion_manager = SuspicionManager:new(event_bus)
 
   -- 이벤트 매니저 생성
@@ -409,6 +409,9 @@ end
 function GameScene:_on_combat_ended(result)
   self.phase = EXITING_COMBAT
   self.combat_handler:deactivate()
+
+  -- 전투 후 마나 회복
+  self.mana_manager:recover_after_combat(30)
 
   if result == "victory" then
     -- 용사 성장

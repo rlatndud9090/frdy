@@ -235,9 +235,6 @@ function CombatHandler:_start_demon_lord_turn()
   local tm = self.combat_manager:get_turn_manager()
   if not tm then return end
 
-  -- 마나 충전
-  self.mana_manager:start_turn(tm:get_turn_count())
-
   -- 새 턴 시작: 사용 기록 초기화
   self.spell_book:start_planning()
 
