@@ -11,7 +11,9 @@ local MapGenerator = class('MapGenerator')
 
 local SEGMENT_WIDTH = 300
 local MAP_HEIGHT = 720
+local MAX_EDGE_PER_NODE = 2
 
+---@return nil
 function MapGenerator:initialize()
     self._next_node_id = 0
 end
@@ -95,68 +97,104 @@ function MapGenerator:generate_floor(floor_index, config)
     for col = 0, num_columns - 1 do
         local current_col = columns[col]
         local next_col = columns[col + 1]
-
-        -- Track which nodes in next column have incoming edges
-        local has_incoming = {}
-        for j = 1, #next_col do
-            has_incoming[j] = false
-        end
-
-        -- For each node in current column, create 1~3 edges to next column
-        for _, from_node in ipairs(current_col) do
-            local num_edges = rand_int(config.edges_per_node.min, config.edges_per_node.max)
-            -- Clamp to available targets
-            num_edges = math.min(num_edges, #next_col)
-
-            -- Pick random unique targets from next column
-            local targets = self:_pick_random_indices(#next_col, num_edges)
-
-            for _, target_idx in ipairs(targets) do
-                has_incoming[target_idx] = true
-                local edge = Edge:new(from_node, next_col[target_idx])
-                floor:add_edge(edge)
-            end
-        end
-
-        -- Ensure no orphan nodes: any node in next_col without incoming edge
-        -- gets connected from a random node in current column
-        for j = 1, #next_col do
-            if not has_incoming[j] then
-                local random_from = current_col[rand_int(1, #current_col)]
-                local edge = Edge:new(random_from, next_col[j])
-                floor:add_edge(edge)
-            end
-        end
+        self:_connect_columns_with_limits(floor, current_col, next_col, config)
     end
 
     return floor
 end
 
----@param max number
----@param count number
----@return number[]
-function MapGenerator:_pick_random_indices(max, count)
-    if count >= max then
-        -- Return all indices
-        local all = {}
-        for i = 1, max do
-            all[i] = i
-        end
-        return all
+---현재 컬럼과 다음 컬럼을 최대 인/아웃 엣지 2개 제약으로 연결한다.
+---@param floor Floor
+---@param current_col Node[]
+---@param next_col Node[]
+---@param config table
+---@return nil
+function MapGenerator:_connect_columns_with_limits(floor, current_col, next_col, config)
+    local out_count = {}
+    local in_count = {}
+    local has_edge = {}
+    local should_limit_incoming = #next_col > 1
+
+    ---@param next_idx number
+    ---@return boolean
+    local function can_accept_incoming(next_idx)
+        return (not should_limit_incoming) or in_count[next_idx] < MAX_EDGE_PER_NODE
     end
 
-    local selected = {}
-    local used = {}
+    for i = 1, #current_col do
+        out_count[i] = 0
+        has_edge[i] = {}
+    end
 
-    while #selected < count do
-        local idx = rand_int(1, max)
-        if not used[idx] then
-            used[idx] = true
-            table.insert(selected, idx)
+    for j = 1, #next_col do
+        in_count[j] = 0
+    end
+
+    -- 1) 다음 컬럼의 모든 노드가 최소 1개 인-엣지를 갖도록 보장
+    for next_idx = 1, #next_col do
+        local candidates = {}
+        for current_idx = 1, #current_col do
+            if out_count[current_idx] < MAX_EDGE_PER_NODE and not has_edge[current_idx][next_idx] then
+                table.insert(candidates, current_idx)
+            end
+        end
+
+        if #candidates == 0 then
+            break
+        end
+
+        local chosen_idx = candidates[rand_int(1, #candidates)]
+        out_count[chosen_idx] = out_count[chosen_idx] + 1
+        in_count[next_idx] = in_count[next_idx] + 1
+        has_edge[chosen_idx][next_idx] = true
+        floor:add_edge(Edge:new(current_col[chosen_idx], next_col[next_idx]))
+    end
+
+    -- 2) 현재 컬럼의 모든 노드가 최소 1개 아웃-엣지를 갖도록 보장
+    for current_idx = 1, #current_col do
+        if out_count[current_idx] == 0 then
+            local candidates = {}
+            for next_idx = 1, #next_col do
+                if can_accept_incoming(next_idx) and not has_edge[current_idx][next_idx] then
+                    table.insert(candidates, next_idx)
+                end
+            end
+
+            if #candidates > 0 then
+                local chosen_next_idx = candidates[rand_int(1, #candidates)]
+                out_count[current_idx] = out_count[current_idx] + 1
+                in_count[chosen_next_idx] = in_count[chosen_next_idx] + 1
+                has_edge[current_idx][chosen_next_idx] = true
+                floor:add_edge(Edge:new(current_col[current_idx], next_col[chosen_next_idx]))
+            end
         end
     end
 
-    return selected
+    -- 3) 설정값 범위 내에서 추가 엣지 생성 (단, 인/아웃 2개 제한 엄수)
+    for current_idx = 1, #current_col do
+        local from_node = current_col[current_idx]
+        local desired_out = rand_int(config.edges_per_node.min, config.edges_per_node.max)
+        local target_out = math.min(desired_out, MAX_EDGE_PER_NODE)
+
+        while out_count[current_idx] < target_out do
+            local candidates = {}
+            for next_idx = 1, #next_col do
+                if can_accept_incoming(next_idx) and not has_edge[current_idx][next_idx] then
+                    table.insert(candidates, next_idx)
+                end
+            end
+
+            if #candidates == 0 then
+                break
+            end
+
+            local chosen_next_idx = candidates[rand_int(1, #candidates)]
+            out_count[current_idx] = out_count[current_idx] + 1
+            in_count[chosen_next_idx] = in_count[chosen_next_idx] + 1
+            has_edge[current_idx][chosen_next_idx] = true
+            floor:add_edge(Edge:new(from_node, next_col[chosen_next_idx]))
+        end
+    end
 end
 
 return MapGenerator
