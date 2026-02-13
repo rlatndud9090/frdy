@@ -13,6 +13,7 @@ local SEGMENT_WIDTH = 300
 local MAP_HEIGHT = 720
 local MAX_EDGE_PER_NODE = 2
 
+---@return nil
 function MapGenerator:initialize()
     self._next_node_id = 0
 end
@@ -107,10 +108,18 @@ end
 ---@param current_col Node[]
 ---@param next_col Node[]
 ---@param config table
+---@return nil
 function MapGenerator:_connect_columns_with_limits(floor, current_col, next_col, config)
     local out_count = {}
     local in_count = {}
     local has_edge = {}
+    local should_limit_incoming = #next_col > 1
+
+    ---@param next_idx number
+    ---@return boolean
+    local function can_accept_incoming(next_idx)
+        return (not should_limit_incoming) or in_count[next_idx] < MAX_EDGE_PER_NODE
+    end
 
     for i = 1, #current_col do
         out_count[i] = 0
@@ -146,7 +155,7 @@ function MapGenerator:_connect_columns_with_limits(floor, current_col, next_col,
         if out_count[current_idx] == 0 then
             local candidates = {}
             for next_idx = 1, #next_col do
-                if in_count[next_idx] < MAX_EDGE_PER_NODE and not has_edge[current_idx][next_idx] then
+                if can_accept_incoming(next_idx) and not has_edge[current_idx][next_idx] then
                     table.insert(candidates, next_idx)
                 end
             end
@@ -170,7 +179,7 @@ function MapGenerator:_connect_columns_with_limits(floor, current_col, next_col,
         while out_count[current_idx] < target_out do
             local candidates = {}
             for next_idx = 1, #next_col do
-                if in_count[next_idx] < MAX_EDGE_PER_NODE and not has_edge[current_idx][next_idx] then
+                if can_accept_incoming(next_idx) and not has_edge[current_idx][next_idx] then
                     table.insert(candidates, next_idx)
                 end
             end
