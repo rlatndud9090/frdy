@@ -207,13 +207,34 @@ function MapGenerator:_build_boss_column(floor, columns, floor_index, config, nu
 end
 
 ---@param current_idx number
+---@param current_count number
+---@param next_count number
+---@return number
+function MapGenerator:_map_current_to_next_anchor(current_idx, current_count, next_count)
+  if next_count <= 1 then
+    return 1
+  end
+
+  if current_count <= 1 then
+    return math.floor((next_count + 1) / 2)
+  end
+
+  local t = (current_idx - 1) / (current_count - 1)
+  local raw = 1 + t * (next_count - 1)
+  return clamp(math.floor(raw + 0.5), 1, next_count)
+end
+
+---@param current_idx number
+---@param current_count number
 ---@param next_count number
 ---@return number[]
-function MapGenerator:_candidate_next_indices(current_idx, next_count)
+function MapGenerator:_candidate_next_indices(current_idx, current_count, next_count)
   local result = {}
   local seen = {}
+  local anchor_idx = self:_map_current_to_next_anchor(current_idx, current_count, next_count)
+
   for offset = -1, 1 do
-    local next_idx = clamp(current_idx + offset, 1, next_count)
+    local next_idx = clamp(anchor_idx + offset, 1, next_count)
     if not seen[next_idx] then
       seen[next_idx] = true
       table.insert(result, next_idx)
@@ -223,11 +244,12 @@ function MapGenerator:_candidate_next_indices(current_idx, next_count)
 end
 
 ---@param current_idx number
+---@param current_count number
 ---@param next_idx number
 ---@param next_count number
 ---@return boolean
-function MapGenerator:_is_neighbor_index(current_idx, next_idx, next_count)
-  local candidates = self:_candidate_next_indices(current_idx, next_count)
+function MapGenerator:_is_neighbor_index(current_idx, current_count, next_idx, next_count)
+  local candidates = self:_candidate_next_indices(current_idx, current_count, next_count)
   for _, idx in ipairs(candidates) do
     if idx == next_idx then
       return true
@@ -305,7 +327,7 @@ function MapGenerator:_build_regular_pair_edges(current_col, next_col, config)
     if in_count[next_idx] >= max_in then
       return false
     end
-    if not self:_is_neighbor_index(current_idx, next_idx, #next_col) then
+    if not self:_is_neighbor_index(current_idx, #current_col, next_idx, #next_col) then
       return false
     end
     if self:_would_cross(pairs, current_idx, next_idx) then
@@ -519,7 +541,7 @@ function MapGenerator:_validate_floor_graph(floor, columns, config)
       local from_idx = current_index[from_node]
       local to_idx = next_index[to_node]
       if from_idx and to_idx then
-        if not self:_is_neighbor_index(from_idx, to_idx, #next_col) then
+        if not self:_is_neighbor_index(from_idx, #current_col, to_idx, #next_col) then
           return false
         end
         if self:_would_cross(pair_edges, from_idx, to_idx) then
