@@ -180,7 +180,7 @@ function PredictionEngine:_apply_insert_intervention(timeline, intervention)
 
   local effect = spell:get_effect()
   local description = i18n.t('combat.demon_lord_used_spell', {spell = spell:get_name()})
-  local snapshot = intervention.state_snapshot or self:_derive_spell_snapshot(timeline, index, effect, intervention.target)
+  local snapshot = intervention.state_snapshot or self:_derive_spell_snapshot(timeline, index, effect, intervention.target_enemy_index, intervention.target)
   local predicted = PredictedAction:new({
     actor = intervention.actor,
     pattern = nil,
@@ -199,9 +199,10 @@ end
 ---@param timeline PredictedAction[]
 ---@param index number
 ---@param effect SpellEffectObject|nil
+---@param target_enemy_index? number
 ---@param target Entity|nil
 ---@return PredictionStateSnapshot|nil
-function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target)
+function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target_enemy_index, target)
   local base_snapshot = nil
   if index > 1 and timeline[index - 1] then
     base_snapshot = timeline[index - 1]:get_state_snapshot()
@@ -242,7 +243,14 @@ function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target
   else
     for i = #snapshot.enemies, 1, -1 do
       local enemy_state = snapshot.enemies[i]
-      if target and enemy_state.name == target:get_name() then
+      local is_target_enemy = false
+      if target_enemy_index and enemy_state.id == target_enemy_index then
+        is_target_enemy = true
+      elseif (not target_enemy_index) and target and enemy_state.name == target:get_name() then
+        is_target_enemy = true
+      end
+
+      if is_target_enemy then
         if effect_type == 'damage' or effect_type == 'hinder' then
           enemy_state.hp = math.max(0, enemy_state.hp - amount)
         elseif effect_type == 'heal' then
@@ -250,6 +258,7 @@ function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target
         end
         enemy_state.alive = enemy_state.hp > 0
       end
+
       if not enemy_state.alive then
         table.remove(snapshot.enemies, i)
       end

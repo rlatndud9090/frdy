@@ -280,17 +280,21 @@ function CombatHandler:_insert_spell_at(spell, insert_index)
   -- Determine target
   local effect = spell:get_effect()
   local target = hero
+  local target_enemy_index = nil
   if effect and (effect.type == "damage" or effect.type == "debuff_attack") then
-    local living = self.combat_manager:get_turn_manager():get_living_enemies()
-    if #living > 0 then
-      target = living[1]
+    for i, enemy in ipairs(enemies) do
+      if enemy:is_alive() then
+        target = enemy
+        target_enemy_index = i
+        break
+      end
     end
   end
 
   -- Insert intervention and trigger timeline recalculation
   local tlm = self.combat_manager:get_timeline_manager()
   if tlm then
-    tlm:insert_at(insert_index, spell, hero, target, nil)
+    tlm:insert_at(insert_index, spell, hero, target, target_enemy_index, nil)
   end
 
   table.insert(self.combat_log, i18n.t("combat.spell_placed", {spell = spell:get_name()}))

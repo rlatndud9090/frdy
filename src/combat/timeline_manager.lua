@@ -10,6 +10,7 @@ local class = require('lib.middleclass')
 ---@field global_attack_delta? number
 ---@field actor? Entity
 ---@field target? Entity
+---@field target_enemy_index? number
 ---@field state_snapshot? PredictionStateSnapshot
 
 ---@class TimelineManager
@@ -54,17 +55,47 @@ end
 ---@param spell Spell
 ---@param actor Entity
 ---@param target Entity
+---@param target_enemy_index? number
 ---@param state_snapshot? PredictionStateSnapshot
-function TimelineManager:insert_at(index, spell, actor, target, state_snapshot)
+function TimelineManager:insert_at(index, spell, actor, target, target_enemy_index, state_snapshot)
   table.insert(self.interventions, {
     kind = 'insert',
     index = index,
     spell = spell,
     actor = actor,
     target = target,
-    state_snapshot = state_snapshot,
+    target_enemy_index = target_enemy_index,
+    state_snapshot = state_snapshot or self:_build_initial_snapshot(),
   })
   self:regenerate()
+end
+
+
+---@return PredictionStateSnapshot
+function TimelineManager:_build_initial_snapshot()
+  local snapshot = {
+    hero_hp = self.hero and self.hero:get_hp() or 0,
+    hero_max_hp = self.hero and self.hero:get_max_hp() or 0,
+    enemies = {},
+  }
+
+  if not self.enemies then
+    return snapshot
+  end
+
+  for i, enemy in ipairs(self.enemies) do
+    if enemy:is_alive() then
+      table.insert(snapshot.enemies, {
+        id = i,
+        name = enemy:get_name(),
+        hp = enemy:get_hp(),
+        max_hp = enemy:get_max_hp(),
+        alive = enemy:is_alive(),
+      })
+    end
+  end
+
+  return snapshot
 end
 
 --- Swap two positions in the timeline
