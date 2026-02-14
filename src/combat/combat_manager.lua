@@ -92,6 +92,32 @@ function CombatManager:start_execution()
   self.execution_index = 0
 end
 
+---Execute pattern using predicted value when available.
+---@param action PredictedAction
+---@param actor Entity
+---@param target Entity
+function CombatManager:_execute_pattern_action(action, actor, target)
+  if not action.pattern then return end
+
+  local value = action:get_value()
+  if action.pattern.type == "attack" and value then
+    target:take_damage(value)
+    return
+  end
+
+  if action.pattern.type == "defend" and value then
+    actor.defense = actor.defense + value
+    return
+  end
+
+  if action.pattern.type == "heal" and value then
+    actor:heal(value)
+    return
+  end
+
+  action.pattern:execute(actor, target)
+end
+
 --- Execute next action in timeline
 ---@return PredictedAction|nil action that was executed, or nil if done
 function CombatManager:execute_next_action()
@@ -107,14 +133,14 @@ function CombatManager:execute_next_action()
   local source = action:get_source_type()
   if source == "hero" then
     if action.pattern and action.target and action.target:is_alive() then
-      action.pattern:execute(self.hero, action.target)
+      self:_execute_pattern_action(action, self.hero, action.target)
     end
   elseif source == "enemy" then
     if action.pattern and action.actor and action.actor:is_alive() then
       if action.pattern.type == "attack" then
-        action.pattern:execute(action.actor, self.hero)
+        self:_execute_pattern_action(action, action.actor, self.hero)
       elseif action.pattern.type == "defend" then
-        action.pattern:execute(action.actor, action.actor)
+        self:_execute_pattern_action(action, action.actor, action.actor)
       end
     end
   elseif source == "spell" then
