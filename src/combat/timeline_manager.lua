@@ -58,6 +58,11 @@ end
 ---@param target_enemy_index? number
 ---@param state_snapshot? PredictionStateSnapshot
 function TimelineManager:insert_at(index, spell, actor, target, target_enemy_index, state_snapshot)
+  local snapshot = state_snapshot
+  if not snapshot and index <= 1 then
+    snapshot = self:_build_initial_snapshot()
+  end
+
   table.insert(self.interventions, {
     kind = 'insert',
     index = index,
@@ -65,7 +70,7 @@ function TimelineManager:insert_at(index, spell, actor, target, target_enemy_ind
     actor = actor,
     target = target,
     target_enemy_index = target_enemy_index,
-    state_snapshot = state_snapshot or self:_build_initial_snapshot(),
+    state_snapshot = snapshot,
   })
   self:regenerate()
 end
