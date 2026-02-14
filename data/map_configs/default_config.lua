@@ -7,6 +7,10 @@ return {
   -- Middle columns keep a compact STS-like spread.
   nodes_per_column = {min = 3, max = 6},
 
+  -- Place nodes at random y positions with a minimum vertical gap.
+  min_node_vertical_gap = 170,
+  node_vertical_margin = 140,
+
   -- start + 13 middle + boss ~= depth 15
   columns_per_floor = {min = 14, max = 14},
 
@@ -20,6 +24,12 @@ return {
 
   -- Boss policy fixed by request: connect from previous column only.
   boss_incoming_mode = "previous_column_all",
+
+  -- Prevent repeated extreme density columns.
+  no_consecutive_column_sizes = {3, 6},
+
+  -- Increase vertical world span so 6-row columns are less cramped in map views.
+  map_height = 1800,
 
   segment_width = 300,
 }

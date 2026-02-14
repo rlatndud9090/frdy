@@ -562,6 +562,11 @@ end
 ---@param x number
 ---@param y number
 function GameScene:wheelmoved(x, y)
+  if self.map_overlay:is_open() then
+    self.map_overlay:wheelmoved(x, y)
+    return
+  end
+
   if self.phase == COMBAT then
     self.combat_handler:wheelmoved(x, y)
   end

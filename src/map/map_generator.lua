@@ -9,9 +9,11 @@ local Map = require("src.map.map")
 ---@field _next_node_id number
 local MapGenerator = class("MapGenerator")
 
-local MAP_HEIGHT = 720
+local DEFAULT_MAP_HEIGHT = 1800
 local DEFAULT_SEGMENT_WIDTH = 300
 local DEFAULT_MAX_EDGE_PER_NODE = 3
+local DEFAULT_MIN_NODE_VERTICAL_GAP = 170
+local DEFAULT_NODE_VERTICAL_MARGIN = 140
 local MAX_FLOOR_GENERATION_ATTEMPTS = 20
 local MAX_PAIR_CONNECTION_ATTEMPTS = 12
 
@@ -63,6 +65,41 @@ end
 ---@return number
 function MapGenerator:_get_segment_width(config)
   return config.segment_width or DEFAULT_SEGMENT_WIDTH
+end
+
+---@param config table
+---@return number
+function MapGenerator:_get_map_height(config)
+  return config.map_height or DEFAULT_MAP_HEIGHT
+end
+
+---@param config table
+---@return number
+function MapGenerator:_get_min_node_vertical_gap(config)
+  return config.min_node_vertical_gap or DEFAULT_MIN_NODE_VERTICAL_GAP
+end
+
+---@param config table
+---@return number
+function MapGenerator:_get_node_vertical_margin(config)
+  return config.node_vertical_margin or DEFAULT_NODE_VERTICAL_MARGIN
+end
+
+---@param value number
+---@param list number[]|nil
+---@return boolean
+function MapGenerator:_contains_number(value, list)
+  if not list then
+    return false
+  end
+
+  for _, item in ipairs(list) do
+    if item == value then
+      return true
+    end
+  end
+
+  return false
 end
 
 ---@param config table
@@ -147,6 +184,74 @@ function MapGenerator:_build_columns(floor, floor_index, config)
   return columns, num_columns
 end
 
+---@param node_count number
+---@param map_height number
+---@param config table
+---@return number[]
+function MapGenerator:_generate_random_y_positions(node_count, map_height, config)
+  local margin = self:_get_node_vertical_margin(config)
+  local min_y = margin
+  local max_y = map_height - margin
+
+  if max_y <= min_y then
+    min_y = 0
+    max_y = map_height
+  end
+
+  if node_count <= 1 then
+    local single_y = min_y + math.random() * (max_y - min_y)
+    return {single_y}
+  end
+
+  local positions = {}
+  local usable_height = math.max(max_y - min_y, 1)
+  local band_height = usable_height / node_count
+  local min_gap_hint = self:_get_min_node_vertical_gap(config)
+  local inner_padding = math.min(min_gap_hint * 0.25, band_height * 0.4)
+
+  for idx = 1, node_count do
+    local band_min = min_y + band_height * (idx - 1)
+    local band_max = band_min + band_height
+    local inner_min = band_min + inner_padding
+    local inner_max = band_max - inner_padding
+
+    if inner_max < inner_min then
+      inner_min = band_min
+      inner_max = band_max
+    end
+
+    local y = inner_min + math.random() * math.max(inner_max - inner_min, 0)
+    table.insert(positions, clamp(y, min_y, max_y))
+  end
+
+  table.sort(positions)
+  return positions
+end
+
+---@param config table
+---@param previous_count number|nil
+---@return number
+function MapGenerator:_choose_middle_node_count(config, previous_count)
+  local min_count = config.nodes_per_column.min
+  local max_count = config.nodes_per_column.max
+  local blocked_sizes = config.no_consecutive_column_sizes or {3, 6}
+
+  local candidates = {}
+  for count = min_count, max_count do
+    local blocked = previous_count == count and self:_contains_number(count, blocked_sizes)
+    if not blocked then
+      table.insert(candidates, count)
+    end
+  end
+
+  if #candidates == 0 then
+    -- Fallback for invalid config combinations.
+    return rand_int(min_count, max_count)
+  end
+
+  return candidates[rand_int(1, #candidates)]
+end
+
 ---@param floor Floor
 ---@param columns table<number, Node[]>
 ---@param floor_index number
@@ -155,9 +260,11 @@ end
 function MapGenerator:_build_start_column(floor, columns, floor_index, config)
   local start_cfg = config.start_nodes_per_column or {min = 4, max = 5}
   local node_count = rand_int(start_cfg.min, start_cfg.max)
+  local map_height = self:_get_map_height(config)
+  local y_positions = self:_generate_random_y_positions(node_count, map_height, config)
 
   for row = 1, node_count do
-    local y = (row / (node_count + 1)) * MAP_HEIGHT
+    local y = y_positions[row]
     local node = CombatNode:new(self:_generate_id(), {x = 0, y = y}, floor_index, nil, false)
     table.insert(columns[0], node)
     floor:add_node(node)
@@ -172,12 +279,16 @@ end
 ---@return nil
 function MapGenerator:_build_middle_columns(floor, columns, floor_index, config, num_columns)
   local segment_width = self:_get_segment_width(config)
+  local map_height = self:_get_map_height(config)
+  local previous_count = nil
   for col = 1, num_columns - 1 do
-    local node_count = rand_int(config.nodes_per_column.min, config.nodes_per_column.max)
+    local node_count = self:_choose_middle_node_count(config, previous_count)
+    previous_count = node_count
     local x = col * segment_width
+    local y_positions = self:_generate_random_y_positions(node_count, map_height, config)
 
     for row = 1, node_count do
-      local y = (row / (node_count + 1)) * MAP_HEIGHT
+      local y = y_positions[row]
       local node = nil
       if math.random() < config.combat_ratio then
         node = CombatNode:new(self:_generate_id(), {x = x, y = y}, floor_index, nil, false)
@@ -199,8 +310,9 @@ end
 ---@return nil
 function MapGenerator:_build_boss_column(floor, columns, floor_index, config, num_columns)
   local segment_width = self:_get_segment_width(config)
+  local map_height = self:_get_map_height(config)
   local boss_x = num_columns * segment_width
-  local boss_pos = {x = boss_x, y = MAP_HEIGHT / 2}
+  local boss_pos = {x = boss_x, y = map_height / 2}
   local boss_node = CombatNode:new(self:_generate_id(), boss_pos, floor_index, nil, true)
   table.insert(columns[num_columns], boss_node)
   floor:add_node(boss_node)
@@ -475,6 +587,16 @@ function MapGenerator:_validate_floor_graph(floor, columns, config)
     if count < middle_cfg.min or count > middle_cfg.max then
       return false
     end
+  end
+
+  local blocked_sizes = config.no_consecutive_column_sizes or {3, 6}
+  local previous_count = nil
+  for col = 1, final_col - 1 do
+    local count = #columns[col]
+    if previous_count == count and self:_contains_number(count, blocked_sizes) then
+      return false
+    end
+    previous_count = count
   end
 
   for col = 0, final_col do
