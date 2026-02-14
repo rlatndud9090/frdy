@@ -10,6 +10,7 @@ local SettingsOverlay = require('src.ui.settings_overlay')
 local CombatHandler = require('src.handler.combat_handler')
 local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
+local StartNodeSelectHandler = require('src.handler.start_node_select_handler')
 local Hero = require('src.combat.hero')
 local Enemy = require('src.combat.enemy')
 local Spell = require('src.spell.spell')
@@ -32,6 +33,7 @@ local ENTERING_EVENT = "ENTERING_EVENT"
 local EVENT = "EVENT"
 local EXITING_EVENT = "EXITING_EVENT"
 local EDGE_SELECT = "EDGE_SELECT"
+local START_NODE_SELECT = "START_NODE_SELECT"
 
 ---@class GameScene : Scene
 ---@field phase string
@@ -49,6 +51,7 @@ local EDGE_SELECT = "EDGE_SELECT"
 ---@field floor_enemies table
 ---@field combat_handler CombatHandler
 ---@field event_handler EventHandler
+---@field start_node_select_handler StartNodeSelectHandler|nil
 ---@field edge_select_handler EdgeSelectHandler|nil
 ---@field overlay_alpha number
 ---@field suspicion_gauge Gauge
@@ -69,11 +72,11 @@ function GameScene:initialize()
   -- 시작 노드에 배치
   local floor = self.map:get_current_floor()
   local start_nodes = floor:get_start_nodes()
-  self.current_node = start_nodes[1]
+  self.current_node = nil
   self.target_node = nil
 
   -- 용사 월드 좌표
-  self.hero_world_x = self.current_node:get_position().x
+  self.hero_world_x = start_nodes[1] and start_nodes[1]:get_position().x or 0
   self.hero_world_y = 360
 
   -- 카메라 생성 및 즉시 위치 설정 (초기 lerp 없이)
@@ -132,17 +135,17 @@ function GameScene:initialize()
     self:_on_event_ended()
   end)
 
+  self.start_node_select_handler = nil
   self.edge_select_handler = nil
 
   -- 초기 상태
-  self.phase = TRAVELING
+  self.phase = START_NODE_SELECT
   self.overlay_alpha = 0
 
   -- 시작 노드 완료 처리
-  self.current_node:mark_completed()
+  self:_show_start_node_select(start_nodes)
 
   -- 게임 흐름 시작
-  self:_check_next_move()
 end
 
 ---@param dt number
@@ -163,6 +166,10 @@ function GameScene:update(dt)
     self.combat_handler:update(dt)
   elseif self.phase == EVENT then
     self.event_handler:update(dt)
+  elseif self.phase == START_NODE_SELECT then
+    if self.start_node_select_handler then
+      self.start_node_select_handler:update(dt)
+    end
   elseif self.phase == EDGE_SELECT then
     if self.edge_select_handler then
       self.edge_select_handler:update(dt)
@@ -244,6 +251,10 @@ function GameScene:_draw_ui()
     self.event_handler:draw_ui()
   end
 
+  if self.phase == START_NODE_SELECT and self.start_node_select_handler then
+    self.start_node_select_handler:draw()
+  end
+
   -- 경로 선택 페이즈: 핸들러 그리기
   if self.phase == EDGE_SELECT then
     if self.edge_select_handler then
@@ -301,6 +312,8 @@ function GameScene:mousepressed(x, y, button)
     self.combat_handler:mousepressed(x, y, button)
   elseif self.phase == EVENT then
     self.event_handler:mousepressed(x, y, button)
+  elseif self.phase == START_NODE_SELECT and self.start_node_select_handler then
+    self.start_node_select_handler:mousepressed(x, y, button)
   elseif self.phase == EDGE_SELECT and self.edge_select_handler then
     self.edge_select_handler:mousepressed(x, y, button)
   end
@@ -308,6 +321,10 @@ end
 
 --- 다음 이동 결정
 function GameScene:_check_next_move()
+  if not self.current_node then
+    return
+  end
+
   local floor = self.map:get_current_floor()
   local edges = floor:get_edges_from(self.current_node)
 
@@ -481,6 +498,41 @@ function GameScene:_on_event_ended()
     :oncomplete(function()
       self:_check_next_move()
     end)
+end
+
+---@param start_nodes Node[]
+function GameScene:_show_start_node_select(start_nodes)
+  self.phase = START_NODE_SELECT
+
+  if not self.start_node_select_handler then
+    self.start_node_select_handler = StartNodeSelectHandler:new(start_nodes, function(node)
+      self:_on_start_node_selected(node)
+    end)
+  else
+    self.start_node_select_handler:setup(start_nodes, function(node)
+      self:_on_start_node_selected(node)
+    end)
+  end
+
+  self.start_node_select_handler:activate()
+end
+
+---@param node Node
+function GameScene:_on_start_node_selected(node)
+  self.current_node = node
+  self.map:set_current_node(self.current_node)
+  self.current_node:mark_completed()
+
+  local pos = self.current_node:get_position()
+  self.hero_world_x = pos.x
+  self.hero_world_y = pos.y
+  self.camera.x = self.hero_world_x
+  self.camera.y = self.hero_world_y
+  self.camera.target_x = self.hero_world_x
+  self.camera.target_y = self.hero_world_y
+
+  self.minimap:set_map_data(self.map:get_current_floor(), self.current_node)
+  self:_check_next_move()
 end
 
 --- 경로 선택 표시
