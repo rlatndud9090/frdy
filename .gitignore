@@ -40,8 +40,7 @@ config.local.lua
 
 # AI
 # .omc - keep notepad, project-memory, and plans, ignore rest
-.omc/*
-!.omc/plans/
+.omc/
 
 # .claude - ignore everything
 .claude/
