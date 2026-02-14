@@ -11,11 +11,13 @@ local PredictionEngine = class('PredictionEngine')
 ---@field name string
 ---@field hp number
 ---@field max_hp number
+---@field defense number
 ---@field alive boolean
 
 ---@class PredictionStateSnapshot
 ---@field hero_hp number
 ---@field hero_max_hp number
+---@field hero_defense number
 ---@field enemies PredictionStateSnapshotEnemy[]
 
 ---@param max_actions? number
@@ -214,6 +216,7 @@ function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target
   local snapshot = {
     hero_hp = base_snapshot.hero_hp,
     hero_max_hp = base_snapshot.hero_max_hp,
+    hero_defense = base_snapshot.hero_defense or 0,
     enemies = {},
   }
 
@@ -223,6 +226,7 @@ function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target
       name = enemy_state.name,
       hp = enemy_state.hp,
       max_hp = enemy_state.max_hp,
+      defense = enemy_state.defense or 0,
       alive = enemy_state.alive,
     })
   end
@@ -238,7 +242,8 @@ function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target
     if effect_type == 'heal' then
       snapshot.hero_hp = math.min(snapshot.hero_max_hp, snapshot.hero_hp + amount)
     elseif effect_type == 'damage' or effect_type == 'hinder' then
-      snapshot.hero_hp = math.max(0, snapshot.hero_hp - amount)
+      local actual = math.max(0, amount - (snapshot.hero_defense or 0))
+      snapshot.hero_hp = math.max(0, snapshot.hero_hp - actual)
     end
   else
     for i = #snapshot.enemies, 1, -1 do
@@ -252,7 +257,8 @@ function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target
 
       if is_target_enemy then
         if effect_type == 'damage' or effect_type == 'hinder' then
-          enemy_state.hp = math.max(0, enemy_state.hp - amount)
+          local actual = math.max(0, amount - (enemy_state.defense or 0))
+          enemy_state.hp = math.max(0, enemy_state.hp - actual)
         elseif effect_type == 'heal' then
           enemy_state.hp = math.min(enemy_state.max_hp, enemy_state.hp + amount)
         end
@@ -334,6 +340,7 @@ function PredictionEngine:_build_state_snapshot(hero, enemies)
   local snapshot = {
     hero_hp = hero:get_hp(),
     hero_max_hp = hero:get_max_hp(),
+    hero_defense = hero:get_defense(),
     enemies = {},
   }
 
@@ -344,6 +351,7 @@ function PredictionEngine:_build_state_snapshot(hero, enemies)
         name = enemy:get_name(),
         hp = enemy:get_hp(),
         max_hp = enemy:get_max_hp(),
+        defense = enemy:get_defense(),
         alive = enemy:is_alive(),
       })
     end

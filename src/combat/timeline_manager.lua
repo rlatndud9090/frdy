@@ -76,6 +76,7 @@ function TimelineManager:_build_initial_snapshot()
   local snapshot = {
     hero_hp = self.hero and self.hero:get_hp() or 0,
     hero_max_hp = self.hero and self.hero:get_max_hp() or 0,
+    hero_defense = self.hero and self.hero:get_defense() or 0,
     enemies = {},
   }
 
@@ -90,6 +91,7 @@ function TimelineManager:_build_initial_snapshot()
         name = enemy:get_name(),
         hp = enemy:get_hp(),
         max_hp = enemy:get_max_hp(),
+        defense = enemy:get_defense(),
         alive = enemy:is_alive(),
       })
     end
