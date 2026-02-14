@@ -1,9 +1,22 @@
 local class = require('lib.middleclass')
 local PredictedAction = require('src.combat.predicted_action')
+local i18n = require('src.i18n.init')
 
 ---@class PredictionEngine
 ---@field max_actions number
 local PredictionEngine = class('PredictionEngine')
+
+---@class PredictionStateSnapshotEnemy
+---@field id number
+---@field name string
+---@field hp number
+---@field max_hp number
+---@field alive boolean
+
+---@class PredictionStateSnapshot
+---@field hero_hp number
+---@field hero_max_hp number
+---@field enemies PredictionStateSnapshotEnemy[]
 
 ---@param max_actions? number
 function PredictionEngine:initialize(max_actions)
@@ -15,7 +28,6 @@ end
 ---@param enemies Enemy[]
 ---@return PredictedAction[]
 function PredictionEngine:generate_timeline(hero, enemies)
-  -- Snapshot all entities
   local hero_snap = hero:snapshot()
   local enemy_snaps = {}
   for i, enemy in ipairs(enemies) do
@@ -26,82 +38,33 @@ function PredictionEngine:generate_timeline(hero, enemies)
   local action_count = 0
 
   local ok, err = pcall(function()
-    -- Simulate alternating turns: hero → enemies → hero → enemies...
     while action_count < self.max_actions do
-      -- Hero action
-      if hero:is_alive() then
-        local pattern = hero:choose_action({
-          target = self:_get_first_living(enemies),
-          enemies = self:_get_living(enemies),
-        })
-        if pattern then
-          local target = self:_get_first_living(enemies)
-          if target then
-            local preview = pattern:get_preview(hero)
-            table.insert(timeline, PredictedAction:new({
-              actor = hero,
-              pattern = pattern,
-              action_type = pattern.type,
-              target = target,
-              value = preview.value,
-              source_type = "hero",
-              description = preview.description,
-            }))
-            action_count = action_count + 1
-
-            -- Apply simulated effect
-            pattern:execute(hero, target)
-          end
-        end
-
-        -- Check if all enemies dead
-        if #self:_get_living(enemies) == 0 then
-          break
-        end
-      end
-
-      -- Enemy actions
-      for _, enemy in ipairs(enemies) do
-        if enemy:is_alive() and action_count < self.max_actions then
-          local pattern = enemy:choose_action({
-            actor = enemy,
-            target = hero,
-          })
-          if pattern then
-            local preview = pattern:get_preview(enemy)
-            table.insert(timeline, PredictedAction:new({
-              actor = enemy,
-              pattern = pattern,
-              action_type = pattern.type,
-              target = hero,
-              value = preview.value,
-              source_type = "enemy",
-              description = enemy:get_name() .. ": " .. preview.description,
-            }))
-            action_count = action_count + 1
-
-            -- Apply simulated effect
-            if pattern.type == "attack" then
-              pattern:execute(enemy, hero)
-            elseif pattern.type == "defend" then
-              pattern:execute(enemy, enemy)
-            end
-          end
-        end
-      end
-
-      -- Check if hero dead
-      if not hero:is_alive() then
+      if not hero:is_alive() or #self:_get_living(enemies) == 0 then
         break
       end
+
+      self:_simulate_hero_action(timeline, hero, enemies)
+      action_count = #timeline
+
+      if not hero:is_alive() or #self:_get_living(enemies) == 0 or action_count >= self.max_actions then
+        break
+      end
+
+      for _, enemy in ipairs(enemies) do
+        if not hero:is_alive() or #self:_get_living(enemies) == 0 or #timeline >= self.max_actions then
+          break
+        end
+        self:_simulate_enemy_action(timeline, enemy, hero, enemies)
+      end
+
+      action_count = #timeline
     end
   end)
 
   if not ok then
-    print("[PredictionEngine] Simulation error: " .. tostring(err))
+    print('[PredictionEngine] Simulation error: ' .. tostring(err))
   end
 
-  -- Restore all entities
   hero:restore(hero_snap)
   for i, enemy in ipairs(enemies) do
     enemy:restore(enemy_snaps[i])
@@ -110,15 +73,274 @@ function PredictionEngine:generate_timeline(hero, enemies)
   return timeline
 end
 
---- Recalculate timeline from a given index with interventions
+--- Recalculate timeline with interventions applied
 ---@param hero Hero
 ---@param enemies Enemy[]
----@param interventions table[] List of {index, spell} to insert
+---@param interventions table[]
 ---@return PredictedAction[]
 function PredictionEngine:recalculate_with(hero, enemies, interventions)
-  -- For now, regenerate the full timeline
-  -- Future: partial recalculation from the earliest intervention point
-  return self:generate_timeline(hero, enemies)
+  local base_timeline = self:generate_timeline(hero, enemies)
+  local timeline = {}
+
+  for i, action in ipairs(base_timeline) do
+    timeline[i] = action
+  end
+
+  for _, intervention in ipairs(interventions) do
+    local kind = intervention.kind
+    if kind == 'insert' then
+      self:_apply_insert_intervention(timeline, intervention)
+    elseif kind == 'swap' then
+      self:_apply_swap_intervention(timeline, intervention)
+    elseif kind == 'remove' then
+      self:_apply_remove_intervention(timeline, intervention)
+    elseif kind == 'delay' then
+      self:_apply_delay_intervention(timeline, intervention)
+    elseif kind == 'modify' then
+      self:_apply_modify_intervention(timeline, intervention)
+    elseif kind == 'global' then
+      self:_apply_global_intervention(timeline, intervention)
+    end
+  end
+
+  return timeline
+end
+
+---@param timeline PredictedAction[]
+---@param hero Hero
+---@param enemies Enemy[]
+function PredictionEngine:_simulate_hero_action(timeline, hero, enemies)
+  if not hero:is_alive() then return end
+
+  local target = self:_get_first_living(enemies)
+  if not target then return end
+
+  local pattern = hero:choose_action({
+    target = target,
+    enemies = self:_get_living(enemies),
+  })
+
+  if not pattern then return end
+
+  local preview = pattern:get_preview(hero)
+  pattern:execute(hero, target)
+
+  local action = PredictedAction:new({
+    actor = hero,
+    pattern = pattern,
+    action_type = pattern.type,
+    target = target,
+    value = preview.value,
+    source_type = 'hero',
+    description = preview.description,
+    state_snapshot = self:_build_state_snapshot(hero, enemies),
+  })
+  table.insert(timeline, action)
+end
+
+---@param timeline PredictedAction[]
+---@param enemy Enemy
+---@param hero Hero
+---@param enemies Enemy[]
+function PredictionEngine:_simulate_enemy_action(timeline, enemy, hero, enemies)
+  if not enemy:is_alive() or not hero:is_alive() then return end
+
+  local pattern = enemy:choose_action({
+    actor = enemy,
+    target = hero,
+  })
+  if not pattern then return end
+
+  local preview = pattern:get_preview(enemy)
+  if pattern.type == 'attack' then
+    pattern:execute(enemy, hero)
+  elseif pattern.type == 'defend' then
+    pattern:execute(enemy, enemy)
+  end
+
+  local action = PredictedAction:new({
+    actor = enemy,
+    pattern = pattern,
+    action_type = pattern.type,
+    target = hero,
+    value = preview.value,
+    source_type = 'enemy',
+    description = enemy:get_name() .. ': ' .. preview.description,
+    state_snapshot = self:_build_state_snapshot(hero, enemies),
+  })
+  table.insert(timeline, action)
+end
+
+---@param timeline PredictedAction[]
+---@param intervention table
+function PredictionEngine:_apply_insert_intervention(timeline, intervention)
+  local index = math.max(1, math.min(intervention.index or (#timeline + 1), #timeline + 1))
+  local spell = intervention.spell
+  if not spell then return end
+
+  local effect = spell:get_effect()
+  local description = i18n.t('combat.demon_lord_used_spell', {spell = spell:get_name()})
+  local snapshot = intervention.state_snapshot or self:_derive_spell_snapshot(timeline, index, effect, intervention.target)
+  local predicted = PredictedAction:new({
+    actor = intervention.actor,
+    pattern = nil,
+    action_type = effect and effect.type or 'spell',
+    target = intervention.target,
+    value = effect and effect.amount or 0,
+    source_type = 'spell',
+    spell = spell,
+    description = description,
+    state_snapshot = snapshot,
+  })
+
+  table.insert(timeline, index, predicted)
+end
+
+---@param timeline PredictedAction[]
+---@param index number
+---@param effect SpellEffectObject|nil
+---@param target Entity|nil
+---@return PredictionStateSnapshot|nil
+function PredictionEngine:_derive_spell_snapshot(timeline, index, effect, target)
+  local base_snapshot = nil
+  if index > 1 and timeline[index - 1] then
+    base_snapshot = timeline[index - 1]:get_state_snapshot()
+  end
+  if not base_snapshot then
+    return nil
+  end
+
+  local snapshot = {
+    hero_hp = base_snapshot.hero_hp,
+    hero_max_hp = base_snapshot.hero_max_hp,
+    enemies = {},
+  }
+
+  for _, enemy_state in ipairs(base_snapshot.enemies or {}) do
+    table.insert(snapshot.enemies, {
+      id = enemy_state.id,
+      name = enemy_state.name,
+      hp = enemy_state.hp,
+      max_hp = enemy_state.max_hp,
+      alive = enemy_state.alive,
+    })
+  end
+
+  if not effect then
+    return snapshot
+  end
+
+  local effect_type = effect.type
+  local amount = effect.amount or 0
+
+  if target and target.name == 'entity.hero' then
+    if effect_type == 'heal' then
+      snapshot.hero_hp = math.min(snapshot.hero_max_hp, snapshot.hero_hp + amount)
+    elseif effect_type == 'damage' or effect_type == 'hinder' then
+      snapshot.hero_hp = math.max(0, snapshot.hero_hp - amount)
+    end
+  else
+    for i = #snapshot.enemies, 1, -1 do
+      local enemy_state = snapshot.enemies[i]
+      if target and enemy_state.name == target:get_name() then
+        if effect_type == 'damage' or effect_type == 'hinder' then
+          enemy_state.hp = math.max(0, enemy_state.hp - amount)
+        elseif effect_type == 'heal' then
+          enemy_state.hp = math.min(enemy_state.max_hp, enemy_state.hp + amount)
+        end
+        enemy_state.alive = enemy_state.hp > 0
+      end
+      if not enemy_state.alive then
+        table.remove(snapshot.enemies, i)
+      end
+    end
+  end
+
+  return snapshot
+end
+
+---@param timeline PredictedAction[]
+---@param intervention table
+function PredictionEngine:_apply_swap_intervention(timeline, intervention)
+  local a = intervention.index
+  local b = intervention.dest_index
+  if not a or not b then return end
+  if a >= 1 and a <= #timeline and b >= 1 and b <= #timeline then
+    timeline[a], timeline[b] = timeline[b], timeline[a]
+  end
+end
+
+---@param timeline PredictedAction[]
+---@param intervention table
+function PredictionEngine:_apply_remove_intervention(timeline, intervention)
+  local index = intervention.index
+  if index and index >= 1 and index <= #timeline then
+    table.remove(timeline, index)
+  end
+end
+
+---@param timeline PredictedAction[]
+---@param intervention table
+function PredictionEngine:_apply_delay_intervention(timeline, intervention)
+  local index = intervention.index
+  local amount = intervention.delay_amount or 1
+  if not index then return end
+
+  for _ = 1, amount do
+    if index < #timeline then
+      timeline[index], timeline[index + 1] = timeline[index + 1], timeline[index]
+      index = index + 1
+    end
+  end
+end
+
+---@param timeline PredictedAction[]
+---@param intervention table
+function PredictionEngine:_apply_modify_intervention(timeline, intervention)
+  local index = intervention.index
+  local delta = intervention.modify_delta or 0
+  if not index or not timeline[index] then return end
+
+  local action = timeline[index]
+  action.value = math.max(0, action.value + delta)
+end
+
+---@param timeline PredictedAction[]
+---@param intervention table
+function PredictionEngine:_apply_global_intervention(timeline, intervention)
+  local delta = intervention.global_attack_delta or 0
+  if delta == 0 then return end
+
+  for _, action in ipairs(timeline) do
+    if action:get_source_type() == 'hero' and action:get_action_type() == 'attack' then
+      action.value = math.max(0, action.value + delta)
+    end
+  end
+end
+
+---@param hero Hero
+---@param enemies Enemy[]
+---@return PredictionStateSnapshot
+function PredictionEngine:_build_state_snapshot(hero, enemies)
+  local snapshot = {
+    hero_hp = hero:get_hp(),
+    hero_max_hp = hero:get_max_hp(),
+    enemies = {},
+  }
+
+  for i, enemy in ipairs(enemies) do
+    if enemy:is_alive() then
+      table.insert(snapshot.enemies, {
+        id = i,
+        name = enemy:get_name(),
+        hp = enemy:get_hp(),
+        max_hp = enemy:get_max_hp(),
+        alive = enemy:is_alive(),
+      })
+    end
+  end
+
+  return snapshot
 end
 
 ---@param entities Entity[]

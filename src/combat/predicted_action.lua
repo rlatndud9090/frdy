@@ -45,6 +45,11 @@ function PredictedAction:get_value()
   return self.value
 end
 
+---@return table|nil
+function PredictedAction:get_state_snapshot()
+  return self.state_snapshot
+end
+
 ---@return boolean
 function PredictedAction:is_intervention()
   return self.source_type == "spell"

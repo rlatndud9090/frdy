@@ -1,6 +1,5 @@
 local class = require('lib.middleclass')
 local CombatManager = require('src.combat.combat_manager')
-local PredictedAction = require('src.combat.predicted_action')
 local Gauge = require('src.ui.gauge')
 local SpellBookOverlay = require('src.ui.spell_book_overlay')
 local TimelineUI = require('src.ui.timeline_ui')
@@ -288,22 +287,10 @@ function CombatHandler:_insert_spell_at(spell, insert_index)
     end
   end
 
-  -- Create predicted action for the spell
-  local predicted = PredictedAction:new({
-    actor = hero,
-    pattern = nil,
-    action_type = effect and effect.type or "spell",
-    target = target,
-    value = effect and effect.amount or 0,
-    source_type = "spell",
-    spell = spell,
-    description = i18n.t("combat.demon_lord_used_spell", {spell = spell:get_name()}),
-  })
-
-  -- Insert into timeline
+  -- Insert intervention and trigger timeline recalculation
   local tlm = self.combat_manager:get_timeline_manager()
   if tlm then
-    tlm:insert_at(insert_index, spell, predicted)
+    tlm:insert_at(insert_index, spell, hero, target, nil)
   end
 
   table.insert(self.combat_log, i18n.t("combat.spell_placed", {spell = spell:get_name()}))
@@ -320,22 +307,13 @@ function CombatHandler:_on_manipulate_applied(spell, target_index, dest_index)
   local timeline_type = spell:get_timeline_type()
 
   if timeline_type == "manipulate_swap" and dest_index then
-    tlm:swap(target_index, dest_index)
-    table.insert(tlm.interventions, {index = target_index, spell = spell})
+    tlm:swap(target_index, dest_index, spell)
   elseif timeline_type == "manipulate_remove" then
-    tlm:remove_at(target_index)
-    table.insert(tlm.interventions, {index = target_index, spell = spell})
+    tlm:remove_at(target_index, spell)
   elseif timeline_type == "manipulate_delay" then
     local effect = spell:get_effect()
     local positions = effect and effect.amount or 1
-    local count = tlm:get_count()
-    for _ = 1, positions do
-      if target_index < count then
-        tlm:swap(target_index, target_index + 1)
-        target_index = target_index + 1
-      end
-    end
-    table.insert(tlm.interventions, {index = target_index, spell = spell})
+    tlm:delay_at(target_index, positions, spell)
   elseif timeline_type == "manipulate_modify" then
     tlm:modify_at(target_index, spell)
   end

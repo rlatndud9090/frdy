@@ -39,6 +39,9 @@ return {
   ["combat.select_destination"] = "Select swap destination",
   ["combat.manipulate_applied"] = "[{spell}] manipulation applied!",
   ["combat.global_applied"] = "[{spell}] global effect applied!",
+  ["combat.timeline_hover_hero_hp"] = "Hero HP: {current}/{max}",
+  ["combat.timeline_hover_enemy_hp"] = "{name} HP: {current}/{max}",
+  ["combat.timeline_hover_no_enemies"] = "No enemies remaining",
   ["combat.floor_cleared"] = "Floor cleared!",
   ["combat.defeat"] = "Defeat! Game Over",
 

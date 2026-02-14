@@ -17,6 +17,7 @@ local i18n = require("src.i18n.init")
 ---@field on_insert_callback function|nil
 ---@field on_manipulate_callback function|nil
 ---@field on_global_callback function|nil
+---@field tooltip_line_height number
 local TimelineUI = class("TimelineUI", UIElement)
 
 function TimelineUI:initialize()
@@ -35,6 +36,7 @@ function TimelineUI:initialize()
   self.on_insert_callback = nil
   self.on_manipulate_callback = nil
   self.on_global_callback = nil
+  self.tooltip_line_height = 18
 end
 
 ---@param timeline_manager TimelineManager
@@ -243,6 +245,7 @@ function TimelineUI:draw()
     local action = timeline[self.hovered_index]
     love.graphics.setColor(1, 1, 1, 0.9)
     love.graphics.printf(action:get_description(), 280, 224, 1000, "center")
+    self:_draw_hover_snapshot(action)
   end
 
   -- Mode hint text
@@ -255,6 +258,51 @@ function TimelineUI:draw()
   end
 
   love.graphics.setColor(1, 1, 1, 1)
+end
+
+---@param action PredictedAction
+function TimelineUI:_draw_hover_snapshot(action)
+  local snapshot = action:get_state_snapshot()
+  if not snapshot then return end
+
+  local start_y = 244
+  love.graphics.setColor(0.95, 0.95, 1, 0.95)
+  local hero_text = i18n.t("combat.timeline_hover_hero_hp", {
+    current = snapshot.hero_hp,
+    max = snapshot.hero_max_hp,
+  })
+  love.graphics.printf(hero_text, 280, start_y, 1000, "center")
+
+  local enemies = snapshot.enemies or {}
+  if #enemies == 0 then
+    local none_text = i18n.t("combat.timeline_hover_no_enemies")
+    love.graphics.setColor(0.85, 0.85, 0.9, 0.9)
+    love.graphics.printf(none_text, 280, start_y + self.tooltip_line_height, 1000, "center")
+    return
+  end
+
+  local enemy_lines = {}
+  for _, enemy_state in ipairs(enemies) do
+    if enemy_state.alive then
+      table.insert(enemy_lines, i18n.t("combat.timeline_hover_enemy_hp", {
+        name = enemy_state.name,
+        current = enemy_state.hp,
+        max = enemy_state.max_hp,
+      }))
+    end
+  end
+
+  if #enemy_lines == 0 then
+    local none_text = i18n.t("combat.timeline_hover_no_enemies")
+    love.graphics.setColor(0.85, 0.85, 0.9, 0.9)
+    love.graphics.printf(none_text, 280, start_y + self.tooltip_line_height, 1000, "center")
+    return
+  end
+
+  love.graphics.setColor(0.92, 0.86, 0.86, 0.95)
+  for i, line in ipairs(enemy_lines) do
+    love.graphics.printf(line, 280, start_y + (i * self.tooltip_line_height), 1000, "center")
+  end
 end
 
 function TimelineUI:_get_insert_x(index)

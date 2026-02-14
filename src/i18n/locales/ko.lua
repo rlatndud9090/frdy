@@ -39,6 +39,9 @@ return {
   ["combat.select_destination"] = "교환할 대상을 선택하세요",
   ["combat.manipulate_applied"] = "[{spell}] 조작 적용!",
   ["combat.global_applied"] = "[{spell}] 전역 효과 적용!",
+  ["combat.timeline_hover_hero_hp"] = "용사 HP: {current}/{max}",
+  ["combat.timeline_hover_enemy_hp"] = "{name} HP: {current}/{max}",
+  ["combat.timeline_hover_no_enemies"] = "남아있는 적 없음",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
 

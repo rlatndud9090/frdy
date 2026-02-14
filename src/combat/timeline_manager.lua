@@ -1,8 +1,20 @@
 local class = require('lib.middleclass')
 
+---@class TimelineManagerIntervention
+---@field kind string
+---@field index number
+---@field dest_index? number
+---@field spell Spell
+---@field delay_amount? number
+---@field modify_delta? number
+---@field global_attack_delta? number
+---@field actor? Entity
+---@field target? Entity
+---@field state_snapshot? PredictionStateSnapshot
+
 ---@class TimelineManager
 ---@field timeline PredictedAction[]
----@field interventions table[] {index: number, spell: Spell}
+---@field interventions TimelineManagerIntervention[]
 ---@field prediction_engine PredictionEngine
 ---@field hero Hero
 ---@field enemies Enemy[]
@@ -27,101 +39,136 @@ function TimelineManager:setup(hero, enemies)
   self:regenerate()
 end
 
---- Regenerate the timeline from current state
+--- Regenerate the timeline from current state and interventions
 function TimelineManager:regenerate()
   if not self.hero or not self.enemies then return end
-  self.timeline = self.prediction_engine:generate_timeline(self.hero, self.enemies)
+  if #self.interventions == 0 then
+    self.timeline = self.prediction_engine:generate_timeline(self.hero, self.enemies)
+  else
+    self.timeline = self.prediction_engine:recalculate_with(self.hero, self.enemies, self.interventions)
+  end
 end
 
 --- Insert a spell intervention at a specific index
----@param index number Position in timeline
+---@param index number
 ---@param spell Spell
----@param predicted_action PredictedAction
-function TimelineManager:insert_at(index, spell, predicted_action)
-  index = math.max(1, math.min(index, #self.timeline + 1))
-  table.insert(self.timeline, index, predicted_action)
-  table.insert(self.interventions, {index = index, spell = spell})
+---@param actor Entity
+---@param target Entity
+---@param state_snapshot? PredictionStateSnapshot
+function TimelineManager:insert_at(index, spell, actor, target, state_snapshot)
+  table.insert(self.interventions, {
+    kind = 'insert',
+    index = index,
+    spell = spell,
+    actor = actor,
+    target = target,
+    state_snapshot = state_snapshot,
+  })
+  self:regenerate()
 end
 
 --- Swap two positions in the timeline
 ---@param a number
 ---@param b number
-function TimelineManager:swap(a, b)
-  if a >= 1 and a <= #self.timeline and b >= 1 and b <= #self.timeline then
-    self.timeline[a], self.timeline[b] = self.timeline[b], self.timeline[a]
-  end
+---@param spell Spell
+function TimelineManager:swap(a, b, spell)
+  table.insert(self.interventions, {
+    kind = 'swap',
+    index = a,
+    dest_index = b,
+    spell = spell,
+  })
+  self:regenerate()
 end
 
 --- Remove action at index
 ---@param index number
----@return PredictedAction|nil removed action
-function TimelineManager:remove_at(index)
-  if index >= 1 and index <= #self.timeline then
-    return table.remove(self.timeline, index)
-  end
-  return nil
+---@param spell Spell
+function TimelineManager:remove_at(index, spell)
+  table.insert(self.interventions, {
+    kind = 'remove',
+    index = index,
+    spell = spell,
+  })
+  self:regenerate()
 end
 
---- Modify action at index with a spell effect
+--- Delay action by amount
+---@param index number
+---@param amount number
+---@param spell Spell
+function TimelineManager:delay_at(index, amount, spell)
+  table.insert(self.interventions, {
+    kind = 'delay',
+    index = index,
+    delay_amount = amount,
+    spell = spell,
+  })
+  self:regenerate()
+end
+
+--- Modify action value at index
 ---@param index number
 ---@param spell Spell
 function TimelineManager:modify_at(index, spell)
-  if index >= 1 and index <= #self.timeline then
-    local action = self.timeline[index]
-    local effect = spell:get_effect()
-    if effect and action then
-      -- Apply delta to action value (positive = buff, negative = debuff)
-      action.value = math.max(0, action.value + effect.amount)
-    end
-    table.insert(self.interventions, {index = index, spell = spell, modify = true})
-  end
+  local effect = spell:get_effect()
+  table.insert(self.interventions, {
+    kind = 'modify',
+    index = index,
+    modify_delta = effect and effect.amount or 0,
+    spell = spell,
+  })
+  self:regenerate()
 end
 
---- Apply a global spell that affects the entire timeline
+--- Apply a global spell that affects the timeline
 ---@param spell Spell
 function TimelineManager:apply_global(spell)
-  table.insert(self.interventions, {index = 0, spell = spell, global = true})
+  local effect = spell:get_effect()
+  table.insert(self.interventions, {
+    kind = 'global',
+    index = 0,
+    global_attack_delta = effect and effect.amount or 0,
+    spell = spell,
+  })
+  self:regenerate()
 end
 
 --- Confirm all interventions
 function TimelineManager:confirm()
-  -- Interventions are already applied to the timeline
-  -- Just clear the intervention tracking
   self.interventions = {}
 end
 
 --- Reset: remove all interventions and regenerate
----@return Spell[] released spells for mana refund
+---@return Spell[]
 function TimelineManager:reset()
   local released = {}
   for _, intervention in ipairs(self.interventions) do
-    table.insert(released, intervention.spell)
+    if intervention.spell then
+      table.insert(released, intervention.spell)
+    end
   end
   self.interventions = {}
   self:regenerate()
   return released
 end
 
---- Get the current timeline
 ---@return PredictedAction[]
 function TimelineManager:get_timeline()
   return self.timeline
 end
 
---- Get number of actions in timeline
 ---@return number
 function TimelineManager:get_count()
   return #self.timeline
 end
 
---- Get action at index
 ---@param index number
 ---@return PredictedAction|nil
 function TimelineManager:get_action(index)
   return self.timeline[index]
 end
 
---- Get total suspicion preview from all interventions
 ---@return number
 function TimelineManager:get_total_suspicion_preview()
   local total = 0
@@ -133,14 +180,12 @@ function TimelineManager:get_total_suspicion_preview()
   return total
 end
 
---- Check if there are any interventions
 ---@return boolean
 function TimelineManager:has_interventions()
   return #self.interventions > 0
 end
 
---- Get all interventions
----@return table[]
+---@return TimelineManagerIntervention[]
 function TimelineManager:get_interventions()
   return self.interventions
 end
