@@ -98,12 +98,20 @@ function MapOverlay:open(floor, current_node)
   self.bounds = floor and MapUtils.get_map_bounds(floor) or nil
   if self.bounds then
     self.zoom = DEFAULT_ZOOM
+    local focus_x = nil
+
     if self.current_node then
       local pos = self.current_node:get_position()
-      self.pan_x = pos.x
-    else
-      self.pan_x = (self.bounds.min_x + self.bounds.max_x) * 0.5
+      focus_x = pos.x
+    elseif self.floor then
+      local start_nodes = self.floor:get_start_nodes()
+      if start_nodes and start_nodes[1] then
+        local start_pos = start_nodes[1]:get_position()
+        focus_x = start_pos.x
+      end
     end
+
+    self.pan_x = focus_x or (self.bounds.min_x + self.bounds.max_x) * 0.5
     self.pan_y = (self.bounds.min_y + self.bounds.max_y) * 0.5
     self:_clamp_pan()
   end
