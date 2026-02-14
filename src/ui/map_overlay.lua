@@ -24,11 +24,18 @@ local i18n = require("src.i18n.init")
 ---@field drag_active boolean
 ---@field drag_last_x number
 ---@field drag_last_y number
+---@field start_select_mode boolean
+---@field start_select_enabled boolean
+---@field start_select_nodes Node[]
+---@field start_select_lookup table<Node, boolean>
+---@field start_select_blink_timer number
+---@field on_start_node_selected_callback function|nil
 local MapOverlay = class("MapOverlay")
 
 local SCREEN_W = 1280
 local SCREEN_H = 720
 local DEFAULT_ZOOM = 2.0
+local START_INTRO_DURATION = 1.2
 
 ---@param value number
 ---@param min_value number
@@ -67,6 +74,13 @@ function MapOverlay:initialize()
   self.drag_last_x = 0
   self.drag_last_y = 0
 
+  self.start_select_mode = false
+  self.start_select_enabled = false
+  self.start_select_nodes = {}
+  self.start_select_lookup = {}
+  self.start_select_blink_timer = 0
+  self.on_start_node_selected_callback = nil
+
   self.close_button = Button:new(SCREEN_W - 80, 20, 60, 30, "ui.close")
   self.close_button:set_visible(false)
   self.close_button:set_on_click(function()
@@ -82,38 +96,86 @@ end
 
 ---@param floor Floor
 ---@param current_node Node|nil
+---@param options? {start_select_mode?: boolean, start_nodes?: Node[], on_start_node_selected?: function}
 ---@return nil
-function MapOverlay:open(floor, current_node)
+function MapOverlay:open(floor, current_node, options)
   if self.visible then
     return
   end
 
+  options = options or {}
   self.floor = floor
   self.current_node = current_node
   self.visible = true
   self.alpha = 0
   self.drag_active = false
-  self.close_button:set_visible(true)
+  self.start_select_mode = options.start_select_mode == true
+  self.start_select_enabled = false
+  self.start_select_nodes = {}
+  self.start_select_lookup = {}
+  self.start_select_blink_timer = 0
+  self.on_start_node_selected_callback = options.on_start_node_selected
+
+  if self.start_select_mode then
+    local start_nodes = options.start_nodes or (self.floor and self.floor:get_start_nodes()) or {}
+    for _, node in ipairs(start_nodes) do
+      table.insert(self.start_select_nodes, node)
+      self.start_select_lookup[node] = true
+    end
+    if #self.start_select_nodes == 0 then
+      self.start_select_mode = false
+    end
+  end
+
+  self.close_button:set_visible(not self.start_select_mode)
 
   self.bounds = floor and MapUtils.get_map_bounds(floor) or nil
   if self.bounds then
     self.zoom = DEFAULT_ZOOM
-    local focus_x = nil
+    local center_x = (self.bounds.min_x + self.bounds.max_x) * 0.5
+    local center_y = (self.bounds.min_y + self.bounds.max_y) * 0.5
+    local focus_x = center_x
 
-    if self.current_node then
-      local pos = self.current_node:get_position()
-      focus_x = pos.x
-    elseif self.floor then
-      local start_nodes = self.floor:get_start_nodes()
-      if start_nodes and start_nodes[1] then
-        local start_pos = start_nodes[1]:get_position()
-        focus_x = start_pos.x
+    if self.start_select_mode then
+      if self.start_select_nodes[1] then
+        focus_x = self.start_select_nodes[1]:get_position().x
       end
-    end
 
-    self.pan_x = focus_x or (self.bounds.min_x + self.bounds.max_x) * 0.5
-    self.pan_y = (self.bounds.min_y + self.bounds.max_y) * 0.5
-    self:_clamp_pan()
+      local boss_node = self.floor and self.floor:get_boss_node() or nil
+      if boss_node then
+        self.pan_x = boss_node:get_position().x
+      else
+        self.pan_x = focus_x
+      end
+      self.pan_y = center_y
+      self:_clamp_pan()
+
+      if math.abs(self.pan_x - focus_x) > 1 then
+        flux.to(self, START_INTRO_DURATION, {pan_x = focus_x})
+          :ease("quadout")
+          :oncomplete(function()
+            self:_clamp_pan()
+            self.start_select_enabled = true
+          end)
+      else
+        self.start_select_enabled = true
+      end
+    else
+      if self.current_node then
+        local pos = self.current_node:get_position()
+        focus_x = pos.x
+      elseif self.floor then
+        local start_nodes = self.floor:get_start_nodes()
+        if start_nodes and start_nodes[1] then
+          local start_pos = start_nodes[1]:get_position()
+          focus_x = start_pos.x
+        end
+      end
+
+      self.pan_x = focus_x
+      self.pan_y = center_y
+      self:_clamp_pan()
+    end
   end
 
   flux.to(self, 0.3, {alpha = 1}):ease("quadout")
@@ -133,6 +195,12 @@ function MapOverlay:close()
       self.visible = false
       self.is_closing = false
       self.close_button:set_visible(false)
+      self.start_select_mode = false
+      self.start_select_enabled = false
+      self.start_select_nodes = {}
+      self.start_select_lookup = {}
+      self.start_select_blink_timer = 0
+      self.on_start_node_selected_callback = nil
       if self.on_close_callback then
         self.on_close_callback()
       end
@@ -217,7 +285,16 @@ function MapOverlay:update(dt)
     return
   end
 
+  self:_clamp_pan()
+  if self.start_select_mode then
+    self.start_select_blink_timer = self.start_select_blink_timer + dt
+  end
+
   self.close_button:update(dt)
+
+  if self.start_select_mode then
+    return
+  end
 
   if self.drag_active then
     if not love.mouse.isDown(1) then
@@ -300,6 +377,14 @@ function MapOverlay:draw()
       love.graphics.circle("line", sx, sy, radius + 4)
     end
 
+    if self.start_select_mode and self.start_select_lookup[node] then
+      local pulse = 0.5 + 0.5 * math.sin(self.start_select_blink_timer * 8)
+      local ring_alpha = (self.start_select_enabled and (0.5 + pulse * 0.4) or 0.2) * self.alpha
+      love.graphics.setColor(1, 0.95, 0.35, ring_alpha)
+      love.graphics.setLineWidth(3)
+      love.graphics.circle("line", sx, sy, radius + 6 + pulse * 2)
+    end
+
     love.graphics.setColor(1, 1, 1, alpha)
     local font = love.graphics.getFont()
     local tw = font:getWidth(label)
@@ -312,14 +397,28 @@ function MapOverlay:draw()
   self.close_button:draw()
 
   love.graphics.setColor(0.75, 0.75, 0.75, self.alpha)
-  love.graphics.printf("Drag/Wheel: horizontal only (vertical fully shown)", 0, SCREEN_H - 50, SCREEN_W, "center")
-  love.graphics.printf(i18n.t("ui.close_hint"), 0, SCREEN_H - 30, SCREEN_W, "center")
+  if self.start_select_mode then
+    if self.start_select_enabled then
+      love.graphics.printf("Choose a starting node", 0, SCREEN_H - 50, SCREEN_W, "center")
+      love.graphics.printf("Click highlighted node to begin", 0, SCREEN_H - 30, SCREEN_W, "center")
+    else
+      love.graphics.printf("Scanning map...", 0, SCREEN_H - 50, SCREEN_W, "center")
+      love.graphics.printf("Preparing route selection...", 0, SCREEN_H - 30, SCREEN_W, "center")
+    end
+  else
+    love.graphics.printf("Drag/Wheel: horizontal only (vertical fully shown)", 0, SCREEN_H - 50, SCREEN_W, "center")
+    love.graphics.printf(i18n.t("ui.close_hint"), 0, SCREEN_H - 30, SCREEN_W, "center")
+  end
 end
 
 ---@param key string
 ---@return nil
 function MapOverlay:keypressed(key)
   if not self.visible then
+    return
+  end
+
+  if self.start_select_mode then
     return
   end
 
@@ -333,7 +432,28 @@ end
 ---@param button number
 ---@return nil
 function MapOverlay:mousepressed(mx, my, button)
-  if not self.visible then
+  if not self.visible or self.is_closing then
+    return
+  end
+
+  if self.start_select_mode then
+    if button == 1 and self.start_select_enabled and self:_in_map_view(mx, my) then
+      for _, node in ipairs(self.start_select_nodes) do
+        local pos = node:get_position()
+        local sx, sy = self:_world_to_view(pos.x, pos.y)
+        local _, _, is_boss = MapUtils.get_node_visual(node)
+        local radius = (is_boss and 22 or 16) + 8
+        local dx = mx - sx
+        local dy = my - sy
+        if dx * dx + dy * dy <= radius * radius then
+          if self.on_start_node_selected_callback then
+            self.on_start_node_selected_callback(node)
+          end
+          self:close()
+          return
+        end
+      end
+    end
     return
   end
 
@@ -351,6 +471,10 @@ end
 ---@return nil
 function MapOverlay:wheelmoved(x, y)
   if not self.visible or not self.bounds then
+    return
+  end
+
+  if self.start_select_mode then
     return
   end
 

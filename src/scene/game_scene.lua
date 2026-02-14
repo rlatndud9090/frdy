@@ -10,7 +10,6 @@ local SettingsOverlay = require('src.ui.settings_overlay')
 local CombatHandler = require('src.handler.combat_handler')
 local EventHandler = require('src.handler.event_handler')
 local EdgeSelectHandler = require('src.handler.edge_select_handler')
-local StartNodeSelectHandler = require('src.handler.start_node_select_handler')
 local Hero = require('src.combat.hero')
 local Enemy = require('src.combat.enemy')
 local Spell = require('src.spell.spell')
@@ -51,7 +50,6 @@ local START_NODE_SELECT = "START_NODE_SELECT"
 ---@field floor_enemies table
 ---@field combat_handler CombatHandler
 ---@field event_handler EventHandler
----@field start_node_select_handler StartNodeSelectHandler|nil
 ---@field edge_select_handler EdgeSelectHandler|nil
 ---@field overlay_alpha number
 ---@field suspicion_gauge Gauge
@@ -135,7 +133,6 @@ function GameScene:initialize()
     self:_on_event_ended()
   end)
 
-  self.start_node_select_handler = nil
   self.edge_select_handler = nil
 
   -- 초기 상태
@@ -166,10 +163,6 @@ function GameScene:update(dt)
     self.combat_handler:update(dt)
   elseif self.phase == EVENT then
     self.event_handler:update(dt)
-  elseif self.phase == START_NODE_SELECT then
-    if self.start_node_select_handler then
-      self.start_node_select_handler:update(dt)
-    end
   elseif self.phase == EDGE_SELECT then
     if self.edge_select_handler then
       self.edge_select_handler:update(dt)
@@ -251,10 +244,6 @@ function GameScene:_draw_ui()
     self.event_handler:draw_ui()
   end
 
-  if self.phase == START_NODE_SELECT and self.start_node_select_handler then
-    self.start_node_select_handler:draw()
-  end
-
   -- 경로 선택 페이즈: 핸들러 그리기
   if self.phase == EDGE_SELECT then
     if self.edge_select_handler then
@@ -312,8 +301,6 @@ function GameScene:mousepressed(x, y, button)
     self.combat_handler:mousepressed(x, y, button)
   elseif self.phase == EVENT then
     self.event_handler:mousepressed(x, y, button)
-  elseif self.phase == START_NODE_SELECT and self.start_node_select_handler then
-    self.start_node_select_handler:mousepressed(x, y, button)
   elseif self.phase == EDGE_SELECT and self.edge_select_handler then
     self.edge_select_handler:mousepressed(x, y, button)
   end
@@ -503,18 +490,13 @@ end
 ---@param start_nodes Node[]
 function GameScene:_show_start_node_select(start_nodes)
   self.phase = START_NODE_SELECT
-
-  if not self.start_node_select_handler then
-    self.start_node_select_handler = StartNodeSelectHandler:new(start_nodes, function(node)
+  self.map_overlay:open(self.map:get_current_floor(), nil, {
+    start_select_mode = true,
+    start_nodes = start_nodes,
+    on_start_node_selected = function(node)
       self:_on_start_node_selected(node)
-    end)
-  else
-    self.start_node_select_handler:setup(start_nodes, function(node)
-      self:_on_start_node_selected(node)
-    end)
-  end
-
-  self.start_node_select_handler:activate()
+    end,
+  })
 end
 
 ---@param node Node
