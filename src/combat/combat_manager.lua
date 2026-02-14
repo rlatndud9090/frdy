@@ -92,18 +92,21 @@ function CombatManager:start_execution()
   self.execution_index = 0
 end
 
----Execute pattern using predicted value when available.
+---Execute pattern action.
+---Attack actions must execute from live actor stats because insert spells can
+---change attack between timeline generation and execution.
 ---@param action PredictedAction
 ---@param actor Entity
 ---@param target Entity
 function CombatManager:_execute_pattern_action(action, actor, target)
   if not action.pattern then return end
 
-  local value = action:get_value()
-  if action.pattern.type == "attack" and value then
-    target:take_damage(value)
+  if action.pattern.type == "attack" then
+    action.pattern:execute(actor, target)
     return
   end
+
+  local value = action:get_value()
 
   if action.pattern.type == "defend" and value then
     actor.defense = actor.defense + value
