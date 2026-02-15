@@ -405,6 +405,7 @@ function MapOverlay:draw()
       love.graphics.printf("Scanning map...", 0, SCREEN_H - 50, SCREEN_W, "center")
       love.graphics.printf("Preparing route selection...", 0, SCREEN_H - 30, SCREEN_W, "center")
     end
+    love.graphics.printf("Drag/Wheel: inspect the route before selecting", 0, SCREEN_H - 10, SCREEN_W, "center")
   else
     love.graphics.printf("Drag/Wheel: horizontal only (vertical fully shown)", 0, SCREEN_H - 50, SCREEN_W, "center")
     love.graphics.printf(i18n.t("ui.close_hint"), 0, SCREEN_H - 30, SCREEN_W, "center")
@@ -437,22 +438,28 @@ function MapOverlay:mousepressed(mx, my, button)
   end
 
   if self.start_select_mode then
-    if button == 1 and self.start_select_enabled and self:_in_map_view(mx, my) then
-      for _, node in ipairs(self.start_select_nodes) do
-        local pos = node:get_position()
-        local sx, sy = self:_world_to_view(pos.x, pos.y)
-        local _, _, is_boss = MapUtils.get_node_visual(node)
-        local radius = (is_boss and 22 or 16) + 8
-        local dx = mx - sx
-        local dy = my - sy
-        if dx * dx + dy * dy <= radius * radius then
-          if self.on_start_node_selected_callback then
-            self.on_start_node_selected_callback(node)
+    if button == 1 and self:_in_map_view(mx, my) then
+      if self.start_select_enabled then
+        for _, node in ipairs(self.start_select_nodes) do
+          local pos = node:get_position()
+          local sx, sy = self:_world_to_view(pos.x, pos.y)
+          local _, _, is_boss = MapUtils.get_node_visual(node)
+          local radius = (is_boss and 22 or 16) + 8
+          local dx = mx - sx
+          local dy = my - sy
+          if dx * dx + dy * dy <= radius * radius then
+            if self.on_start_node_selected_callback then
+              self.on_start_node_selected_callback(node)
+            end
+            self:close()
+            return
           end
-          self:close()
-          return
         end
       end
+
+      self.drag_active = true
+      self.drag_last_x = mx
+      self.drag_last_y = my
     end
     return
   end
@@ -471,10 +478,6 @@ end
 ---@return nil
 function MapOverlay:wheelmoved(x, y)
   if not self.visible or not self.bounds then
-    return
-  end
-
-  if self.start_select_mode then
     return
   end
 
