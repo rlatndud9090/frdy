@@ -8,7 +8,7 @@ return {
   ["ui.minimap"] = "Minimap",
   ["ui.end_turn"] = "End Turn",
   ["ui.select_next_path"] = "Select your next path",
-  ["ui.close_hint"] = "Press ESC or M to close",
+  ["ui.close_hint"] = "Press M to close",
   ["ui.settings"] = "Settings",
   ["ui.language"] = "Language",
 

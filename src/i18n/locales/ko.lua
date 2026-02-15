@@ -8,7 +8,7 @@ return {
   ["ui.minimap"] = "미니맵",
   ["ui.end_turn"] = "턴 종료",
   ["ui.select_next_path"] = "다음 경로를 선택하세요",
-  ["ui.close_hint"] = "ESC 또는 M 키로 닫기",
+  ["ui.close_hint"] = "M 키로 닫기",
   ["ui.settings"] = "설정",
   ["ui.language"] = "언어",
 
