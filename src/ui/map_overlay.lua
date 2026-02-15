@@ -292,10 +292,6 @@ function MapOverlay:update(dt)
 
   self.close_button:update(dt)
 
-  if self.start_select_mode then
-    return
-  end
-
   if self.drag_active then
     if not love.mouse.isDown(1) then
       self.drag_active = false
