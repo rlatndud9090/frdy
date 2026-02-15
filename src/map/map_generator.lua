@@ -618,6 +618,12 @@ function MapGenerator:_validate_floor_graph(floor, columns, config)
 
   -- Start nodes must be independent entry points.
   for _, start_node in ipairs(columns[0]) do
+    if start_node:get_type() ~= "combat" then
+      return false
+    end
+    if start_node:is_boss() then
+      return false
+    end
     if (incoming[start_node] or 0) ~= 0 then
       return false
     end

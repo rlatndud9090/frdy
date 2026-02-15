@@ -257,24 +257,29 @@ function GameScene:_draw_ui()
 end
 
 ---@param key string
+---@return boolean
+function GameScene:_is_settings_input_locked()
+  return self.settings_overlay:is_open()
+end
+
+---@param key string
 function GameScene:keypressed(key)
-  -- 설정 오버레이가 열려있으면 설정에 키 이벤트 우선 전달
-  if self.settings_overlay:is_open() then
+  if self:_is_settings_input_locked() then
     self.settings_overlay:keypressed(key)
     return
   end
 
-  -- 맵 오버레이가 열려있으면 오버레이에 키 이벤트 우선 전달
+  if key == "escape" or key == "tab" then
+    self.settings_overlay:open()
+    return
+  end
+
   if self.map_overlay:is_open() then
     self.map_overlay:keypressed(key)
     return
   end
 
-  if key == "tab" then
-    self.settings_overlay:open()
-  elseif key == "escape" then
-    love.event.quit()
-  elseif key == "m" then
+  if key == "m" then
     self:_toggle_map_overlay()
   end
 end
@@ -283,13 +288,11 @@ end
 ---@param y number
 ---@param button number
 function GameScene:mousepressed(x, y, button)
-  -- 설정 오버레이가 열려있으면 설정에만 이벤트 전달
-  if self.settings_overlay:is_open() then
+  if self:_is_settings_input_locked() then
     self.settings_overlay:mousepressed(x, y, button)
     return
   end
 
-  -- 맵 오버레이가 열려있으면 오버레이에만 이벤트 전달
   if self.map_overlay:is_open() then
     self.map_overlay:mousepressed(x, y, button)
     return
@@ -305,8 +308,6 @@ function GameScene:mousepressed(x, y, button)
     self.edge_select_handler:mousepressed(x, y, button)
   end
 end
-
---- 다음 이동 결정
 function GameScene:_check_next_move()
   if not self.current_node then
     return
@@ -345,23 +346,49 @@ end
 --- 도착 처리
 function GameScene:_on_arrived()
   self.phase = ARRIVING
-  self.current_node = self.target_node
+  local arrived_node = self.target_node
   self.target_node = nil
+  if not arrived_node then
+    return
+  end
+
+  self:_set_current_node(arrived_node)
+  self:_enter_current_node()
+end
+
+---@param node Node
+---@return nil
+function GameScene:_set_current_node(node)
+  self.current_node = node
   self.map:set_current_node(self.current_node)
   self.current_node:mark_completed()
 
-  -- 미니맵 데이터 갱신
+  local pos = self.current_node:get_position()
+  self.hero_world_x = pos.x
+  self.hero_world_y = pos.y
+  self.camera.x = self.hero_world_x
+  self.camera.y = self.hero_world_y
+  self.camera.target_x = self.hero_world_x
+  self.camera.target_y = self.hero_world_y
+
   self.minimap:set_map_data(self.map:get_current_floor(), self.current_node)
+end
+
+---@return nil
+function GameScene:_enter_current_node()
+  if not self.current_node then
+    return
+  end
 
   local node_type = self.current_node:get_type()
   if node_type == "combat" then
     self:_enter_combat()
   elseif node_type == "event" then
     self:_enter_event()
+  else
+    self:_check_next_move()
   end
 end
-
---- 전투 진입 연출
 function GameScene:_enter_combat()
   self.phase = ENTERING_COMBAT
 
@@ -501,23 +528,11 @@ end
 
 ---@param node Node
 function GameScene:_on_start_node_selected(node)
-  self.current_node = node
-  self.map:set_current_node(self.current_node)
-  self.current_node:mark_completed()
-
-  local pos = self.current_node:get_position()
-  self.hero_world_x = pos.x
-  self.hero_world_y = pos.y
-  self.camera.x = self.hero_world_x
-  self.camera.y = self.hero_world_y
-  self.camera.target_x = self.hero_world_x
-  self.camera.target_y = self.hero_world_y
-
-  self.minimap:set_map_data(self.map:get_current_floor(), self.current_node)
-  self:_check_next_move()
+  self.phase = ARRIVING
+  self.target_node = nil
+  self:_set_current_node(node)
+  self:_enter_current_node()
 end
-
---- 경로 선택 표시
 ---@param edges Edge[]
 function GameScene:_show_edge_select(edges)
   self.phase = EDGE_SELECT
@@ -544,6 +559,10 @@ end
 ---@param x number
 ---@param y number
 function GameScene:wheelmoved(x, y)
+  if self:_is_settings_input_locked() then
+    return
+  end
+
   if self.map_overlay:is_open() then
     self.map_overlay:wheelmoved(x, y)
     return
@@ -553,8 +572,6 @@ function GameScene:wheelmoved(x, y)
     self.combat_handler:wheelmoved(x, y)
   end
 end
-
---- 맵 오버레이 토글
 function GameScene:_toggle_map_overlay()
   if self.map_overlay:is_open() then
     self.map_overlay:close()

@@ -422,7 +422,7 @@ function MapOverlay:keypressed(key)
     return
   end
 
-  if key == "escape" or key == "m" then
+  if key == "m" then
     self:close()
   end
 end
