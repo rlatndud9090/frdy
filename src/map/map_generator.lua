@@ -205,26 +205,21 @@ function MapGenerator:_generate_random_y_positions(node_count, map_height, confi
 
   local positions = {}
   local usable_height = math.max(max_y - min_y, 1)
-  local band_height = usable_height / node_count
-  local min_gap_hint = self:_get_min_node_vertical_gap(config)
-  local inner_padding = math.min(min_gap_hint * 0.25, band_height * 0.4)
+  local requested_min_gap = self:_get_min_node_vertical_gap(config)
+  local max_possible_gap = usable_height / (node_count - 1)
+  local min_gap = math.min(requested_min_gap, max_possible_gap)
+  local slack = math.max(usable_height - min_gap * (node_count - 1), 0)
 
   for idx = 1, node_count do
-    local band_min = min_y + band_height * (idx - 1)
-    local band_max = band_min + band_height
-    local inner_min = band_min + inner_padding
-    local inner_max = band_max - inner_padding
-
-    if inner_max < inner_min then
-      inner_min = band_min
-      inner_max = band_max
-    end
-
-    local y = inner_min + math.random() * math.max(inner_max - inner_min, 0)
-    table.insert(positions, clamp(y, min_y, max_y))
+    positions[idx] = math.random() * slack
   end
 
   table.sort(positions)
+  for idx = 1, node_count do
+    local y = min_y + positions[idx] + min_gap * (idx - 1)
+    positions[idx] = clamp(y, min_y, max_y)
+  end
+
   return positions
 end
 
