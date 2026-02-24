@@ -90,10 +90,19 @@ end
 
 ---@param column_positions number[]
 ---@param start_idx number
+---@return number, number
+function Minimap:_resolve_visible_range(column_positions, start_idx)
+  local clamped_start = math.max(1, math.min(start_idx, #column_positions))
+  local end_idx = math.min(clamped_start + self.visible_column_count - 1, #column_positions)
+  return clamped_start, end_idx
+end
+
+---@param column_positions number[]
+---@param start_idx number
+---@param end_idx number
 ---@return table<number, boolean>
-function Minimap:_build_visible_column_set(column_positions, start_idx)
+function Minimap:_build_visible_column_set(column_positions, start_idx, end_idx)
   local visible_set = {}
-  local end_idx = math.min(start_idx + self.visible_column_count - 1, #column_positions)
   for idx = start_idx, end_idx do
     visible_set[column_positions[idx]] = true
   end
@@ -113,30 +122,71 @@ function Minimap:_collect_visible_nodes(visible_column_set)
   return result
 end
 
----@param nodes Node[]
----@return table|nil
-function Minimap:_get_bounds_for_nodes(nodes)
-  if #nodes == 0 then
+---@param map_bounds table
+---@param column_positions number[]
+---@param start_idx number
+---@param end_idx number
+---@return table
+function Minimap:_build_window_bounds(map_bounds, column_positions, start_idx, end_idx)
+  local window_min_x = column_positions[start_idx]
+  local window_max_x = column_positions[end_idx]
+
+  if start_idx > 1 then
+    window_min_x = (column_positions[start_idx - 1] + column_positions[start_idx]) * 0.5
+  end
+  if end_idx < #column_positions then
+    window_max_x = (column_positions[end_idx] + column_positions[end_idx + 1]) * 0.5
+  end
+  if window_max_x <= window_min_x then
+    window_max_x = window_min_x + 1
+  end
+
+  return {
+    min_x = window_min_x,
+    min_y = map_bounds.min_y,
+    max_x = window_max_x,
+    max_y = map_bounds.max_y,
+    width = window_max_x - window_min_x,
+    height = map_bounds.height,
+  }
+end
+
+---@param from_pos {x: number, y: number}
+---@param to_pos {x: number, y: number}
+---@param min_x number
+---@param max_x number
+---@return {x1: number, y1: number, x2: number, y2: number}|nil
+function Minimap:_clip_edge_to_x_window(from_pos, to_pos, min_x, max_x)
+  local x1, y1 = from_pos.x, from_pos.y
+  local x2, y2 = to_pos.x, to_pos.y
+  local dx = x2 - x1
+  local dy = y2 - y1
+
+  if math.abs(dx) < 0.0001 then
+    if x1 < min_x or x1 > max_x then
+      return nil
+    end
+    return {x1 = x1, y1 = y1, x2 = x2, y2 = y2}
+  end
+
+  local t_min = (min_x - x1) / dx
+  local t_max = (max_x - x1) / dx
+  if t_min > t_max then
+    t_min, t_max = t_max, t_min
+  end
+
+  local t0 = math.max(0, t_min)
+  local t1 = math.min(1, t_max)
+  if t0 > t1 then
     return nil
   end
 
-  local min_x, min_y = math.huge, math.huge
-  local max_x, max_y = -math.huge, -math.huge
-
-  for _, node in ipairs(nodes) do
-    local pos = node:get_position()
-    if pos.x < min_x then min_x = pos.x end
-    if pos.y < min_y then min_y = pos.y end
-    if pos.x > max_x then max_x = pos.x end
-    if pos.y > max_y then max_y = pos.y end
-  end
-
-  local w = max_x - min_x
-  local h = max_y - min_y
-  if w < 1 then w = 1 end
-  if h < 1 then h = 100 end
-
-  return {min_x = min_x, min_y = min_y, max_x = max_x, max_y = max_y, width = w, height = h}
+  return {
+    x1 = x1 + dx * t0,
+    y1 = y1 + dy * t0,
+    x2 = x1 + dx * t1,
+    y2 = y1 + dy * t1,
+  }
 end
 
 function Minimap:draw()
@@ -160,14 +210,16 @@ function Minimap:draw()
   if #column_positions == 0 then
     return
   end
-
-  local current_col_idx = self:_resolve_current_column_index(column_positions)
-  local visible_column_set = self:_build_visible_column_set(column_positions, current_col_idx)
-  local visible_nodes = self:_collect_visible_nodes(visible_column_set)
-  local bounds = self:_get_bounds_for_nodes(visible_nodes)
-  if not bounds then
+  local map_bounds = MapUtils.get_map_bounds(self.floor)
+  if not map_bounds then
     return
   end
+
+  local current_col_idx = self:_resolve_current_column_index(column_positions)
+  local start_idx, end_idx = self:_resolve_visible_range(column_positions, current_col_idx)
+  local visible_column_set = self:_build_visible_column_set(column_positions, start_idx, end_idx)
+  local visible_nodes = self:_collect_visible_nodes(visible_column_set)
+  local bounds = self:_build_window_bounds(map_bounds, column_positions, start_idx, end_idx)
 
   love.graphics.setColor(0.5, 0.5, 0.5, 0.4)
   love.graphics.setLineWidth(1)
@@ -177,9 +229,10 @@ function Minimap:draw()
     local from_pos = from_node:get_position()
     local to_pos = to_node:get_position()
 
-    if visible_column_set[from_pos.x] and visible_column_set[to_pos.x] then
-      local fx, fy = MapUtils.world_to_view(from_pos.x, from_pos.y, bounds, self.x, self.y, self.width, self.height, self.padding)
-      local tx, ty = MapUtils.world_to_view(to_pos.x, to_pos.y, bounds, self.x, self.y, self.width, self.height, self.padding)
+    local clipped = self:_clip_edge_to_x_window(from_pos, to_pos, bounds.min_x, bounds.max_x)
+    if clipped then
+      local fx, fy = MapUtils.world_to_view(clipped.x1, clipped.y1, bounds, self.x, self.y, self.width, self.height, self.padding)
+      local tx, ty = MapUtils.world_to_view(clipped.x2, clipped.y2, bounds, self.x, self.y, self.width, self.height, self.padding)
       love.graphics.line(fx, fy, tx, ty)
     end
   end
