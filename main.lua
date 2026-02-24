@@ -2,6 +2,11 @@ local FontManager = require('src.core.font_manager')
 local i18n = require('src.i18n.init')
 local Game = require('src.core.game')
 
+local function is_ci_check_mode()
+  local env = os.getenv("FRDY_CI_CHECK")
+  return env == "1" or env == "true" or env == "TRUE"
+end
+
 function love.load()
   FontManager.init()
 
@@ -10,6 +15,10 @@ function love.load()
   i18n.set_locale("en")
 
   Game:getInstance():init()
+
+  if is_ci_check_mode() and love.window and love.window.minimize then
+    love.window.minimize()
+  end
 end
 
 function love.update(dt)
