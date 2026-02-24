@@ -1,10 +1,12 @@
-# Plan: Fix Korean Text Rendering + i18n Architecture
+# Plan (Archived): Fix Korean Text Rendering + i18n Architecture
 
-## Problem
+> 상태: 보관 문서(Archived). 이 문서는 i18n 도입 당시의 작업 계획 기록이며 현재 코드 상태와 일부 표현이 다를 수 있습니다.
+
+## Problem (작성 당시)
 - Love2D's default font (8px bitmap) does NOT support Korean (Hangul) glyphs
 - All Korean text renders as blank/broken characters at runtime
 - All UI strings are hardcoded in Korean throughout the codebase
-- No i18n infrastructure exists
+- i18n infrastructure가 없었음
 
 ## Solution Overview
 3 phases: (1) Add Korean-capable font, (2) Build i18n module + convert all strings to English default, (3) Add Korean as secondary locale

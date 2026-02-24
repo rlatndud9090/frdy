@@ -1,6 +1,7 @@
 # Git Commit Convention
 
 이 프로젝트는 **Conventional Commits** 기반의 커밋 컨벤션을 사용합니다.
+개인 프로젝트 운영 원칙상 외부 트래커 접두어(`#dooray-...`, `JIRA-...`)는 사용하지 않습니다.
 
 ## 기본 형식
 

@@ -5,6 +5,7 @@
 ## Git Commit Convention
 
 **필수 준수 사항**: 모든 커밋은 Conventional Commits 규칙을 따라야 합니다.
+**개인 프로젝트 규칙**: 외부 트래커 접두어(`#dooray-...`, `JIRA-...`) 없이 Conventional 형식만 사용합니다.
 
 ### 커밋 메시지 형식
 
@@ -77,6 +78,7 @@ feat: 기능 추가했습니다.
 - `GAME_CONCEPT.md`: 게임 설계 문서
 - `COMMIT_CONVENTION.md`: 커밋 컨벤션 상세 문서
 - `.gitmessage`: Git 커밋 템플릿
+- `scripts/check_love.sh`: 무팝업 검증 스크립트
 
 ## 개발 가이드라인
 
@@ -145,11 +147,12 @@ function ClassName:method(name, optional_param)
 **코드 변경 후 반드시 Love2D 실행 검증을 수행해야 합니다.**
 
 ```bash
-timeout 5 love . 2>&1
+./scripts/check_love.sh
 ```
 
-- **출력 없음** = 정상 (5초간 에러 없이 실행 후 타임아웃 종료)
-- **에러 출력** = 실패 (에러 메시지가 stderr로 출력되며 즉시 종료)
+- 내부적으로 `FRDY_CI_CHECK=1 timeout|gtimeout 5 love .`를 실행
+- **exit code 0** = 정상
+- **에러 출력/비정상 종료** = 실패
 - 에러 발생 시 반드시 수정 후 재검증할 것
 
 ### 게임 시스템 우선순위
