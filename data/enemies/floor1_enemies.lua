@@ -2,7 +2,7 @@
 local floor1_enemies = {
   slime = {
     name = "enemy.slime",
-    stats = {hp = 20, attack = 4, defense = 0},
+    stats = {hp = 20, attack = 4, defense = 0, speed = 6},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
       {type = "attack", damage_mult = 0.8},
@@ -11,7 +11,7 @@ local floor1_enemies = {
 
   goblin = {
     name = "enemy.goblin",
-    stats = {hp = 30, attack = 6, defense = 1},
+    stats = {hp = 30, attack = 6, defense = 1, speed = 8},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
       {type = "defend", defense_bonus = 3},
@@ -21,7 +21,7 @@ local floor1_enemies = {
 
   skeleton = {
     name = "enemy.skeleton",
-    stats = {hp = 25, attack = 8, defense = 2},
+    stats = {hp = 25, attack = 8, defense = 2, speed = 5},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
       {type = "attack", damage_mult = 1.5},
@@ -31,7 +31,7 @@ local floor1_enemies = {
 
   wolf = {
     name = "enemy.wolf",
-    stats = {hp = 18, attack = 7, defense = 0},
+    stats = {hp = 18, attack = 7, defense = 0, speed = 10},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
       {type = "attack", damage_mult = 1.3},
@@ -40,7 +40,7 @@ local floor1_enemies = {
 
   boss_dark_knight = {
     name = "enemy.dark_knight",
-    stats = {hp = 80, attack = 12, defense = 4},
+    stats = {hp = 80, attack = 12, defense = 4, speed = 9},
     action_patterns = {
       {type = "attack", damage_mult = 1.0},
       {type = "defend", defense_bonus = 5},

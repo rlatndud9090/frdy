@@ -9,7 +9,7 @@ local PatternResolver = require('src.combat.pattern_resolver')
 ---@field cooldown_tracker table
 local Hero = Entity:subclass('Hero')
 
----@param stats {hp: number, attack: number, defense: number}
+---@param stats {hp: number, attack: number, defense: number, speed?: number}
 function Hero:initialize(stats)
   Entity.initialize(self, "entity.hero", stats)
   self.level = 1

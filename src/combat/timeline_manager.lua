@@ -2,7 +2,7 @@ local class = require('lib.middleclass')
 
 ---@class TimelineManager
 ---@field timeline PredictedAction[]
----@field interventions table[] {index: number, spell: Spell}
+---@field interventions table[]
 ---@field prediction_engine PredictionEngine
 ---@field hero Hero
 ---@field enemies Enemy[]
@@ -33,6 +33,83 @@ function TimelineManager:regenerate()
   self.timeline = self.prediction_engine:generate_timeline(self.hero, self.enemies)
 end
 
+---@param index number
+---@return number
+function TimelineManager:_normalize_index(index)
+  local count = #self.timeline
+  if count == 0 then
+    return 1
+  end
+  return math.max(1, math.min(index, count))
+end
+
+---@param intervention table
+---@return nil
+function TimelineManager:_record_intervention(intervention)
+  self.interventions[#self.interventions + 1] = intervention
+end
+
+---@param start_index number
+---@return nil
+function TimelineManager:_recalculate_from(start_index)
+  if not self.hero or not self.enemies then
+    return
+  end
+  if #self.timeline == 0 then
+    return
+  end
+
+  local clamped_start = self:_normalize_index(start_index)
+  self.timeline = self.prediction_engine:recalculate_with(
+    self.hero,
+    self.enemies,
+    self.timeline,
+    clamped_start
+  )
+  self:_reapply_value_interventions_from(clamped_start)
+end
+
+---@param start_index number
+---@return nil
+function TimelineManager:_reapply_value_interventions_from(start_index)
+  for _, intervention in ipairs(self.interventions) do
+    if intervention.type == "global" then
+      self:_apply_global_delta(start_index, intervention.amount or 0)
+    elseif intervention.type == "modify" then
+      if intervention.index and intervention.index >= start_index then
+        self:_apply_action_delta(intervention.index, intervention.amount or 0)
+      end
+    end
+  end
+end
+
+---@param index number
+---@param delta number
+---@return nil
+function TimelineManager:_apply_action_delta(index, delta)
+  local action = self.timeline[index]
+  if not action then
+    return
+  end
+  action.value = math.max(0, (action.value or 0) + delta)
+end
+
+---@param start_index number
+---@param delta number
+---@return nil
+function TimelineManager:_apply_global_delta(start_index, delta)
+  if delta == 0 then
+    return
+  end
+
+  for idx = start_index, #self.timeline do
+    local action = self.timeline[idx]
+    if action and action:get_source_type() == "hero" and action:get_action_type() == "attack" then
+      action.value = math.max(0, (action.value or 0) + delta)
+    end
+  end
+end
+
 --- Insert a spell intervention at a specific index
 ---@param index number Position in timeline
 ---@param spell Spell
@@ -40,26 +117,78 @@ end
 function TimelineManager:insert_at(index, spell, predicted_action)
   index = math.max(1, math.min(index, #self.timeline + 1))
   table.insert(self.timeline, index, predicted_action)
-  table.insert(self.interventions, {index = index, spell = spell})
+  self:_record_intervention({
+    type = "insert",
+    index = index,
+    spell = spell,
+  })
+  self:_recalculate_from(index)
 end
 
 --- Swap two positions in the timeline
 ---@param a number
 ---@param b number
-function TimelineManager:swap(a, b)
+---@param spell? Spell
+function TimelineManager:swap(a, b, spell)
   if a >= 1 and a <= #self.timeline and b >= 1 and b <= #self.timeline then
     self.timeline[a], self.timeline[b] = self.timeline[b], self.timeline[a]
+    self:_record_intervention({
+      type = "swap",
+      index = math.min(a, b),
+      a = a,
+      b = b,
+      spell = spell,
+    })
+    self:_recalculate_from(math.min(a, b))
   end
 end
 
 --- Remove action at index
 ---@param index number
+---@param spell? Spell
 ---@return PredictedAction|nil removed action
-function TimelineManager:remove_at(index)
+function TimelineManager:remove_at(index, spell)
   if index >= 1 and index <= #self.timeline then
-    return table.remove(self.timeline, index)
+    local removed = table.remove(self.timeline, index)
+    self:_record_intervention({
+      type = "remove",
+      index = index,
+      spell = spell,
+    })
+    self:_recalculate_from(index)
+    return removed
   end
   return nil
+end
+
+--- Delay action by swapping it to the right N times.
+---@param index number
+---@param positions number
+---@param spell Spell
+---@return nil
+function TimelineManager:delay_at(index, positions, spell)
+  if index < 1 or index > #self.timeline then
+    return
+  end
+
+  local from = index
+  local target = index
+  local steps = math.max(1, positions or 1)
+  for _ = 1, steps do
+    if target < #self.timeline then
+      self.timeline[target], self.timeline[target + 1] = self.timeline[target + 1], self.timeline[target]
+      target = target + 1
+    end
+  end
+
+  self:_record_intervention({
+    type = "delay",
+    index = from,
+    to_index = target,
+    amount = steps,
+    spell = spell,
+  })
+  self:_recalculate_from(math.min(from, target))
 end
 
 --- Modify action at index with a spell effect
@@ -67,20 +196,30 @@ end
 ---@param spell Spell
 function TimelineManager:modify_at(index, spell)
   if index >= 1 and index <= #self.timeline then
-    local action = self.timeline[index]
     local effect = spell:get_effect()
-    if effect and action then
-      -- Apply delta to action value (positive = buff, negative = debuff)
-      action.value = math.max(0, action.value + effect.amount)
-    end
-    table.insert(self.interventions, {index = index, spell = spell, modify = true})
+    local delta = (effect and effect.amount) or 0
+    self:_record_intervention({
+      type = "modify",
+      index = index,
+      amount = delta,
+      spell = spell,
+    })
+    self:_recalculate_from(index)
   end
 end
 
 --- Apply a global spell that affects the entire timeline
 ---@param spell Spell
 function TimelineManager:apply_global(spell)
-  table.insert(self.interventions, {index = 0, spell = spell, global = true})
+  local effect = spell:get_effect()
+  local delta = (effect and effect.amount) or 0
+  self:_record_intervention({
+    type = "global",
+    index = 1,
+    amount = delta,
+    spell = spell,
+  })
+  self:_recalculate_from(1)
 end
 
 --- Confirm all interventions
@@ -95,7 +234,9 @@ end
 function TimelineManager:reset()
   local released = {}
   for _, intervention in ipairs(self.interventions) do
-    table.insert(released, intervention.spell)
+    if intervention.spell then
+      table.insert(released, intervention.spell)
+    end
   end
   self.interventions = {}
   self:regenerate()

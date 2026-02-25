@@ -105,16 +105,44 @@ function CombatManager:execute_next_action()
   end
 
   local source = action:get_source_type()
+  local action_type = action:get_action_type()
+  local value = math.max(0, action:get_value() or 0)
+
   if source == "hero" then
-    if action.pattern and action.target and action.target:is_alive() then
-      action.pattern:execute(self.hero, action.target)
+    if self.hero:is_alive() then
+      if action_type == "attack" then
+        if action.target and action.target:is_alive() then
+          action.target:take_damage(value)
+        end
+      elseif action_type == "defend" then
+        self.hero.defense = self.hero.defense + value
+      elseif action_type == "heal" then
+        self.hero:heal(value)
+      elseif action.pattern and action.target and action.target:is_alive() then
+        action.pattern:execute(self.hero, action.target)
+      end
     end
   elseif source == "enemy" then
-    if action.pattern and action.actor and action.actor:is_alive() then
-      if action.pattern.type == "attack" then
-        action.pattern:execute(action.actor, self.hero)
-      elseif action.pattern.type == "defend" then
-        action.pattern:execute(action.actor, action.actor)
+    if action.actor and action.actor:is_alive() then
+      if action_type == "attack" then
+        if self.hero:is_alive() then
+          self.hero:take_damage(value)
+        end
+      elseif action_type == "defend" then
+        action.actor.defense = action.actor.defense + value
+      elseif action_type == "heal" then
+        action.actor:heal(value)
+      elseif action.pattern then
+        if action.pattern.type == "attack" then
+          action.pattern:execute(action.actor, self.hero)
+        elseif action.pattern.type == "defend" then
+          action.pattern:execute(action.actor, action.actor)
+        end
+      end
+
+      -- 적 행동이 실제로 실행된 시점에만 패턴 커서를 소비한다.
+      if action.actor.consume_action then
+        action.actor:consume_action()
       end
     end
   elseif source == "spell" then
