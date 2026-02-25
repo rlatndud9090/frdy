@@ -61,6 +61,32 @@ function SpellEffect.debuff_attack(amount)
   }
 end
 
+--- Create a speed buff effect
+---@param amount number
+---@return SpellEffectObject
+function SpellEffect.buff_speed(amount)
+  return {
+    type = "buff_speed",
+    amount = amount,
+    apply = function(self, target, context)
+      target.speed = target.speed + self.amount
+    end
+  }
+end
+
+--- Create a speed debuff effect
+---@param amount number
+---@return SpellEffectObject
+function SpellEffect.debuff_speed(amount)
+  return {
+    type = "debuff_speed",
+    amount = amount,
+    apply = function(self, target, context)
+      target.speed = math.max(0, target.speed - self.amount)
+    end
+  }
+end
+
 --- Create a hinder effect (damage to hero)
 ---@param damage_amount number
 ---@return SpellEffectObject

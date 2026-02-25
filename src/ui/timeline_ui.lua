@@ -63,6 +63,11 @@ function TimelineUI:exit_insert_mode()
   self.manipulate_target_index = nil
 end
 
+---@return boolean
+function TimelineUI:is_mode_active()
+  return self.mode ~= "IDLE"
+end
+
 ---@param callback function(spell, target_index, dest_index)
 function TimelineUI:set_on_manipulate(callback)
   self.on_manipulate_callback = callback
@@ -123,22 +128,43 @@ function TimelineUI:update(dt)
 
   -- In insert mode, calculate insertion point
   if self.mode == "INSERT_MODE" then
-    self.insert_index = self:_calc_insert_index(mx)
+    self.insert_index = self:_calc_insert_index(mx, my)
   end
 end
 
-function TimelineUI:_calc_insert_index(mx)
+---@return number
+function TimelineUI:_get_visible_action_count()
   local count = self:_get_count()
-  if count == 0 then return 1 end
+  return math.max(0, math.min(self.max_visible, count - self.scroll_offset))
+end
 
-  for i = 1, math.min(self.max_visible, count) do
-    local actual_index = i + self.scroll_offset
-    local bx, _, bw, _ = self:_get_box_rect(actual_index)
-    if mx < bx + bw / 2 then
-      return actual_index
+---@param mx number
+---@param my number
+---@return number|nil
+function TimelineUI:_calc_insert_index(mx, my)
+  local count = self:_get_count()
+  if count == 0 then return nil end
+
+  local visible_count = self:_get_visible_action_count()
+  if visible_count == 0 then return nil end
+
+  local gap_half = math.max(6, self.box_spacing)
+  local top = 138
+  local bottom = 138 + self.box_height + 4
+  if my < top or my > bottom then
+    return nil
+  end
+
+  local first_gap = self.scroll_offset + 1
+  local last_gap = math.min(count + 1, self.scroll_offset + visible_count + 1)
+  for gap_index = first_gap, last_gap do
+    local gx = self:_get_insert_x(gap_index)
+    if mx >= gx - gap_half and mx <= gx + gap_half then
+      return gap_index
     end
   end
-  return count + 1
+
+  return nil
 end
 
 function TimelineUI:draw()
@@ -246,7 +272,10 @@ function TimelineUI:draw()
   end
 
   -- Mode hint text
-  if self.mode == "MANIPULATE_SELECT_TARGET" then
+  if self.mode == "INSERT_MODE" then
+    love.graphics.setColor(0.65, 0.4, 1, 0.95)
+    love.graphics.printf(i18n.t("combat.select_insert_timing"), 280, 120, 1000, "center")
+  elseif self.mode == "MANIPULATE_SELECT_TARGET" then
     love.graphics.setColor(1, 0.8, 0, 0.9)
     love.graphics.printf(i18n.t("combat.select_target"), 280, 120, 1000, "center")
   elseif self.mode == "MANIPULATE_SELECT_DEST" then

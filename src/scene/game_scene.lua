@@ -84,7 +84,7 @@ function GameScene:initialize()
   self.camera.target_x = self.hero_world_x
 
   -- 게임 객체 생성
-  self.hero = Hero:new({hp = 50, attack = 8, defense = 2})
+  self.hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
 
   -- 마법서 생성
   local base_spells_data = require('data.spells.base_spells')
@@ -124,6 +124,7 @@ function GameScene:initialize()
 
   -- 핸들러 생성
   self.combat_handler = CombatHandler:new()
+  self.combat_handler:set_camera(self.camera)
   self.combat_handler:set_on_combat_end(function(result)
     self:_on_combat_ended(result)
   end)
@@ -279,6 +280,10 @@ function GameScene:keypressed(key)
     return
   end
 
+  if self.phase == COMBAT and self.combat_handler:is_input_locked() then
+    return
+  end
+
   if key == "m" then
     self:_toggle_map_overlay()
   end
@@ -295,6 +300,11 @@ function GameScene:mousepressed(x, y, button)
 
   if self.map_overlay:is_open() then
     self.map_overlay:mousepressed(x, y, button)
+    return
+  end
+
+  if self.phase == COMBAT and self.combat_handler:is_input_locked() then
+    self.combat_handler:mousepressed(x, y, button)
     return
   end
 
