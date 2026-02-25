@@ -115,10 +115,7 @@ end
 function SpellBookOverlay:_get_spell_status(spell)
   if not self.spell_book then return "no_mana" end
 
-  if self.spell_book.used_this_turn[spell:get_id()] then
-    return "used"
-  end
-  if self.spell_book.reserved[spell:get_id()] then
+  if self.spell_book:get_reserved_count(spell) > 0 then
     return "reserved"
   end
   if self.mana_manager and not spell:can_play(self.mana_manager) then
@@ -129,7 +126,6 @@ end
 
 function SpellBookOverlay:_is_playable(spell)
   return self.spell_book and self.mana_manager
-    and self.spell_book:is_available(spell)
     and spell:can_play(self.mana_manager)
 end
 
@@ -261,33 +257,33 @@ end
 function SpellBookOverlay:_draw_spell_item(spell, index, y)
   local status = self:_get_spell_status(spell)
   local is_hovered = (index == self.hovered_spell_index)
-  local playable = (status == "playable")
+  local can_play = self:_is_playable(spell)
 
   -- Background color by status
-  if is_hovered and playable then
+  if is_hovered and can_play then
     love.graphics.setColor(0.3, 0.3, 0.5, 1)
-  elseif playable then
+  elseif status == "reserved" then
+    love.graphics.setColor(0.22, 0.16, 0.33, 0.95)
+  elseif can_play then
     love.graphics.setColor(0.2, 0.2, 0.3, 0.9)
   elseif status == "no_mana" then
     love.graphics.setColor(0.15, 0.15, 0.15, 0.7)
-  elseif status == "used" then
-    love.graphics.setColor(0.12, 0.12, 0.12, 0.8)
-  elseif status == "reserved" then
-    love.graphics.setColor(0.2, 0.15, 0.3, 0.9)
+  else
+    love.graphics.setColor(0.2, 0.2, 0.3, 0.9)
   end
   love.graphics.rectangle("fill", SPELL_ITEM_X, y, SPELL_ITEM_WIDTH, SPELL_ITEM_HEIGHT, 4, 4)
 
   -- Border by status
-  if is_hovered and playable then
+  if is_hovered and can_play then
     love.graphics.setColor(0.8, 0.9, 1, 1)
-  elseif playable then
+  elseif status == "reserved" then
+    love.graphics.setColor(0.7, 0.45, 1, 1)
+  elseif can_play then
     love.graphics.setColor(0.6, 0.8, 1, 1)
   elseif status == "no_mana" then
     love.graphics.setColor(0.4, 0.4, 0.4, 0.6)
-  elseif status == "used" then
-    love.graphics.setColor(0.3, 0.3, 0.3, 0.5)
-  elseif status == "reserved" then
-    love.graphics.setColor(0.6, 0.3, 1, 1)
+  else
+    love.graphics.setColor(0.6, 0.8, 1, 1)
   end
   love.graphics.rectangle("line", SPELL_ITEM_X, y, SPELL_ITEM_WIDTH, SPELL_ITEM_HEIGHT, 4, 4)
 
@@ -301,7 +297,6 @@ function SpellBookOverlay:_draw_spell_item(spell, index, y)
   local text_alpha = 1
   if status == "reserved" then text_alpha = 0.8
   elseif status == "no_mana" then text_alpha = 0.5
-  elseif status == "used" then text_alpha = 0.4
   end
 
   -- Spell name
@@ -309,12 +304,10 @@ function SpellBookOverlay:_draw_spell_item(spell, index, y)
   love.graphics.print(spell:get_name(), SPELL_ITEM_X + 30, y + 6)
 
   -- Status label (right-aligned)
-  if status == "used" then
-    love.graphics.setColor(0.5, 0.5, 0.5, text_alpha * 0.8)
-    love.graphics.printf("USED", SPELL_ITEM_X, y + 6, SPELL_ITEM_WIDTH - 8, "right")
-  elseif status == "reserved" then
+  if status == "reserved" then
+    local count = self.spell_book and self.spell_book:get_reserved_count(spell) or 0
     love.graphics.setColor(0.8, 0.4, 1, text_alpha * 0.8)
-    love.graphics.printf("RESERVED", SPELL_ITEM_X, y + 6, SPELL_ITEM_WIDTH - 8, "right")
+    love.graphics.printf(i18n.t("spell.reserved") .. " x" .. tostring(count), SPELL_ITEM_X, y + 6, SPELL_ITEM_WIDTH - 8, "right")
   elseif status == "no_mana" then
     love.graphics.setColor(0.5, 0.5, 0.5, text_alpha * 0.8)
     love.graphics.printf("MANA", SPELL_ITEM_X, y + 6, SPELL_ITEM_WIDTH - 8, "right")
