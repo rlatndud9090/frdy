@@ -38,6 +38,24 @@ return {
     effect = SpellEffect.buff_attack(3)
   },
   {
+    id = "haste_sigil",
+    name = "Haste Sigil",
+    description = "Increase target speed by 5.",
+    cost = 10,
+    suspicion_delta = 4,
+    timeline_type = "insert",
+    effect = SpellEffect.buff_speed(5)
+  },
+  {
+    id = "crippling_hex",
+    name = "Crippling Hex",
+    description = "Reduce enemy speed by 4.",
+    cost = 10,
+    suspicion_delta = 3,
+    timeline_type = "insert",
+    effect = SpellEffect.debuff_speed(4)
+  },
+  {
     id = "stumble",
     name = "Stumble",
     description = "Hinder the hero for 5 damage.",

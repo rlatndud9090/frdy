@@ -2,8 +2,9 @@ local class = require('lib.middleclass')
 
 ---@class SpellBook
 ---@field spells Spell[]
----@field used_this_turn table
----@field reserved table
+---@field used_this_turn table<string, number>
+---@field reserved table<string, number>
+---@field reserved_stack Spell[]
 ---@field new fun(self: SpellBook, spells: Spell[]): SpellBook
 local SpellBook = class('SpellBook')
 
@@ -12,57 +13,93 @@ function SpellBook:initialize(spells)
   self.spells = spells or {}
   self.used_this_turn = {}
   self.reserved = {}
+  self.reserved_stack = {}
 end
 
 --- Start a new planning phase: reset used and reserved
 function SpellBook:start_planning()
   self.used_this_turn = {}
   self.reserved = {}
+  self.reserved_stack = {}
 end
 
---- Check if a spell is available (not used this turn and not reserved)
+--- Check if a spell can be selected from book.
+--- 동일 마법을 한 턴에 여러 번 사용 가능하므로 사용/예약으로 막지 않는다.
 ---@param spell Spell
 ---@return boolean
 function SpellBook:is_available(spell)
-  return not self.used_this_turn[spell:get_id()]
-      and not self.reserved[spell:get_id()]
+  return spell ~= nil
 end
 
 --- Reserve a spell (for timeline placement)
 ---@param spell Spell
 function SpellBook:reserve(spell)
-  self.reserved[spell:get_id()] = spell
+  local id = spell:get_id()
+  self.reserved[id] = (self.reserved[id] or 0) + 1
+  self.reserved_stack[#self.reserved_stack + 1] = spell
 end
 
 --- Unreserve a spell (remove from timeline)
 ---@param spell Spell
 function SpellBook:unreserve(spell)
-  self.reserved[spell:get_id()] = nil
+  local id = spell:get_id()
+  local count = self.reserved[id] or 0
+  if count <= 0 then
+    return
+  end
+
+  if count == 1 then
+    self.reserved[id] = nil
+  else
+    self.reserved[id] = count - 1
+  end
+
+  for i = #self.reserved_stack, 1, -1 do
+    if self.reserved_stack[i]:get_id() == id then
+      table.remove(self.reserved_stack, i)
+      break
+    end
+  end
 end
 
 --- Unreserve all spells, return released list for mana refund
 ---@return Spell[]
 function SpellBook:unreserve_all()
   local released = {}
-  for _, spell in pairs(self.reserved) do
-    table.insert(released, spell)
+  for _, spell in ipairs(self.reserved_stack) do
+    released[#released + 1] = spell
   end
   self.reserved = {}
+  self.reserved_stack = {}
   return released
 end
 
 --- Confirm: move reserved spells to used_this_turn
 function SpellBook:confirm()
-  for id, _ in pairs(self.reserved) do
-    self.used_this_turn[id] = true
+  for id, count in pairs(self.reserved) do
+    self.used_this_turn[id] = (self.used_this_turn[id] or 0) + count
   end
   self.reserved = {}
+  self.reserved_stack = {}
 end
 
 --- Mark a spell as used (immediate use, no reserve step)
 ---@param spell Spell
 function SpellBook:mark_used(spell)
-  self.used_this_turn[spell:get_id()] = true
+  local id = spell:get_id()
+  self.used_this_turn[id] = (self.used_this_turn[id] or 0) + 1
+end
+
+---@param spell Spell
+---@return number
+function SpellBook:get_reserved_count(spell)
+  return self.reserved[spell:get_id()] or 0
+end
+
+---@param spell Spell
+---@return number
+function SpellBook:get_used_count(spell)
+  return self.used_this_turn[spell:get_id()] or 0
 end
 
 --- Get all spells

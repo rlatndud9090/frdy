@@ -10,7 +10,7 @@ local PatternResolver = require('src.combat.pattern_resolver')
 local Enemy = Entity:subclass('Enemy')
 
 ---@param name string
----@param stats {hp: number, attack: number, defense: number}
+---@param stats {hp: number, attack: number, defense: number, speed?: number}
 ---@param action_patterns table[]
 function Enemy:initialize(name, stats, action_patterns)
   Entity.initialize(self, name, stats)
@@ -25,10 +25,19 @@ end
 ---@param context? table
 ---@return ActionPattern|nil
 function Enemy:choose_action(context)
-  -- Use round-robin index for legacy patterns
-  local pattern = self.action_patterns[self.current_pattern_index]
+  if #self.action_patterns == 0 then
+    return nil
+  end
+  return self.action_patterns[self.current_pattern_index]
+end
+
+--- Consume current action cursor after an action is committed
+---@return nil
+function Enemy:consume_action()
+  if #self.action_patterns == 0 then
+    return
+  end
   self.current_pattern_index = self.current_pattern_index % #self.action_patterns + 1
-  return pattern
 end
 
 ---@return table|nil

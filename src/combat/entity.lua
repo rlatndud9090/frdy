@@ -7,16 +7,18 @@ local i18n = require('src.i18n.init')
 ---@field max_hp number
 ---@field attack number
 ---@field defense number
+---@field speed number
 local Entity = class('Entity')
 
 ---@param name string
----@param stats {hp: number, attack: number, defense: number}
+---@param stats {hp: number, attack: number, defense: number, speed?: number}
 function Entity:initialize(name, stats)
   self.name = name
   self.max_hp = stats.hp
   self.hp = stats.hp
   self.attack = stats.attack
   self.defense = stats.defense
+  self.speed = stats.speed or 0
 end
 
 ---@param amount number
@@ -37,7 +39,7 @@ function Entity:is_alive()
   return self.hp > 0
 end
 
----@return {name: string, hp: number, max_hp: number, attack: number, defense: number}
+---@return {name: string, hp: number, max_hp: number, attack: number, defense: number, speed: number}
 function Entity:get_stats()
   return {
     name = self.name,
@@ -45,6 +47,7 @@ function Entity:get_stats()
     max_hp = self.max_hp,
     attack = self.attack,
     defense = self.defense,
+    speed = self.speed,
   }
 end
 
@@ -73,6 +76,11 @@ function Entity:get_defense()
   return self.defense
 end
 
+---@return number
+function Entity:get_speed()
+  return self.speed
+end
+
 --- Create a snapshot of current state for simulation
 ---@return table
 function Entity:snapshot()
@@ -81,6 +89,7 @@ function Entity:snapshot()
     max_hp = self.max_hp,
     attack = self.attack,
     defense = self.defense,
+    speed = self.speed,
   }
 end
 
@@ -91,6 +100,7 @@ function Entity:restore(snap)
   self.max_hp = snap.max_hp
   self.attack = snap.attack
   self.defense = snap.defense
+  self.speed = snap.speed or self.speed
 end
 
 return Entity
