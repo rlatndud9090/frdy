@@ -187,7 +187,7 @@ function TimelineManager:insert_at(index, spell, predicted_action)
     index = index,
     spell = spell,
   })
-  self:_recalculate_from(index, false)
+  self:_recalculate_from(index)
 end
 
 --- Swap two positions in the timeline

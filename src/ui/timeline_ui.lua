@@ -143,10 +143,6 @@ end
 ---@return number|nil
 function TimelineUI:_calc_insert_index(mx, my)
   local count = self:_get_count()
-  if count == 0 then return nil end
-
-  local visible_count = self:_get_visible_action_count()
-  if visible_count == 0 then return nil end
 
   local gap_half = math.max(6, self.box_spacing)
   local top = 138
@@ -154,6 +150,17 @@ function TimelineUI:_calc_insert_index(mx, my)
   if my < top or my > bottom then
     return nil
   end
+
+  if count == 0 then
+    local gx = self:_get_insert_x(1)
+    if mx >= gx - gap_half and mx <= gx + gap_half then
+      return 1
+    end
+    return nil
+  end
+
+  local visible_count = self:_get_visible_action_count()
+  if visible_count == 0 then return nil end
 
   local first_gap = self.scroll_offset + 1
   local last_gap = math.min(count + 1, self.scroll_offset + visible_count + 1)
@@ -171,8 +178,6 @@ function TimelineUI:draw()
   if not self.visible or not self.timeline_manager then return end
 
   local timeline = self.timeline_manager:get_timeline()
-  if #timeline == 0 then return end
-
   local count = math.min(self.max_visible, #timeline)
 
   -- Draw insert indicator
@@ -182,65 +187,67 @@ function TimelineUI:draw()
     love.graphics.rectangle("fill", ix - 2, 138, 4, self.box_height + 4, 2, 2)
   end
 
-  for i = 1, count do
-    local actual_index = i + self.scroll_offset
-    local action = timeline[actual_index]
-    if action then
-      local bx, by, bw, bh = self:_get_box_rect(actual_index)
-      local is_hovered = (actual_index == self.hovered_index)
+  if #timeline > 0 then
+    for i = 1, count do
+      local actual_index = i + self.scroll_offset
+      local action = timeline[actual_index]
+      if action then
+        local bx, by, bw, bh = self:_get_box_rect(actual_index)
+        local is_hovered = (actual_index == self.hovered_index)
 
-      -- Background color by source type
-      local source = action:get_source_type()
-      if source == "hero" then
-        love.graphics.setColor(0.2, 0.3, 0.6, 0.9)
-      elseif source == "enemy" then
-        love.graphics.setColor(0.6, 0.15, 0.15, 0.9)
-      elseif source == "spell" then
-        love.graphics.setColor(0.4, 0.2, 0.6, 0.9)
-      end
-      love.graphics.rectangle("fill", bx, by, bw, bh, 4, 4)
+        -- Background color by source type
+        local source = action:get_source_type()
+        if source == "hero" then
+          love.graphics.setColor(0.2, 0.3, 0.6, 0.9)
+        elseif source == "enemy" then
+          love.graphics.setColor(0.6, 0.15, 0.15, 0.9)
+        elseif source == "spell" then
+          love.graphics.setColor(0.4, 0.2, 0.6, 0.9)
+        end
+        love.graphics.rectangle("fill", bx, by, bw, bh, 4, 4)
 
-      -- Border: highlight for manipulation modes
-      local is_manip_target = (self.mode == "MANIPULATE_SELECT_DEST" and actual_index == self.manipulate_target_index)
-      local is_manip_hover = ((self.mode == "MANIPULATE_SELECT_TARGET" or self.mode == "MANIPULATE_SELECT_DEST") and is_hovered)
-      if is_manip_target then
-        love.graphics.setColor(1, 0.8, 0, 1)
-        love.graphics.setLineWidth(2)
-      elseif is_manip_hover then
-        love.graphics.setColor(1, 0.5, 0, 1)
-        love.graphics.setLineWidth(2)
-      elseif is_hovered then
-        love.graphics.setColor(1, 1, 1, 1)
+        -- Border: highlight for manipulation modes
+        local is_manip_target = (self.mode == "MANIPULATE_SELECT_DEST" and actual_index == self.manipulate_target_index)
+        local is_manip_hover = ((self.mode == "MANIPULATE_SELECT_TARGET" or self.mode == "MANIPULATE_SELECT_DEST") and is_hovered)
+        if is_manip_target then
+          love.graphics.setColor(1, 0.8, 0, 1)
+          love.graphics.setLineWidth(2)
+        elseif is_manip_hover then
+          love.graphics.setColor(1, 0.5, 0, 1)
+          love.graphics.setLineWidth(2)
+        elseif is_hovered then
+          love.graphics.setColor(1, 1, 1, 1)
+          love.graphics.setLineWidth(1)
+        else
+          love.graphics.setColor(0.5, 0.5, 0.5, 0.6)
+          love.graphics.setLineWidth(1)
+        end
+        love.graphics.rectangle("line", bx, by, bw, bh, 4, 4)
         love.graphics.setLineWidth(1)
-      else
-        love.graphics.setColor(0.5, 0.5, 0.5, 0.6)
-        love.graphics.setLineWidth(1)
-      end
-      love.graphics.rectangle("line", bx, by, bw, bh, 4, 4)
-      love.graphics.setLineWidth(1)
 
-      -- Action type icon (text)
-      love.graphics.setColor(1, 1, 1, 0.9)
-      local type_text = action:get_action_type()
-      if type_text == "attack" then
-        type_text = "ATK"
-      elseif type_text == "defend" then
-        type_text = "DEF"
-      elseif type_text == "heal" then
-        type_text = "HEL"
-      end
-      love.graphics.printf(type_text, bx + 2, by + 5, bw - 4, "center")
+        -- Action type icon (text)
+        love.graphics.setColor(1, 1, 1, 0.9)
+        local type_text = action:get_action_type()
+        if type_text == "attack" then
+          type_text = "ATK"
+        elseif type_text == "defend" then
+          type_text = "DEF"
+        elseif type_text == "heal" then
+          type_text = "HEL"
+        end
+        love.graphics.printf(type_text, bx + 2, by + 5, bw - 4, "center")
 
-      -- Value
-      local val = action:get_value()
-      if val > 0 then
-        love.graphics.setColor(1, 1, 0.8, 0.8)
-        love.graphics.printf(tostring(val), bx + 2, by + 25, bw - 4, "center")
-      end
+        -- Value
+        local val = action:get_value()
+        if val > 0 then
+          love.graphics.setColor(1, 1, 0.8, 0.8)
+          love.graphics.printf(tostring(val), bx + 2, by + 25, bw - 4, "center")
+        end
 
-      -- Index number
-      love.graphics.setColor(0.7, 0.7, 0.7, 0.5)
-      love.graphics.printf(tostring(actual_index), bx + 2, by + bh - 16, bw - 4, "center")
+        -- Index number
+        love.graphics.setColor(0.7, 0.7, 0.7, 0.5)
+        love.graphics.printf(tostring(actual_index), bx + 2, by + bh - 16, bw - 4, "center")
+      end
     end
   end
 
