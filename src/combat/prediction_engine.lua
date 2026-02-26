@@ -122,7 +122,7 @@ function PredictionEngine:recalculate_with(hero, enemies, timeline, start_index,
           end
           if actor then
             self:_remove_actor_from_pending(pending, actor)
-            local action = self:_build_actor_action(actor, hero, enemies)
+            local action = self:_build_actor_action(actor, hero, enemies, scaffold.slot_token)
             if action then
               result[#result + 1] = action
               self:_simulate_action(action, hero, enemies)
@@ -171,14 +171,16 @@ function PredictionEngine:_rebuild_spell_action(scaffold, hero, enemies)
     source_type = 'spell',
     spell = spell,
     description = scaffold:get_description(),
+    slot_token = scaffold.slot_token,
   })
 end
 
 ---@param actor Entity
 ---@param hero Hero
 ---@param enemies Enemy[]
+---@param slot_token? number
 ---@return PredictedAction|nil
-function PredictionEngine:_build_actor_action(actor, hero, enemies)
+function PredictionEngine:_build_actor_action(actor, hero, enemies, slot_token)
   if actor == hero then
     if not hero:is_alive() then
       return nil
@@ -208,6 +210,7 @@ function PredictionEngine:_build_actor_action(actor, hero, enemies)
       value = preview.value,
       source_type = 'hero',
       description = preview.description,
+      slot_token = slot_token,
     })
   end
 
@@ -234,6 +237,7 @@ function PredictionEngine:_build_actor_action(actor, hero, enemies)
     value = preview.value,
     source_type = 'enemy',
     description = actor:get_name() .. ': ' .. preview.description,
+    slot_token = slot_token,
   })
 end
 

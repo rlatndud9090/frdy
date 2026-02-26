@@ -10,6 +10,7 @@ local class = require('lib.middleclass')
 ---@field spell Spell|nil
 ---@field description string
 ---@field state_snapshot table|nil
+---@field slot_token number|nil
 local PredictedAction = class('PredictedAction')
 
 ---@param data table
@@ -23,6 +24,7 @@ function PredictedAction:initialize(data)
   self.spell = data.spell
   self.description = data.description or ""
   self.state_snapshot = data.state_snapshot
+  self.slot_token = data.slot_token
 end
 
 ---@return string

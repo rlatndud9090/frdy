@@ -6,6 +6,7 @@ local class = require('lib.middleclass')
 ---@field prediction_engine PredictionEngine
 ---@field hero Hero
 ---@field enemies Enemy[]
+---@field next_slot_token number
 local TimelineManager = class('TimelineManager')
 
 ---@param prediction_engine PredictionEngine
@@ -15,6 +16,7 @@ function TimelineManager:initialize(prediction_engine)
   self.interventions = {}
   self.hero = nil
   self.enemies = nil
+  self.next_slot_token = 1
 end
 
 --- Set combat participants and generate initial timeline
@@ -24,6 +26,7 @@ function TimelineManager:setup(hero, enemies)
   self.hero = hero
   self.enemies = enemies
   self.interventions = {}
+  self.next_slot_token = 1
   self:regenerate()
 end
 
@@ -31,6 +34,7 @@ end
 function TimelineManager:regenerate()
   if not self.hero or not self.enemies then return end
   self.timeline = self.prediction_engine:generate_timeline(self.hero, self.enemies)
+  self:_ensure_timeline_slot_tokens()
 end
 
 ---@param index number
@@ -47,6 +51,32 @@ end
 ---@return nil
 function TimelineManager:_record_intervention(intervention)
   self.interventions[#self.interventions + 1] = intervention
+end
+
+---@return number
+function TimelineManager:_allocate_slot_token()
+  local token = self.next_slot_token
+  self.next_slot_token = self.next_slot_token + 1
+  return token
+end
+
+---@param action PredictedAction|nil
+---@return number|nil
+function TimelineManager:_ensure_action_slot_token(action)
+  if not action then
+    return nil
+  end
+  if not action.slot_token then
+    action.slot_token = self:_allocate_slot_token()
+  end
+  return action.slot_token
+end
+
+---@return nil
+function TimelineManager:_ensure_timeline_slot_tokens()
+  for _, action in ipairs(self.timeline) do
+    self:_ensure_action_slot_token(action)
+  end
 end
 
 ---@param start_index number
@@ -72,20 +102,34 @@ function TimelineManager:_recalculate_from(start_index, force_preserve_actor_slo
     clamped_start,
     {preserve_actor_slots = preserve_actor_slots}
   )
+  self:_ensure_timeline_slot_tokens()
   self:_reapply_value_interventions_from(clamped_start)
 end
 
----@param start_index number
+---@param start_index? number
 ---@return boolean
 function TimelineManager:_has_actor_slot_intervention_from(start_index)
   for _, intervention in ipairs(self.interventions) do
     local itype = intervention.type
-    local idx = intervention.index or 1
-    if idx >= start_index and (itype == "swap" or itype == "delay" or itype == "remove") then
+    if itype == "swap" or itype == "delay" or itype == "remove" then
       return true
     end
   end
   return false
+end
+
+---@param slot_token number
+---@return number|nil
+function TimelineManager:_find_action_index_by_slot_token(slot_token)
+  if not slot_token then
+    return nil
+  end
+  for idx, action in ipairs(self.timeline) do
+    if action and action.slot_token == slot_token then
+      return idx
+    end
+  end
+  return nil
 end
 
 ---@param start_index number
@@ -94,9 +138,10 @@ function TimelineManager:_reapply_value_interventions_from(start_index)
   for _, intervention in ipairs(self.interventions) do
     if intervention.type == "global" then
       self:_apply_global_delta(start_index, intervention.amount or 0)
-    elseif intervention.type == "modify" then
-      if intervention.index and intervention.index >= start_index then
-        self:_apply_action_delta(intervention.index, intervention.amount or 0)
+    elseif intervention.type == "modify" and intervention.slot_token then
+      local idx = self:_find_action_index_by_slot_token(intervention.slot_token)
+      if idx and idx >= start_index then
+        self:_apply_action_delta(idx, intervention.amount or 0)
       end
     end
   end
@@ -135,6 +180,7 @@ end
 ---@param predicted_action PredictedAction
 function TimelineManager:insert_at(index, spell, predicted_action)
   index = math.max(1, math.min(index, #self.timeline + 1))
+  self:_ensure_action_slot_token(predicted_action)
   table.insert(self.timeline, index, predicted_action)
   self:_record_intervention({
     type = "insert",
@@ -215,11 +261,17 @@ end
 ---@param spell Spell
 function TimelineManager:modify_at(index, spell)
   if index >= 1 and index <= #self.timeline then
+    local action = self.timeline[index]
+    if not action then
+      return
+    end
+    local slot_token = self:_ensure_action_slot_token(action)
     local effect = spell:get_effect()
     local delta = (effect and effect.amount) or 0
     self:_record_intervention({
       type = "modify",
       index = index,
+      slot_token = slot_token,
       amount = delta,
       spell = spell,
     })
