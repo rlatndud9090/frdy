@@ -278,12 +278,22 @@ function CombatHandler:mousepressed(x, y, button)
   end
 
   if self.insert_selection_phase == "SELECT_TIMING" then
-    self.timeline_ui:mousepressed(x, y, button)
+    if self.timeline_ui:mousepressed(x, y, button) then
+      return
+    end
+    if self.spell_book_overlay:mousepressed_action_buttons(x, y, button) then
+      return
+    end
     return
   end
 
   if self.timeline_ui and self.timeline_ui:is_mode_active() then
-    self.timeline_ui:mousepressed(x, y, button)
+    if self.timeline_ui:mousepressed(x, y, button) then
+      return
+    end
+    if self.spell_book_overlay:mousepressed_action_buttons(x, y, button) then
+      return
+    end
     return
   end
 

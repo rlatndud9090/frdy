@@ -332,6 +332,27 @@ function SpellBookOverlay:_draw_action_bar()
   self.reset_button:draw()
 end
 
+--- Handle only confirm/reset buttons.
+---@param mx number
+---@param my number
+---@param button number
+---@return boolean
+function SpellBookOverlay:mousepressed_action_buttons(mx, my, button)
+  if not self.visible or button ~= 1 then
+    return false
+  end
+
+  if self.confirm_button:hit_test(mx, my) then
+    self.confirm_button:mousepressed(mx, my, button)
+    return true
+  end
+  if self.reset_button:hit_test(mx, my) then
+    self.reset_button:mousepressed(mx, my, button)
+    return true
+  end
+  return false
+end
+
 --- Input handling
 function SpellBookOverlay:mousepressed(mx, my, button)
   if not self.visible or button ~= 1 then return false end

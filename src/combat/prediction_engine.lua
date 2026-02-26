@@ -61,13 +61,15 @@ end
 ---@param enemies Enemy[]
 ---@param timeline PredictedAction[]
 ---@param start_index number
+---@param opts? {preserve_actor_slots?: boolean}
 ---@return PredictedAction[]
-function PredictionEngine:recalculate_with(hero, enemies, timeline, start_index)
+function PredictionEngine:recalculate_with(hero, enemies, timeline, start_index, opts)
   if not timeline or #timeline == 0 then
     return {}
   end
 
   local suffix_start = math.max(1, math.min(start_index or 1, #timeline))
+  local preserve_actor_slots = opts and opts.preserve_actor_slots == true
 
   local hero_snap = hero:snapshot()
   local enemy_snaps = {}
@@ -111,7 +113,13 @@ function PredictionEngine:recalculate_with(hero, enemies, timeline, start_index)
             self:_simulate_action(spell_action, hero, enemies)
           end
         else
-          local actor = self:_pick_next_actor(pending, hero, enemies)
+          local actor = nil
+          if preserve_actor_slots then
+            actor = self:_pick_scaffold_actor(pending, scaffold)
+          end
+          if not actor then
+            actor = self:_pick_next_actor(pending, hero, enemies)
+          end
           if actor then
             self:_remove_actor_from_pending(pending, actor)
             local action = self:_build_actor_action(actor, hero, enemies)
@@ -372,6 +380,28 @@ function PredictionEngine:_pick_next_actor(pending, hero, enemies)
   end
 
   return best_actor
+end
+
+---@param pending Entity[]
+---@param scaffold PredictedAction
+---@return Entity|nil
+function PredictionEngine:_pick_scaffold_actor(pending, scaffold)
+  if not scaffold then
+    return nil
+  end
+
+  local actor = scaffold.actor
+  if not actor or not actor.is_alive or not actor:is_alive() then
+    return nil
+  end
+
+  for _, candidate in ipairs(pending) do
+    if candidate == actor then
+      return actor
+    end
+  end
+
+  return nil
 end
 
 ---@param actor Entity

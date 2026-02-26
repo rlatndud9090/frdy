@@ -50,8 +50,9 @@ function TimelineManager:_record_intervention(intervention)
 end
 
 ---@param start_index number
+---@param force_preserve_actor_slots? boolean
 ---@return nil
-function TimelineManager:_recalculate_from(start_index)
+function TimelineManager:_recalculate_from(start_index, force_preserve_actor_slots)
   if not self.hero or not self.enemies then
     return
   end
@@ -60,13 +61,31 @@ function TimelineManager:_recalculate_from(start_index)
   end
 
   local clamped_start = self:_normalize_index(start_index)
+  local preserve_actor_slots = force_preserve_actor_slots
+  if preserve_actor_slots == nil then
+    preserve_actor_slots = self:_has_actor_slot_intervention_from(clamped_start)
+  end
   self.timeline = self.prediction_engine:recalculate_with(
     self.hero,
     self.enemies,
     self.timeline,
-    clamped_start
+    clamped_start,
+    {preserve_actor_slots = preserve_actor_slots}
   )
   self:_reapply_value_interventions_from(clamped_start)
+end
+
+---@param start_index number
+---@return boolean
+function TimelineManager:_has_actor_slot_intervention_from(start_index)
+  for _, intervention in ipairs(self.interventions) do
+    local itype = intervention.type
+    local idx = intervention.index or 1
+    if idx >= start_index and (itype == "swap" or itype == "delay" or itype == "remove") then
+      return true
+    end
+  end
+  return false
 end
 
 ---@param start_index number
@@ -122,7 +141,7 @@ function TimelineManager:insert_at(index, spell, predicted_action)
     index = index,
     spell = spell,
   })
-  self:_recalculate_from(index)
+  self:_recalculate_from(index, false)
 end
 
 --- Swap two positions in the timeline
@@ -139,7 +158,7 @@ function TimelineManager:swap(a, b, spell)
       b = b,
       spell = spell,
     })
-    self:_recalculate_from(math.min(a, b))
+    self:_recalculate_from(math.min(a, b), true)
   end
 end
 
@@ -155,7 +174,7 @@ function TimelineManager:remove_at(index, spell)
       index = index,
       spell = spell,
     })
-    self:_recalculate_from(index)
+    self:_recalculate_from(index, true)
     return removed
   end
   return nil
@@ -188,7 +207,7 @@ function TimelineManager:delay_at(index, positions, spell)
     amount = steps,
     spell = spell,
   })
-  self:_recalculate_from(math.min(from, target))
+  self:_recalculate_from(math.min(from, target), true)
 end
 
 --- Modify action at index with a spell effect
