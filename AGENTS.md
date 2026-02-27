@@ -151,9 +151,17 @@ function ClassName:method(name, optional_param)
 ```
 
 - 내부적으로 `FRDY_CI_CHECK=1 timeout|gtimeout 5 love .`를 실행
+- `timeout` 또는 `gtimeout`을 자동 감지해 사용
+- 5초 타임아웃(124) + 에러 로그 없음이면 정상으로 간주
 - **exit code 0** = 정상
 - **에러 출력/비정상 종료** = 실패
 - 에러 발생 시 반드시 수정 후 재검증할 것
+
+### 로컬 실행
+
+```bash
+love .
+```
 
 ### 게임 시스템 우선순위
 
