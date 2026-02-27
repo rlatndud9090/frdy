@@ -25,6 +25,8 @@ function EventManager:load_events(data_table)
       title = event_data.title,
       description = event_data.description,
       choices = choices,
+      intervention_max_mental_stage = event_data.intervention and event_data.intervention.max_mental_stage or 3,
+      intervention_mental_increase = event_data.intervention and event_data.intervention.mental_increase or 0.2,
     })
 
     self.events[event_data.id] = event

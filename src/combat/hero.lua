@@ -7,7 +7,11 @@ local PatternResolver = require('src.combat.pattern_resolver')
 ---@field experience number
 ---@field action_patterns ActionPattern[]
 ---@field cooldown_tracker table
+---@field mental_load number
 local Hero = Entity:subclass('Hero')
+
+local MAX_MENTAL_STAGE = 5
+local MAX_MENTAL_LOAD = 5
 
 ---@param stats {hp: number, attack: number, defense: number, speed?: number}
 function Hero:initialize(stats)
@@ -15,6 +19,7 @@ function Hero:initialize(stats)
   self.level = 1
   self.experience = 0
   self.cooldown_tracker = {}
+  self.mental_load = 0
 
   -- Hero default patterns: always attack
   self.action_patterns = {
@@ -27,6 +32,41 @@ function Hero:initialize(stats)
       params = {damage_mult = 1.0},
     }),
   }
+end
+
+---@return number
+function Hero:get_mental_load()
+  return self.mental_load
+end
+
+---@return number
+function Hero:get_max_mental_stage()
+  return MAX_MENTAL_STAGE
+end
+
+---@return number
+function Hero:get_mental_stage()
+  local stage = math.floor(self.mental_load) + 1
+  if stage > MAX_MENTAL_STAGE then
+    return MAX_MENTAL_STAGE
+  end
+  if stage < 1 then
+    return 1
+  end
+  return stage
+end
+
+---@param max_stage number
+---@return boolean
+function Hero:can_be_controlled(max_stage)
+  return self:get_mental_stage() <= max_stage
+end
+
+---@param amount number
+---@return number
+function Hero:increase_mental_load(amount)
+  self.mental_load = math.max(0, math.min(MAX_MENTAL_LOAD, self.mental_load + amount))
+  return self.mental_load
 end
 
 --- Choose action using PatternResolver
@@ -70,13 +110,16 @@ function Hero:snapshot()
   local snap = Entity.snapshot(self)
   snap.level = self.level
   snap.experience = self.experience
+  snap.mental_load = self.mental_load
   return snap
 end
 
+---@param snap table
 function Hero:restore(snap)
   Entity.restore(self, snap)
   self.level = snap.level
   self.experience = snap.experience
+  self.mental_load = snap.mental_load or 0
 end
 
 return Hero

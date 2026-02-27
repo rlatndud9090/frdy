@@ -8,6 +8,11 @@ return {
   ["ui.minimap"] = "Minimap",
   ["ui.end_turn"] = "End Turn",
   ["ui.select_next_path"] = "Select your next path",
+  ["ui.path_prediction_hint"] = "Check the hero's predicted path and intervene with mind control if needed",
+  ["ui.event_prediction_hint"] = "Check the hero's predicted choice and intervene with mind control if needed",
+  ["ui.hero_predicted_path"] = "Hero predicted path: {label}",
+  ["ui.hero_predicted_choice"] = "Hero predicted choice: {label}",
+  ["ui.mental_stage"] = "Hero mental stage: {stage}/{max}",
   ["ui.close_hint"] = "Press M to close",
   ["ui.settings"] = "Settings",
   ["ui.language"] = "Language",
@@ -61,6 +66,12 @@ return {
   -- Suspicion
   ["suspicion.increase"] = "Suspicion +{value}",
   ["suspicion.decrease"] = "Suspicion {value}",
+
+  -- Mind control
+  ["control.blocked_by_mental"] = "Mind control blocked ({stage} / allowed up to {max})",
+  ["control.path_intervened"] = "Path changed by mind control",
+  ["control.event_intervened"] = "Choice changed by mind control",
+  ["control.selection_reset"] = "Reverted to hero's original choice",
 
   -- Enemies
   ["enemy.slime"] = "Slime",

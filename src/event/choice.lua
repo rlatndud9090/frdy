@@ -5,13 +5,15 @@ local i18n = require('src.i18n.init')
 ---@field text string
 ---@field effects table[]
 ---@field suspicion_delta number
+---@field intervention_suspicion_delta number
 local Choice = class('Choice')
 
----@param data {text: string, effects: table[], suspicion_delta: number}
+---@param data {text: string, effects: table[], suspicion_delta: number, intervention_suspicion_delta?: number}
 function Choice:initialize(data)
   self.text = data.text
   self.effects = data.effects or {}
   self.suspicion_delta = data.suspicion_delta or 0
+  self.intervention_suspicion_delta = data.intervention_suspicion_delta or 0
 end
 
 ---@return string
@@ -27,6 +29,11 @@ end
 ---@return number
 function Choice:get_suspicion_delta()
   return self.suspicion_delta
+end
+
+---@return number
+function Choice:get_intervention_suspicion_delta()
+  return self.intervention_suspicion_delta
 end
 
 ---@param context {hero: table, suspicion_manager: table}

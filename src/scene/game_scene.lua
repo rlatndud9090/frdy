@@ -550,11 +550,17 @@ function GameScene:_show_edge_select(edges)
   if not self.edge_select_handler then
     self.edge_select_handler = EdgeSelectHandler:new(edges, function(edge)
       self:_on_edge_selected(edge)
-    end)
+    end, {
+      hero = self.hero,
+      suspicion_manager = self.suspicion_manager,
+    })
   else
     self.edge_select_handler:setup(edges, function(edge)
       self:_on_edge_selected(edge)
-    end)
+    end, {
+      hero = self.hero,
+      suspicion_manager = self.suspicion_manager,
+    })
   end
 
   self.edge_select_handler:activate()
