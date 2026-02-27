@@ -55,7 +55,7 @@ function EventHandler:initialize()
   self.event = nil
   self.context = nil
   self.choice_buttons = {}
-  self.confirm_button = Button:new(920, 500, 140, 35, "ui.confirm")
+  self.confirm_button = Button:new(920, 544, 140, 35, "ui.confirm")
   self.confirm_button:set_on_click(function()
     self:_confirm_selected_choice()
   end)
