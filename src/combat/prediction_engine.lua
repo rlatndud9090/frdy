@@ -3,12 +3,110 @@ local PredictedAction = require('src.combat.predicted_action')
 
 ---@class PredictionEngine
 ---@field max_actions number
+---@field field_status_container StatusContainer|nil
 local PredictionEngine = class('PredictionEngine')
 
 ---@param max_actions? number
 function PredictionEngine:initialize(max_actions)
   -- 턴 단위 타임라인에서도 안전 장치로 액션 상한을 둔다.
   self.max_actions = max_actions or 20
+  self.field_status_container = nil
+end
+
+---@param container StatusContainer|nil
+---@return nil
+function PredictionEngine:set_field_status_container(container)
+  self.field_status_container = container
+end
+
+---@param container StatusContainer|nil
+---@param hook_name string
+---@param ctx table
+---@return nil
+function PredictionEngine:_emit_hook_to_container(container, hook_name, ctx)
+  if container then
+    container:emit(hook_name, ctx)
+  end
+end
+
+---@param entity Entity|nil
+---@return StatusContainer|nil
+function PredictionEngine:_get_entity_status_container(entity)
+  if not entity or type(entity) ~= "table" then
+    return nil
+  end
+  return entity.status_container
+end
+
+---@param hook_name string
+---@param ctx table
+---@param source_entity Entity|nil
+---@param target_entity Entity|nil
+---@return nil
+function PredictionEngine:_emit_status_hook(hook_name, ctx, source_entity, target_entity)
+  self:_emit_hook_to_container(self.field_status_container, hook_name, ctx)
+  self:_emit_hook_to_container(self:_get_entity_status_container(source_entity), hook_name, ctx)
+  if target_entity and target_entity ~= source_entity then
+    self:_emit_hook_to_container(self:_get_entity_status_container(target_entity), hook_name, ctx)
+  end
+end
+
+---@param target Entity|nil
+---@param amount number
+---@param source_entity Entity|nil
+---@param action_ctx table|nil
+---@return number
+function PredictionEngine:_apply_damage(target, amount, source_entity, action_ctx)
+  if not target or not target.is_alive or not target:is_alive() then
+    return 0
+  end
+
+  local damage_ctx = {
+    amount = math.max(0, amount or 0),
+    source = source_entity,
+    target = target,
+    action_context = action_ctx,
+    canceled = false,
+  }
+  self:_emit_status_hook("before_damage", damage_ctx, source_entity, target)
+  if damage_ctx.canceled or (damage_ctx.amount or 0) <= 0 then
+    return 0
+  end
+
+  local actual = target:take_damage(damage_ctx.amount)
+  damage_ctx.actual = actual
+  self:_emit_status_hook("after_damage", damage_ctx, source_entity, target)
+  return actual
+end
+
+---@param target Entity|nil
+---@param amount number
+---@param source_entity Entity|nil
+---@param action_ctx table|nil
+---@return number
+function PredictionEngine:_apply_heal(target, amount, source_entity, action_ctx)
+  if not target or not target.is_alive or not target:is_alive() then
+    return 0
+  end
+
+  local heal_ctx = {
+    amount = math.max(0, amount or 0),
+    source = source_entity,
+    target = target,
+    action_context = action_ctx,
+    canceled = false,
+  }
+  self:_emit_status_hook("before_heal", heal_ctx, source_entity, target)
+  if heal_ctx.canceled or (heal_ctx.amount or 0) <= 0 then
+    return 0
+  end
+
+  local before = target:get_hp()
+  target:heal(heal_ctx.amount)
+  local actual = math.max(0, target:get_hp() - before)
+  heal_ctx.actual = actual
+  self:_emit_status_hook("after_heal", heal_ctx, source_entity, target)
+  return actual
 end
 
 --- Generate predicted actions for the current turn only.
@@ -21,6 +119,7 @@ function PredictionEngine:generate_timeline(hero, enemies)
   for i, enemy in ipairs(enemies) do
     enemy_snaps[i] = enemy:snapshot()
   end
+  local field_status_snap = self.field_status_container and self.field_status_container:snapshot() or nil
 
   local timeline = {}
   local ok, err = pcall(function()
@@ -52,6 +151,9 @@ function PredictionEngine:generate_timeline(hero, enemies)
   for i, enemy in ipairs(enemies) do
     enemy:restore(enemy_snaps[i])
   end
+  if self.field_status_container then
+    self.field_status_container:restore(field_status_snap)
+  end
 
   return timeline
 end
@@ -76,6 +178,7 @@ function PredictionEngine:recalculate_with(hero, enemies, timeline, start_index,
   for i, enemy in ipairs(enemies) do
     enemy_snaps[i] = enemy:snapshot()
   end
+  local field_status_snap = self.field_status_container and self.field_status_container:snapshot() or nil
 
   local result = {}
   local ok, err = pcall(function()
@@ -142,6 +245,9 @@ function PredictionEngine:recalculate_with(hero, enemies, timeline, start_index,
   for i, enemy in ipairs(enemies) do
     enemy:restore(enemy_snaps[i])
   end
+  if self.field_status_container then
+    self.field_status_container:restore(field_status_snap)
+  end
 
   return result
 end
@@ -158,7 +264,7 @@ function PredictionEngine:_rebuild_spell_action(scaffold, hero, enemies)
 
   local effect = spell:get_effect()
   local target = self:_resolve_spell_target(scaffold, hero, enemies)
-  if not target and effect and effect.type ~= 'global' then
+  if not target and effect and effect.type ~= 'global' and effect.type ~= 'apply_field_status' then
     return nil
   end
 
@@ -288,6 +394,10 @@ function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
 
   local target_mode = spell.get_target_mode and spell:get_target_mode() or "char_single"
 
+  if target_mode == "field" then
+    return scaffold.target
+  end
+
   if target_mode == "action_next_n" or target_mode == "action_next_all" then
     return scaffold.target
   end
@@ -326,66 +436,97 @@ function PredictionEngine:_simulate_action(action, hero, enemies)
   local source = action:get_source_type()
   local action_type = action:get_action_type()
   local value = math.max(0, action:get_value() or 0)
-
-  if action.blocked then
-    return
+  local actor = action.actor
+  local action_ctx = {
+    action = action,
+    source = source,
+    action_type = action_type,
+    value = value,
+    actor = actor,
+    target = action.target,
+    hero = hero,
+    enemies = enemies,
+    canceled = false,
+    blocked = action.blocked == true,
+    executed = false,
+  }
+  action_ctx.apply_damage = function(target, amount, source_override, parent_ctx)
+    return self:_apply_damage(target, amount, source_override or actor, parent_ctx or action_ctx)
+  end
+  action_ctx.apply_heal = function(target, amount, source_override, parent_ctx)
+    return self:_apply_heal(target, amount, source_override or actor, parent_ctx or action_ctx)
   end
 
-  if source == 'spell' then
-    if action.spell then
-      local effect = action.spell:get_effect()
-      if action.target or (effect and effect.type == 'global') then
+  self:_emit_status_hook("before_action_attempt", action_ctx, actor, action.target)
+  if action_ctx.canceled then
+    action.blocked = true
+  end
+
+  if action.blocked then
+    action_ctx.executed = false
+  else
+    if source == 'spell' then
+      if action.spell then
+        local spell_source = actor or hero
         action.spell:execute(action.target, {
           hero = hero,
           enemies = enemies,
           suspicion_manager = nil,
+          field_statuses = self.field_status_container,
+          apply_damage = function(target, amount, source_override, parent_ctx)
+            return self:_apply_damage(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
+          apply_heal = function(target, amount, source_override, parent_ctx)
+            return self:_apply_heal(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
         })
       end
-    end
-    return
-  end
-
-  if source == 'hero' then
-    if not hero:is_alive() then
-      return
-    end
-
-    local target = action.target
-    if action_type == 'attack' then
-      if target and target:is_alive() then
-        target:take_damage(value)
-      end
-    elseif action_type == 'defend' then
-      hero.defense = hero.defense + value
-    elseif action_type == 'heal' then
-      hero:heal(value)
-    elseif action.pattern and target and target:is_alive() then
-      action.pattern:execute(hero, target)
-    end
-    return
-  end
-
-  if source == 'enemy' then
-    local actor = action.actor
-    if not actor or not actor:is_alive() then
-      return
-    end
-
-    if action_type == 'attack' then
+      action_ctx.executed = true
+    elseif source == 'hero' then
       if hero:is_alive() then
-        hero:take_damage(value)
+        local target = action.target
+        if action_type == 'attack' then
+          if target and target:is_alive() then
+            self:_apply_damage(target, value, hero, action_ctx)
+          end
+        elseif action_type == 'defend' then
+          hero.defense = hero.defense + value
+        elseif action_type == 'heal' then
+          self:_apply_heal(hero, value, hero, action_ctx)
+        elseif action.pattern and target and target:is_alive() then
+          action.pattern:execute(hero, target)
+        end
       end
-    elseif action_type == 'defend' then
-      actor.defense = actor.defense + value
-    elseif action_type == 'heal' then
-      actor:heal(value)
-    elseif action.pattern then
-      if action.pattern.type == 'defend' then
-        action.pattern:execute(actor, actor)
-      elseif hero:is_alive() then
-        action.pattern:execute(actor, hero)
+      action_ctx.executed = true
+    elseif source == 'enemy' then
+      local source_actor = action.actor
+      if source_actor and source_actor:is_alive() then
+        if action_type == 'attack' then
+          if hero:is_alive() then
+            self:_apply_damage(hero, value, source_actor, action_ctx)
+          end
+        elseif action_type == 'defend' then
+          source_actor.defense = source_actor.defense + value
+        elseif action_type == 'heal' then
+          self:_apply_heal(source_actor, value, source_actor, action_ctx)
+        elseif action.pattern then
+          if action.pattern.type == 'defend' then
+            action.pattern:execute(source_actor, source_actor)
+          elseif hero:is_alive() then
+            action.pattern:execute(source_actor, hero)
+          end
+        end
       end
+      action_ctx.executed = true
     end
+  end
+
+  self:_emit_status_hook("after_action_committed", action_ctx, actor, action.target)
+  if actor and actor.status_container then
+    actor.status_container:consume_action()
+  end
+  if self.field_status_container then
+    self.field_status_container:consume_action()
   end
 end
 

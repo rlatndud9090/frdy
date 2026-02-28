@@ -5,6 +5,8 @@
 ---@class SpellEffectObject
 ---@field type string
 ---@field amount number
+---@field status_id string|nil
+---@field status_spec table|nil
 ---@field apply fun(self: SpellEffectObject, target: any, context: any)
 
 local SpellEffect = {}
@@ -17,7 +19,11 @@ function SpellEffect.heal(amount)
     type = "heal",
     amount = amount,
     apply = function(self, target, context)
-      target:heal(self.amount)
+      if context and context.apply_heal then
+        context.apply_heal(target, self.amount)
+      else
+        target:heal(self.amount)
+      end
     end
   }
 end
@@ -30,7 +36,11 @@ function SpellEffect.damage(amount)
     type = "damage",
     amount = amount,
     apply = function(self, target, context)
-      target:take_damage(self.amount)
+      if context and context.apply_damage then
+        context.apply_damage(target, self.amount)
+      else
+        target:take_damage(self.amount)
+      end
     end
   }
 end
@@ -95,7 +105,52 @@ function SpellEffect.hinder(damage_amount)
     type = "hinder",
     amount = damage_amount,
     apply = function(self, target, context)
-      target:take_damage(self.amount)
+      if context and context.apply_damage then
+        context.apply_damage(target, self.amount)
+      else
+        target:take_damage(self.amount)
+      end
+    end
+  }
+end
+
+--- Create a character status effect.
+--- Status lifecycle is managed by StatusContainer on each entity.
+---@param status_id string
+---@param spec? table
+---@return SpellEffectObject
+function SpellEffect.apply_status(status_id, spec)
+  spec = spec or {}
+  return {
+    type = "apply_status",
+    amount = spec.preview_amount or 0,
+    status_id = status_id,
+    status_spec = spec,
+    apply = function(self, target, context)
+      if target and target.add_status then
+        target:add_status(self.status_id, self.status_spec)
+      end
+    end
+  }
+end
+
+--- Create a field status effect.
+--- Field statuses are managed by CombatManager.field_status_container.
+---@param status_id string
+---@param spec? table
+---@return SpellEffectObject
+function SpellEffect.apply_field_status(status_id, spec)
+  spec = spec or {}
+  return {
+    type = "apply_field_status",
+    amount = spec.preview_amount or 0,
+    status_id = status_id,
+    status_spec = spec,
+    apply = function(self, target, context)
+      local field_statuses = context and context.field_statuses
+      if field_statuses and field_statuses.add then
+        field_statuses:add(self.status_id, self.status_spec)
+      end
     end
   }
 end

@@ -64,6 +64,7 @@ return {
   -- Spell status
   ["spell.used"] = "사용됨",
   ["spell.reserved"] = "배치됨",
+  ["spell.statuses"] = "부여 상태",
   ["spell.keywords"] = "키워드",
   ["spell.no_keyword"] = "키워드 없음",
   ["spell.suspicion_per_action"] = "의심: ±{value}/행동",
@@ -108,6 +109,24 @@ return {
   ["spell.keyword.speed.description"] = "속도 변화는 다음 턴의 행동 예측 순서에 반영됩니다.",
   ["spell.keyword.action_value.title"] = "행동 수치",
   ["spell.keyword.action_value.description"] = "대상 행동의 수치(피해/방어/회복)를 증감합니다.",
+
+  -- Statuses
+  ["status.attack_up_flat.title"] = "고양",
+  ["status.attack_up_flat.description"] = "공격력이 {amount} 증가합니다.",
+  ["status.attack_down_flat.title"] = "약화",
+  ["status.attack_down_flat.description"] = "공격력이 {amount} 감소합니다.",
+  ["status.speed_up_flat.title"] = "가속",
+  ["status.speed_up_flat.description"] = "속도가 {amount} 증가합니다.",
+  ["status.speed_down_flat.title"] = "둔화",
+  ["status.speed_down_flat.description"] = "속도가 {amount} 감소합니다.",
+  ["status.weaken.title"] = "쇠약",
+  ["status.weaken.description"] = "공격력이 {ratio_percent}% 감소합니다.",
+  ["status.haste.title"] = "신속",
+  ["status.haste.description"] = "속도가 {amount} 증가합니다.",
+  ["status.berserker.title"] = "광전사",
+  ["status.berserker.description"] = "피해를 입을 때마다 공격력이 {amount} 증가합니다.",
+  ["status.floating_thorns.title"] = "떠다니는 가시",
+  ["status.floating_thorns.description"] = "각 캐릭터는 행동할 때마다 자신이 {amount} 피해를 입습니다.",
 
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",

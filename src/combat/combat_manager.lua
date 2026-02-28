@@ -3,6 +3,7 @@ local TurnManager = require('src.combat.turn_manager')
 local ActionQueue = require('src.combat.action_queue')
 local PredictionEngine = require('src.combat.prediction_engine')
 local TimelineManager = require('src.combat.timeline_manager')
+local StatusContainer = require('src.combat.status_container')
 
 ---@class CombatManager
 ---@field hero Hero|nil
@@ -15,6 +16,7 @@ local TimelineManager = require('src.combat.timeline_manager')
 ---@field on_combat_end function|nil
 ---@field execution_index number
 ---@field _suspicion_manager SuspicionManager|nil
+---@field field_status_container StatusContainer|nil
 local CombatManager = class('CombatManager')
 
 function CombatManager:initialize()
@@ -28,6 +30,7 @@ function CombatManager:initialize()
   self.on_combat_end = nil
   self.execution_index = 0
   self._suspicion_manager = nil
+  self.field_status_container = nil
 end
 
 ---@param hero Hero
@@ -35,9 +38,11 @@ end
 function CombatManager:start_combat(hero, enemies)
   self.hero = hero
   self.enemies = enemies
+  self.field_status_container = StatusContainer:new(self, "field")
   self.turn_manager = TurnManager:new(hero, enemies)
   self.action_queue = ActionQueue:new()
   self.prediction_engine = PredictionEngine:new(20)
+  self.prediction_engine:set_field_status_container(self.field_status_container)
   self.timeline_manager = TimelineManager:new(self.prediction_engine)
   self.timeline_manager:setup(hero, enemies)
   self.state = "active"
@@ -86,6 +91,158 @@ function CombatManager:get_prediction_engine()
   return self.prediction_engine
 end
 
+---@return StatusContainer|nil
+function CombatManager:get_field_status_container()
+  return self.field_status_container
+end
+
+---@param container StatusContainer|nil
+---@param hook_name string
+---@param ctx table
+---@return nil
+function CombatManager:_emit_hook_to_container(container, hook_name, ctx)
+  if container then
+    container:emit(hook_name, ctx)
+  end
+end
+
+---@param entity Entity|nil
+---@return StatusContainer|nil
+function CombatManager:_get_entity_status_container(entity)
+  if not entity or type(entity) ~= "table" then
+    return nil
+  end
+  return entity.status_container
+end
+
+---@param hook_name string
+---@param ctx table
+---@param source_entity Entity|nil
+---@param target_entity Entity|nil
+---@return nil
+function CombatManager:_emit_status_hook(hook_name, ctx, source_entity, target_entity)
+  self:_emit_hook_to_container(self.field_status_container, hook_name, ctx)
+  self:_emit_hook_to_container(self:_get_entity_status_container(source_entity), hook_name, ctx)
+  if target_entity and target_entity ~= source_entity then
+    self:_emit_hook_to_container(self:_get_entity_status_container(target_entity), hook_name, ctx)
+  end
+end
+
+---@param target Entity|nil
+---@param amount number
+---@param source_entity Entity|nil
+---@param action_ctx table|nil
+---@return number
+function CombatManager:_apply_damage(target, amount, source_entity, action_ctx)
+  if not target or not target.is_alive or not target:is_alive() then
+    return 0
+  end
+
+  local damage_ctx = {
+    amount = math.max(0, amount or 0),
+    source = source_entity,
+    target = target,
+    action_context = action_ctx,
+    canceled = false,
+  }
+  self:_emit_status_hook("before_damage", damage_ctx, source_entity, target)
+  if damage_ctx.canceled or (damage_ctx.amount or 0) <= 0 then
+    return 0
+  end
+
+  local actual = target:take_damage(damage_ctx.amount)
+  damage_ctx.actual = actual
+  self:_emit_status_hook("after_damage", damage_ctx, source_entity, target)
+  return actual
+end
+
+---@param target Entity|nil
+---@param amount number
+---@param source_entity Entity|nil
+---@param action_ctx table|nil
+---@return number
+function CombatManager:_apply_heal(target, amount, source_entity, action_ctx)
+  if not target or not target.is_alive or not target:is_alive() then
+    return 0
+  end
+
+  local heal_ctx = {
+    amount = math.max(0, amount or 0),
+    source = source_entity,
+    target = target,
+    action_context = action_ctx,
+    canceled = false,
+  }
+  self:_emit_status_hook("before_heal", heal_ctx, source_entity, target)
+  if heal_ctx.canceled or (heal_ctx.amount or 0) <= 0 then
+    return 0
+  end
+
+  local before = target:get_hp()
+  target:heal(heal_ctx.amount)
+  local actual = math.max(0, target:get_hp() - before)
+  heal_ctx.actual = actual
+  self:_emit_status_hook("after_heal", heal_ctx, source_entity, target)
+  return actual
+end
+
+---@param action PredictedAction
+---@param source string
+---@param action_type string
+---@param value number
+---@return table
+function CombatManager:_build_action_context(action, source, action_type, value)
+  local actor = action.actor
+  return {
+    action = action,
+    source = source,
+    action_type = action_type,
+    value = value,
+    actor = actor,
+    target = action.target,
+    hero = self.hero,
+    enemies = self.enemies,
+    canceled = false,
+    blocked = action.blocked == true,
+    executed = false,
+    apply_damage = function(target, amount, source_override, parent_ctx)
+      return self:_apply_damage(target, amount, source_override or actor, parent_ctx or action)
+    end,
+    apply_heal = function(target, amount, source_override, parent_ctx)
+      return self:_apply_heal(target, amount, source_override or actor, parent_ctx or action)
+    end,
+  }
+end
+
+---@param action_ctx table
+---@param source_entity Entity|nil
+---@return nil
+function CombatManager:_consume_action_statuses(action_ctx, source_entity)
+  if source_entity and source_entity.status_container then
+    source_entity.status_container:consume_action()
+  end
+  if self.field_status_container then
+    self.field_status_container:consume_action()
+  end
+end
+
+---@return nil
+function CombatManager:_tick_status_turns()
+  if self.field_status_container then
+    self.field_status_container:consume_turn()
+  end
+
+  if self.hero and self.hero.status_container then
+    self.hero.status_container:consume_turn()
+  end
+
+  for _, enemy in ipairs(self.enemies or {}) do
+    if enemy and enemy.status_container then
+      enemy.status_container:consume_turn()
+    end
+  end
+end
+
 --- Start execution phase: prepare to step through timeline
 function CombatManager:start_execution()
   self.turn_manager:start_execution()
@@ -107,6 +264,11 @@ function CombatManager:execute_next_action()
   local source = action:get_source_type()
   local action_type = action:get_action_type()
   local value = math.max(0, action:get_value() or 0)
+  local action_ctx = self:_build_action_context(action, source, action_type, value)
+  self:_emit_status_hook("before_action_attempt", action_ctx, action_ctx.actor, action_ctx.target)
+  if action_ctx.canceled then
+    action.blocked = true
+  end
 
   if action.blocked then
     if source == "enemy" and action.actor and action.actor:is_alive() and action.actor.consume_action then
@@ -123,12 +285,12 @@ function CombatManager:execute_next_action()
       if self.hero:is_alive() then
         if action_type == "attack" then
           if action.target and action.target:is_alive() then
-            action.target:take_damage(value)
+            self:_apply_damage(action.target, value, self.hero, action_ctx)
           end
         elseif action_type == "defend" then
           self.hero.defense = self.hero.defense + value
         elseif action_type == "heal" then
-          self.hero:heal(value)
+          self:_apply_heal(self.hero, value, self.hero, action_ctx)
         elseif action.pattern and action.target and action.target:is_alive() then
           action.pattern:execute(self.hero, action.target)
         end
@@ -137,12 +299,12 @@ function CombatManager:execute_next_action()
       if action.actor and action.actor:is_alive() then
         if action_type == "attack" then
           if self.hero:is_alive() then
-            self.hero:take_damage(value)
+            self:_apply_damage(self.hero, value, action.actor, action_ctx)
           end
         elseif action_type == "defend" then
           action.actor.defense = action.actor.defense + value
         elseif action_type == "heal" then
-          action.actor:heal(value)
+          self:_apply_heal(action.actor, value, action.actor, action_ctx)
         elseif action.pattern then
           if action.pattern.type == "attack" then
             action.pattern:execute(action.actor, self.hero)
@@ -157,16 +319,28 @@ function CombatManager:execute_next_action()
         end
       end
     elseif source == "spell" then
-      if action.spell and action.target then
+      if action.spell then
+        local spell_source = action.actor or self.hero
         local context = {
           hero = self.hero,
           enemies = self.enemies,
           suspicion_manager = self._suspicion_manager,
+          field_statuses = self.field_status_container,
+          apply_damage = function(target, amount, source_override, parent_ctx)
+            return self:_apply_damage(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
+          apply_heal = function(target, amount, source_override, parent_ctx)
+            return self:_apply_heal(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
         }
         action.spell:execute(action.target, context)
       end
     end
   end
+
+  action_ctx.executed = not action.blocked
+  self:_emit_status_hook("after_action_committed", action_ctx, action_ctx.actor, action_ctx.target)
+  self:_consume_action_statuses(action_ctx, action_ctx.actor)
 
   -- Check victory/defeat
   local living = self.turn_manager:get_living_enemies()
@@ -189,6 +363,7 @@ end
 
 --- Start next planning phase
 function CombatManager:next_planning()
+  self:_tick_status_turns()
   self.turn_manager:next_planning()
   self.execution_index = 0
   if self.timeline_manager then
