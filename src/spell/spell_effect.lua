@@ -100,6 +100,34 @@ function SpellEffect.hinder(damage_amount)
   }
 end
 
+--- Create a next-action value delta effect.
+--- This is applied by TimelineManager from the insertion point.
+---@param delta number
+---@return SpellEffectObject
+function SpellEffect.action_delta(delta)
+  return {
+    type = "action_delta",
+    amount = delta,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager reapply pass.
+    end
+  }
+end
+
+--- Create a next-action block effect.
+--- This is applied by TimelineManager from the insertion point.
+---@param count number
+---@return SpellEffectObject
+function SpellEffect.action_block(count)
+  return {
+    type = "action_block",
+    amount = count,
+    apply = function(self, target, context)
+      -- Handled by TimelineManager reapply pass.
+    end
+  }
+end
+
 --- Create a swap effect (swap two timeline positions)
 --- Applied via TimelineManager:swap(), not target.apply
 ---@return SpellEffectObject

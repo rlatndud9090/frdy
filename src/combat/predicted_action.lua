@@ -9,6 +9,7 @@ local class = require('lib.middleclass')
 ---@field source_type string "hero"|"enemy"|"spell"
 ---@field spell Spell|nil
 ---@field description string
+---@field blocked boolean|nil
 ---@field state_snapshot table|nil
 ---@field slot_token number|nil
 local PredictedAction = class('PredictedAction')
@@ -23,6 +24,7 @@ function PredictedAction:initialize(data)
   self.source_type = data.source_type or "enemy"
   self.spell = data.spell
   self.description = data.description or ""
+  self.blocked = data.blocked
   self.state_snapshot = data.state_snapshot
   self.slot_token = data.slot_token
 end

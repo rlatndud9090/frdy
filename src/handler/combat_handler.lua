@@ -447,17 +447,7 @@ function CombatHandler:_on_spell_selected(spell)
   -- Reserve mana first
   if not spell:reserve(self.mana_manager) then return end
   self.spell_book:reserve(spell)
-
-  local timeline_type = spell:get_timeline_type()
-
-  if timeline_type == "insert" then
-    self:_begin_insert_selection(spell)
-  elseif timeline_type == "global" then
-    self.timeline_ui:enter_global_mode(spell)
-  else
-    -- manipulate_swap, manipulate_remove, manipulate_delay, manipulate_modify
-    self.timeline_ui:enter_manipulate_mode(spell)
-  end
+  self:_begin_insert_selection(spell)
 end
 
 ---@param spell Spell
@@ -495,11 +485,14 @@ end
 ---@return boolean
 function CombatHandler:_spell_requires_target_selection(spell)
   local scope = self:_get_insert_target_scope(spell)
+  if scope == "action" then
+    return false
+  end
   if scope == "all" then
     return false
   end
   if scope == "faction" then
-    return self:_get_available_faction_count(spell) > 1
+    return self:_get_available_faction_count() > 1
   end
   return #self:_get_single_target_candidates(spell) > 1
 end
@@ -508,11 +501,14 @@ end
 ---@return boolean
 function CombatHandler:_has_available_target_for_spell(spell)
   local scope = self:_get_insert_target_scope(spell)
+  if scope == "action" then
+    return true
+  end
   if scope == "all" then
     return #self:_get_all_living_targets() > 0
   end
   if scope == "faction" then
-    return self:_get_available_faction_count(spell) > 0
+    return self:_get_available_faction_count() > 0
   end
   return #self:_get_single_target_candidates(spell) > 0
 end
@@ -521,11 +517,14 @@ end
 ---@return table|nil
 function CombatHandler:_get_default_insert_target(spell)
   local scope = self:_get_insert_target_scope(spell)
+  if scope == "action" then
+    return self:_build_action_target_payload(spell)
+  end
   if scope == "all" then
     return self:_build_all_target_payload(spell)
   end
   if scope == "faction" then
-    local available_sides = self:_get_available_faction_sides(spell)
+    local available_sides = self:_get_available_faction_sides()
     if #available_sides == 0 then
       return nil
     end
@@ -542,27 +541,17 @@ end
 ---@param spell Spell
 ---@return string
 function CombatHandler:_get_insert_target_scope(spell)
-  local scope = spell:get_target_scope()
-  if scope then
-    return scope
+  local mode = spell:get_target_mode()
+  if mode == "char_all" then
+    return "all"
+  end
+  if mode == "char_faction" then
+    return "faction"
+  end
+  if mode == "action_next_n" or mode == "action_next_all" then
+    return "action"
   end
   return "single"
-end
-
----@param spell Spell
----@return string
-function CombatHandler:_get_insert_target_side(spell)
-  local side = spell:get_target_side()
-  if side then
-    return side
-  end
-  local mode = spell:get_target_mode()
-  if mode == "hero" then
-    return "hero"
-  elseif mode == "enemy" then
-    return "enemy"
-  end
-  return "both"
 end
 
 ---@return Entity[]
@@ -603,44 +592,27 @@ end
 ---@param spell Spell
 ---@return Entity[]
 function CombatHandler:_get_single_target_candidates(spell)
-  local side = self:_get_insert_target_side(spell)
-  local targets = {}
-  if side == "hero" or side == "both" then
-    local hero_targets = self:_get_living_targets_for_side("hero")
-    for _, target in ipairs(hero_targets) do
-      targets[#targets + 1] = target
-    end
-  end
-  if side == "enemy" or side == "both" then
-    local enemy_targets = self:_get_living_targets_for_side("enemy")
-    for _, target in ipairs(enemy_targets) do
-      targets[#targets + 1] = target
-    end
-  end
-  return targets
+  return self:_get_all_living_targets()
 end
 
----@param spell Spell
 ---@return string[]
-function CombatHandler:_get_available_faction_sides(spell)
-  local side = self:_get_insert_target_side(spell)
+function CombatHandler:_get_available_faction_sides()
   local available = {}
   local hero_targets = self:_get_living_targets_for_side("hero")
   local enemy_targets = self:_get_living_targets_for_side("enemy")
 
-  if (side == "hero" or side == "both") and #hero_targets > 0 then
+  if #hero_targets > 0 then
     available[#available + 1] = "hero"
   end
-  if (side == "enemy" or side == "both") and #enemy_targets > 0 then
+  if #enemy_targets > 0 then
     available[#available + 1] = "enemy"
   end
   return available
 end
 
----@param spell Spell
 ---@return number
-function CombatHandler:_get_available_faction_count(spell)
-  return #self:_get_available_faction_sides(spell)
+function CombatHandler:_get_available_faction_count()
+  return #self:_get_available_faction_sides()
 end
 
 ---@param spell Spell
@@ -651,8 +623,7 @@ function CombatHandler:_build_all_target_payload(spell)
     return nil
   end
   return {
-    target_scope = "all",
-    target_side = "both",
+    target_mode = "char_all",
     entities = targets,
     primary = targets[1],
   }
@@ -667,8 +638,8 @@ function CombatHandler:_build_faction_target_payload(spell, side)
     return nil
   end
   return {
-    target_scope = "faction",
-    target_side = side,
+    target_mode = "char_faction",
+    faction = side,
     entities = targets,
     primary = targets[1],
   }
@@ -684,14 +655,29 @@ function CombatHandler:_build_single_target_payload(spell, target)
   if target.is_alive and not target:is_alive() then
     return nil
   end
-  local hero = self.combat_manager:get_hero()
-  local side = (hero and target == hero) and "hero" or "enemy"
   return {
-    target_scope = "single",
-    target_side = side,
+    target_mode = "char_single",
     entities = {target},
     primary = target,
   }
+end
+
+---@param spell Spell
+---@return table|nil
+function CombatHandler:_build_action_target_payload(spell)
+  local mode = spell:get_target_mode()
+  if mode == "action_next_all" then
+    return {
+      target_mode = mode,
+    }
+  end
+  if mode == "action_next_n" then
+    return {
+      target_mode = mode,
+      target_n = spell:get_target_n() or 1,
+    }
+  end
+  return nil
 end
 
 --- Insert spell at timeline position
@@ -1005,7 +991,6 @@ end
 ---@return Entity|nil
 function CombatHandler:_get_hovered_single_target(mx, my, spell)
   local world_x, world_y = self:_screen_to_world(mx, my)
-  local side = self:_get_insert_target_side(spell)
   local hero = self.combat_manager:get_hero()
   local enemies = self.combat_manager:get_enemies() or {}
   local best_target = nil
@@ -1023,17 +1008,15 @@ function CombatHandler:_get_hovered_single_target(mx, my, spell)
     end
   end
 
-  if (side == "hero" or side == "both") and hero and hero:is_alive() then
+  if hero and hero:is_alive() then
     local hx, hy = self:_get_hero_world_position()
     try_target(hero, hx, hy)
   end
 
-  if side == "enemy" or side == "both" then
-    for i, enemy in ipairs(enemies) do
-      if enemy:is_alive() then
-        local ey = self.enemy_world_y + (i - 1) * 70
-        try_target(enemy, self.enemy_world_x, ey)
-      end
+  for i, enemy in ipairs(enemies) do
+    if enemy:is_alive() then
+      local ey = self.enemy_world_y + (i - 1) * 70
+      try_target(enemy, self.enemy_world_x, ey)
     end
   end
 
@@ -1045,8 +1028,7 @@ end
 ---@param spell Spell
 ---@return string|nil
 function CombatHandler:_get_hovered_faction_target(mx, my, spell)
-  local side = self:_get_insert_target_side(spell)
-  local allowed = self:_get_available_faction_sides(spell)
+  local allowed = self:_get_available_faction_sides()
   if #allowed == 0 then
     return nil
   end
@@ -1059,10 +1041,7 @@ function CombatHandler:_get_hovered_faction_target(mx, my, spell)
   local mid_x = (hero_x + self.enemy_world_x) * 0.5
   local preferred = world_x < mid_x and "hero" or "enemy"
 
-  if side == "both" then
-    return preferred
-  end
-  return allowed[1]
+  return preferred
 end
 
 --- Update gauges

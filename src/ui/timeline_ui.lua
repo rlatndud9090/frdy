@@ -302,11 +302,17 @@ function TimelineUI:draw()
   local info_y = y + bh + 8
   if self.timeline_manager:has_interventions() then
     local susp = self.timeline_manager:get_total_suspicion_preview()
-    local susp_text = i18n.t("combat.suspicion_preview", {value = susp})
+    local susp_label = tostring(susp)
+    if susp > 0 then
+      susp_label = "+" .. tostring(susp)
+    end
+    local susp_text = i18n.t("combat.suspicion_preview", {value = susp_label})
     if susp > 0 then
       love.graphics.setColor(1, 0.3, 0.3, 0.9)
-    else
+    elseif susp < 0 then
       love.graphics.setColor(0.3, 1, 0.3, 0.9)
+    else
+      love.graphics.setColor(0.75, 0.75, 0.85, 0.9)
     end
     love.graphics.printf(susp_text, 280, info_y, 1000, "center")
   end
