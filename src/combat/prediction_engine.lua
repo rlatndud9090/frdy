@@ -467,11 +467,18 @@ function PredictionEngine:_simulate_action(action, hero, enemies)
   else
     if source == 'spell' then
       if action.spell then
+        local spell_source = actor or hero
         action.spell:execute(action.target, {
           hero = hero,
           enemies = enemies,
           suspicion_manager = nil,
           field_statuses = self.field_status_container,
+          apply_damage = function(target, amount, source_override, parent_ctx)
+            return self:_apply_damage(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
+          apply_heal = function(target, amount, source_override, parent_ctx)
+            return self:_apply_heal(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
         })
       end
       action_ctx.executed = true

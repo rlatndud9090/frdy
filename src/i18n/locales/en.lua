@@ -126,7 +126,7 @@ return {
   ["status.berserker.title"] = "Berserker",
   ["status.berserker.description"] = "Gain {amount} attack whenever damaged.",
   ["status.floating_thorns.title"] = "Floating Thorns",
-  ["status.floating_thorns.description"] = "After any action, all characters take {amount} damage.",
+  ["status.floating_thorns.description"] = "Whenever a character acts, that character takes {amount} damage.",
 
   -- Suspicion
   ["suspicion.increase"] = "Suspicion +{value}",

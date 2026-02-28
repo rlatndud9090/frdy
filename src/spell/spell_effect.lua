@@ -19,7 +19,11 @@ function SpellEffect.heal(amount)
     type = "heal",
     amount = amount,
     apply = function(self, target, context)
-      target:heal(self.amount)
+      if context and context.apply_heal then
+        context.apply_heal(target, self.amount)
+      else
+        target:heal(self.amount)
+      end
     end
   }
 end
@@ -32,7 +36,11 @@ function SpellEffect.damage(amount)
     type = "damage",
     amount = amount,
     apply = function(self, target, context)
-      target:take_damage(self.amount)
+      if context and context.apply_damage then
+        context.apply_damage(target, self.amount)
+      else
+        target:take_damage(self.amount)
+      end
     end
   }
 end
@@ -97,7 +105,11 @@ function SpellEffect.hinder(damage_amount)
     type = "hinder",
     amount = damage_amount,
     apply = function(self, target, context)
-      target:take_damage(self.amount)
+      if context and context.apply_damage then
+        context.apply_damage(target, self.amount)
+      else
+        target:take_damage(self.amount)
+      end
     end
   }
 end

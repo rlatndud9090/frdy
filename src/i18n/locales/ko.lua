@@ -126,7 +126,7 @@ return {
   ["status.berserker.title"] = "광전사",
   ["status.berserker.description"] = "피해를 입을 때마다 공격력이 {amount} 증가합니다.",
   ["status.floating_thorns.title"] = "떠다니는 가시",
-  ["status.floating_thorns.description"] = "모든 캐릭터가 행동 후 {amount} 피해를 입습니다.",
+  ["status.floating_thorns.description"] = "각 캐릭터는 행동할 때마다 자신이 {amount} 피해를 입습니다.",
 
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",

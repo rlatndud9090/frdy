@@ -320,11 +320,18 @@ function CombatManager:execute_next_action()
       end
     elseif source == "spell" then
       if action.spell then
+        local spell_source = action.actor or self.hero
         local context = {
           hero = self.hero,
           enemies = self.enemies,
           suspicion_manager = self._suspicion_manager,
           field_statuses = self.field_status_container,
+          apply_damage = function(target, amount, source_override, parent_ctx)
+            return self:_apply_damage(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
+          apply_heal = function(target, amount, source_override, parent_ctx)
+            return self:_apply_heal(target, amount, source_override or spell_source, parent_ctx or action_ctx)
+          end,
         }
         action.spell:execute(action.target, context)
       end
