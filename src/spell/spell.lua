@@ -1,5 +1,6 @@
 local class = require('lib.middleclass')
 local i18n = require('src.i18n.init')
+local StatusRegistry = require('src.combat.status_registry')
 
 ---@class Spell
 ---@field id string
@@ -9,7 +10,7 @@ local i18n = require('src.i18n.init')
 ---@field cost number
 ---@field suspicion_delta number
 ---@field suspicion_abs number
----@field target_mode string "char_single"|"char_faction"|"char_all"|"action_next_n"|"action_next_all"
+---@field target_mode string "char_single"|"char_faction"|"char_all"|"action_next_n"|"action_next_all"|"field"
 ---@field target_n number|nil
 ---@field keywords string[]
 ---@field effect SpellEffectObject
@@ -24,6 +25,10 @@ local function infer_target_mode(effect)
     return "char_single"
   end
 
+  if effect.type == "apply_field_status" then
+    return "field"
+  end
+
   if effect.type == "action_delta" or effect.type == "action_block" then
     return "action_next_n"
   end
@@ -31,10 +36,10 @@ local function infer_target_mode(effect)
   return "char_single"
 end
 
----@param target_mode string
+---@param _target_mode string
 ---@param effect SpellEffectObject|nil
 ---@return string[]
-local function infer_keywords(target_mode, effect)
+local function infer_keywords(_target_mode, effect)
   local list = {}
 
   local function add(key)
@@ -46,29 +51,111 @@ local function infer_keywords(target_mode, effect)
     list[#list + 1] = key
   end
 
-  if target_mode == "char_single" then
-    add("char_single")
-  elseif target_mode == "char_faction" then
-    add("char_faction")
-  elseif target_mode == "char_all" then
-    add("char_all")
-  elseif target_mode == "action_next_n" then
-    add("next_n")
-  elseif target_mode == "action_next_all" then
-    add("next_all")
-  end
-
+  -- 키워드는 "차단"처럼 축약 의미가 필요한 경우만 자동 부여한다.
+  -- 대상 범위(개별/진영/전체)나 일반 수치변경은 키워드로 자동 노출하지 않는다.
   if effect then
     if effect.type == "action_block" then
       add("block")
-    elseif effect.type == "buff_speed" or effect.type == "debuff_speed" then
-      add("speed")
-    elseif effect.type == "action_delta" then
-      add("action_value")
     end
   end
 
   return list
+end
+
+---@param dst table
+---@param src table|nil
+---@return nil
+local function merge_params(dst, src)
+  if not src then
+    return
+  end
+  for key, value in pairs(src) do
+    dst[key] = value
+  end
+end
+
+---@param payload table|nil
+---@return number|nil
+local function first_number_from_payload(payload)
+  if not payload then
+    return nil
+  end
+
+  local prioritized_keys = {
+    "amount",
+    "damage",
+    "attack_bonus",
+    "attack_penalty",
+    "speed_bonus",
+    "speed_penalty",
+    "attack_gain_per_hit",
+  }
+
+  for _, key in ipairs(prioritized_keys) do
+    if type(payload[key]) == "number" then
+      return payload[key]
+    end
+  end
+
+  for _, value in pairs(payload) do
+    if type(value) == "number" then
+      return value
+    end
+  end
+  return nil
+end
+
+---@param effect SpellEffectObject|nil
+---@return table
+local function build_status_preview_params(effect)
+  if not effect or (effect.type ~= "apply_status" and effect.type ~= "apply_field_status") then
+    return {}
+  end
+
+  local params = {}
+  local spec = effect.status_spec or {}
+  local payload = spec.payload or {}
+  local status_id = effect.status_id
+  local definition = status_id and StatusRegistry.get(status_id) or nil
+  local stacks = 1
+  if type(spec.stacks) == "number" then
+    stacks = math.max(1, math.floor(spec.stacks))
+  end
+
+  if definition and type(definition.preview_params) == "function" then
+    merge_params(params, definition.preview_params(payload, stacks, spec))
+  end
+
+  local amount = nil
+  if type(spec.preview_amount) == "number" then
+    amount = spec.preview_amount
+  elseif type(params.amount) == "number" then
+    amount = params.amount
+  elseif type(effect.amount) == "number" and effect.amount ~= 0 then
+    amount = effect.amount
+  else
+    amount = first_number_from_payload(payload)
+  end
+
+  if type(amount) == "number" then
+    params.amount = amount
+    params.amount_abs = math.abs(amount)
+  end
+
+  if params.ratio_percent == nil and type(payload.attack_reduction_ratio) == "number" then
+    local ratio = math.max(0, payload.attack_reduction_ratio) * (stacks or 1)
+    params.ratio_percent = math.floor(ratio * 100 + 0.5)
+  end
+
+  if spec.duration_turns ~= nil then
+    params.duration_turns = spec.duration_turns
+  end
+  if spec.duration_actions ~= nil then
+    params.duration_actions = spec.duration_actions
+  end
+  params.stacks = stacks
+
+  return params
 end
 
 --- Initialize a spell from a data table
@@ -165,12 +252,44 @@ function Spell:get_keywords()
   return self.keywords
 end
 
+---@return {id: string, title: string, description: string, domain: string}[]
+function Spell:get_status_entries()
+  local effect = self.effect
+  if not effect or (effect.type ~= "apply_status" and effect.type ~= "apply_field_status") then
+    return {}
+  end
+  if not effect.status_id then
+    return {}
+  end
+
+  local definition = StatusRegistry.get(effect.status_id)
+  if not definition then
+    return {}
+  end
+
+  local params = self:get_description_params()
+  local title = definition.title_key and i18n.t(definition.title_key, params) or effect.status_id
+  local description = definition.description_key and i18n.t(definition.description_key, params) or effect.status_id
+
+  return {
+    {
+      id = effect.status_id,
+      title = title,
+      description = description,
+      domain = definition.domain or "character",
+    }
+  }
+end
+
 ---@return table
 function Spell:get_description_params()
   local params = {}
   if self.effect and type(self.effect.amount) == "number" then
     params.amount = self.effect.amount
     params.amount_abs = math.abs(self.effect.amount)
+  end
+  if self.effect and (self.effect.type == "apply_status" or self.effect.type == "apply_field_status") then
+    merge_params(params, build_status_preview_params(self.effect))
   end
   if self.target_n then
     params.count = self.target_n
@@ -287,7 +406,7 @@ end
 ---@param target any
 ---@param context {hero: any, enemies: any, suspicion_manager: SuspicionManager}
 function Spell:execute(target, context)
-  if self.effect.type == "global" then
+  if self.effect.type == "global" or self.effect.type == "apply_field_status" then
     self.effect:apply(target, context)
   elseif self.effect.type == "action_delta" or self.effect.type == "action_block" then
     self.effect:apply(target, context)

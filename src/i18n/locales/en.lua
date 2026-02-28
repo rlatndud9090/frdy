@@ -64,6 +64,7 @@ return {
   -- Spell status
   ["spell.used"] = "Used",
   ["spell.reserved"] = "Placed",
+  ["spell.statuses"] = "Statuses",
   ["spell.keywords"] = "Keywords",
   ["spell.no_keyword"] = "No keywords",
   ["spell.suspicion_per_action"] = "susp: ±{value}/act",
@@ -108,6 +109,24 @@ return {
   ["spell.keyword.speed.description"] = "Speed changes alter turn-order prediction in following turns.",
   ["spell.keyword.action_value.title"] = "Action Value",
   ["spell.keyword.action_value.description"] = "Modifies the value of targeted actions (damage/defense/heal).",
+
+  -- Statuses
+  ["status.attack_up_flat.title"] = "Empower",
+  ["status.attack_up_flat.description"] = "Attack increases by {amount}.",
+  ["status.attack_down_flat.title"] = "Weakened",
+  ["status.attack_down_flat.description"] = "Attack decreases by {amount}.",
+  ["status.speed_up_flat.title"] = "Haste",
+  ["status.speed_up_flat.description"] = "Speed increases by {amount}.",
+  ["status.speed_down_flat.title"] = "Slow",
+  ["status.speed_down_flat.description"] = "Speed decreases by {amount}.",
+  ["status.weaken.title"] = "Frailty",
+  ["status.weaken.description"] = "Attack is reduced by {ratio_percent}%.",
+  ["status.haste.title"] = "Quickened",
+  ["status.haste.description"] = "Speed increases by {amount}.",
+  ["status.berserker.title"] = "Berserker",
+  ["status.berserker.description"] = "Gain {amount} attack whenever damaged.",
+  ["status.floating_thorns.title"] = "Floating Thorns",
+  ["status.floating_thorns.description"] = "After any action, all characters take {amount} damage.",
 
   -- Suspicion
   ["suspicion.increase"] = "Suspicion +{value}",

@@ -43,7 +43,10 @@ return {
     suspicion_abs = 5,
     timeline_type = "insert",
     target_mode = "char_faction",
-    effect = SpellEffect.buff_attack(2)
+    effect = SpellEffect.apply_status("attack_up_flat", {
+      payload = {attack_bonus = 2},
+      preview_amount = 2,
+    })
   },
   {
     id = "haste_sigil",
@@ -54,7 +57,10 @@ return {
     suspicion_abs = 4,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.buff_speed(4)
+    effect = SpellEffect.apply_status("speed_up_flat", {
+      payload = {speed_bonus = 4},
+      preview_amount = 4,
+    })
   },
   {
     id = "crippling_hex",
@@ -65,7 +71,10 @@ return {
     suspicion_abs = 3,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.debuff_speed(4)
+    effect = SpellEffect.apply_status("speed_down_flat", {
+      payload = {speed_penalty = 4},
+      preview_amount = 4,
+    })
   },
   {
     id = "stumble",
@@ -87,7 +96,10 @@ return {
     suspicion_abs = 3,
     timeline_type = "insert",
     target_mode = "char_faction",
-    effect = SpellEffect.debuff_attack(2)
+    effect = SpellEffect.apply_status("attack_down_flat", {
+      payload = {attack_penalty = 2},
+      preview_amount = 2,
+    })
   },
   {
     id = "dark_pact",
@@ -121,7 +133,10 @@ return {
     suspicion_abs = 7,
     timeline_type = "insert",
     target_mode = "char_faction",
-    effect = SpellEffect.buff_speed(3)
+    effect = SpellEffect.apply_status("speed_up_flat", {
+      payload = {speed_bonus = 3},
+      preview_amount = 3,
+    })
   },
   {
     id = "nullify",
@@ -144,7 +159,10 @@ return {
     suspicion_abs = 5,
     timeline_type = "insert",
     target_mode = "char_faction",
-    effect = SpellEffect.debuff_speed(3)
+    effect = SpellEffect.apply_status("speed_down_flat", {
+      payload = {speed_penalty = 3},
+      preview_amount = 3,
+    })
   },
   {
     id = "weaken_blow",
