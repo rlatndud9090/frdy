@@ -244,7 +244,7 @@ end
 ---@param scaffold PredictedAction
 ---@param hero Hero
 ---@param enemies Enemy[]
----@return Entity|nil
+---@return Entity|table|nil
 function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
   local spell = scaffold.spell
   if not spell then
@@ -260,28 +260,43 @@ function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
     return hero
   end
 
-  local target_mode = spell.get_target_mode and spell:get_target_mode() or "hero"
-  if target_mode == "enemy" then
-    local target = scaffold.target
-    if target and target ~= hero and target.is_alive and target:is_alive() then
-      return target
+  if type(scaffold.target) == "table" and scaffold.target.entities then
+    local filtered = {}
+    for _, entity in ipairs(scaffold.target.entities) do
+      if entity and (not entity.is_alive or entity:is_alive()) then
+        filtered[#filtered + 1] = entity
+      end
     end
-    return self:_get_first_living(enemies)
+    if #filtered == 0 then
+      return nil
+    end
+
+    local payload = {}
+    for key, value in pairs(scaffold.target) do
+      if key ~= "entities" and key ~= "primary" then
+        payload[key] = value
+      end
+    end
+    payload.entities = filtered
+    if scaffold.target.primary and scaffold.target.primary.is_alive and scaffold.target.primary:is_alive() then
+      payload.primary = scaffold.target.primary
+    else
+      payload.primary = filtered[1]
+    end
+    return payload
   end
 
-  if target_mode == "hero" then
-    if hero:is_alive() then
-      return hero
-    end
-    return nil
+  local target_mode = spell.get_target_mode and spell:get_target_mode() or "char_single"
+
+  if target_mode == "action_next_n" or target_mode == "action_next_all" then
+    return scaffold.target
   end
 
-  if target_mode == "any" then
+  if target_mode == "char_single" or target_mode == "char_faction" or target_mode == "char_all" then
     local target = scaffold.target
     if target and target.is_alive and target:is_alive() then
       return target
     end
-
     local enemy = self:_get_first_living(enemies)
     if enemy then
       return enemy
@@ -311,6 +326,10 @@ function PredictionEngine:_simulate_action(action, hero, enemies)
   local source = action:get_source_type()
   local action_type = action:get_action_type()
   local value = math.max(0, action:get_value() or 0)
+
+  if action.blocked then
+    return
+  end
 
   if source == 'spell' then
     if action.spell then

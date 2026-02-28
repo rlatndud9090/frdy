@@ -13,22 +13,16 @@ return {
         effects = {
           {type = "heal_hero", amount = 20},
         },
-        suspicion_delta = 5,
-        intervention_suspicion_delta = 6,
       },
       {
         text = "event.mysterious_spring.choice2",
         effects = {},
-        suspicion_delta = 0,
-        intervention_suspicion_delta = -1,
       },
       {
         text = "event.mysterious_spring.choice3",
         effects = {
           {type = "damage_hero", amount = 10},
         },
-        suspicion_delta = -5,
-        intervention_suspicion_delta = -4,
       },
     },
   },
@@ -46,14 +40,10 @@ return {
         effects = {
           {type = "buff_attack", amount = 3},
         },
-        suspicion_delta = 10,
-        intervention_suspicion_delta = 8,
       },
       {
         text = "event.wandering_merchant.choice2",
         effects = {},
-        suspicion_delta = 0,
-        intervention_suspicion_delta = -3,
       },
     },
   },
@@ -71,22 +61,16 @@ return {
         effects = {
           {type = "buff_attack", amount = 5},
         },
-        suspicion_delta = 15,
-        intervention_suspicion_delta = 10,
       },
       {
         text = "event.trapped_chest.choice2",
         effects = {},
-        suspicion_delta = 0,
-        intervention_suspicion_delta = -2,
       },
       {
         text = "event.trapped_chest.choice3",
         effects = {
           {type = "damage_hero", amount = 5},
         },
-        suspicion_delta = -3,
-        intervention_suspicion_delta = -3,
       },
     },
   },
@@ -104,14 +88,10 @@ return {
         effects = {
           {type = "heal_hero", amount = 30},
         },
-        suspicion_delta = 10,
-        intervention_suspicion_delta = 7,
       },
       {
         text = "event.old_hermit.choice2",
         effects = {},
-        suspicion_delta = -5,
-        intervention_suspicion_delta = -4,
       },
     },
   },
@@ -130,22 +110,16 @@ return {
           {type = "buff_attack", amount = 8},
           {type = "damage_hero", amount = 15},
         },
-        suspicion_delta = 20,
-        intervention_suspicion_delta = 5,
       },
       {
         text = "event.dark_altar.choice2",
         effects = {
           {type = "damage_hero", amount = 5},
         },
-        suspicion_delta = -10,
-        intervention_suspicion_delta = -5,
       },
       {
         text = "event.dark_altar.choice3",
         effects = {},
-        suspicion_delta = 0,
-        intervention_suspicion_delta = -2,
       },
     },
   },

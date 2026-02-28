@@ -136,7 +136,9 @@ end
 ---@return nil
 function TimelineManager:_reapply_value_interventions_from(start_index)
   for _, intervention in ipairs(self.interventions) do
-    if intervention.type == "global" then
+    if intervention.type == "insert" then
+      self:_apply_insert_timeline_effect(intervention, start_index)
+    elseif intervention.type == "global" then
       self:_apply_global_delta(start_index, intervention.amount or 0)
     elseif intervention.type == "modify" and intervention.slot_token then
       local idx = self:_find_action_index_by_slot_token(intervention.slot_token)
@@ -174,17 +176,95 @@ function TimelineManager:_apply_global_delta(start_index, delta)
   end
 end
 
+---@param intervention table
+---@param start_index number
+---@return nil
+function TimelineManager:_apply_insert_timeline_effect(intervention, start_index)
+  local spell = intervention.spell
+  if not spell or not spell.get_target_mode then
+    return
+  end
+
+  local mode = spell:get_target_mode()
+  if mode ~= "action_next_n" and mode ~= "action_next_all" then
+    return
+  end
+
+  local effect = spell:get_effect()
+  if not effect then
+    return
+  end
+
+  local anchor_index = intervention.slot_token and self:_find_action_index_by_slot_token(intervention.slot_token)
+    or intervention.index
+  if not anchor_index then
+    return
+  end
+
+  local remaining = math.huge
+  if mode == "action_next_n" then
+    local n = spell.get_target_n and spell:get_target_n() or 1
+    remaining = math.max(1, math.floor(n))
+  end
+
+  local abs_suspicion = 0
+  if spell.get_suspicion_abs then
+    abs_suspicion = spell:get_suspicion_abs()
+  elseif spell.get_suspicion_delta then
+    abs_suspicion = math.abs(spell:get_suspicion_delta())
+  end
+
+  local applied_suspicion_delta = 0
+  local affected_enemy_actions = 0
+  local affected_hero_actions = 0
+
+  for idx = anchor_index + 1, #self.timeline do
+    local action = self.timeline[idx]
+    if action and action:get_source_type() ~= "spell" then
+      local source = action:get_source_type()
+      if source == "enemy" then
+        affected_enemy_actions = affected_enemy_actions + 1
+        applied_suspicion_delta = applied_suspicion_delta + abs_suspicion
+      elseif source == "hero" then
+        affected_hero_actions = affected_hero_actions + 1
+        applied_suspicion_delta = applied_suspicion_delta - abs_suspicion
+      end
+
+      if idx >= start_index then
+        if effect.type == "action_block" then
+          action.blocked = true
+          action.value = 0
+        elseif effect.type == "action_delta" then
+          action.value = math.max(0, (action.value or 0) + (effect.amount or 0))
+        end
+      end
+
+      remaining = remaining - 1
+      if remaining <= 0 then
+        break
+      end
+    end
+  end
+
+  if type(intervention.target) == "table" then
+    intervention.target.applied_suspicion_delta = applied_suspicion_delta
+    intervention.target.affected_enemy_actions = affected_enemy_actions
+    intervention.target.affected_hero_actions = affected_hero_actions
+  end
+end
+
 --- Insert a spell intervention at a specific index
 ---@param index number Position in timeline
 ---@param spell Spell
 ---@param predicted_action PredictedAction
 function TimelineManager:insert_at(index, spell, predicted_action)
   index = math.max(1, math.min(index, #self.timeline + 1))
-  self:_ensure_action_slot_token(predicted_action)
+  local slot_token = self:_ensure_action_slot_token(predicted_action)
   table.insert(self.timeline, index, predicted_action)
   self:_record_intervention({
     type = "insert",
     index = index,
+    slot_token = slot_token,
     spell = spell,
     target = predicted_action and predicted_action.target or nil,
   })

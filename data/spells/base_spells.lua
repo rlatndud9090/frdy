@@ -4,156 +4,193 @@ return {
   {
     id = "heal_light",
     name = "Light Heal",
-    description = "Heal the hero for 10 HP.",
-    cost = 15,
-    suspicion_delta = 5,
+    description = "Heal target for 10 HP.",
+    desc_key = "spell.desc.heal_light",
+    cost = 12,
+    suspicion_abs = 4,
     timeline_type = "insert",
+    target_mode = "char_single",
     effect = SpellEffect.heal(10)
   },
   {
     id = "heal_heavy",
     name = "Heavy Heal",
-    description = "Heal the hero for 25 HP.",
-    cost = 25,
-    suspicion_delta = 10,
+    description = "Heal target for 22 HP.",
+    desc_key = "spell.desc.heal_heavy",
+    cost = 22,
+    suspicion_abs = 8,
     timeline_type = "insert",
-    effect = SpellEffect.heal(25)
+    target_mode = "char_single",
+    effect = SpellEffect.heal(22)
   },
   {
     id = "divine_strike",
     name = "Divine Strike",
-    description = "Deal 15 damage to an enemy.",
-    cost = 20,
-    suspicion_delta = 8,
+    description = "Deal 14 damage to target.",
+    desc_key = "spell.desc.divine_strike",
+    cost = 16,
+    suspicion_abs = 6,
     timeline_type = "insert",
-    effect = SpellEffect.damage(15)
+    target_mode = "char_single",
+    effect = SpellEffect.damage(14)
   },
   {
     id = "war_cry",
     name = "War Cry",
-    description = "Buff hero attack by 3.",
-    cost = 15,
-    suspicion_delta = 6,
+    description = "Buff a faction's attack by 2.",
+    desc_key = "spell.desc.war_cry",
+    cost = 14,
+    suspicion_abs = 5,
     timeline_type = "insert",
-    effect = SpellEffect.buff_attack(3)
+    target_mode = "char_faction",
+    effect = SpellEffect.buff_attack(2)
   },
   {
     id = "haste_sigil",
     name = "Haste Sigil",
-    description = "Increase target speed by 5.",
-    cost = 10,
-    suspicion_delta = 4,
+    description = "Increase target speed by 4.",
+    desc_key = "spell.desc.haste_sigil",
+    cost = 9,
+    suspicion_abs = 4,
     timeline_type = "insert",
-    effect = SpellEffect.buff_speed(5)
+    target_mode = "char_single",
+    effect = SpellEffect.buff_speed(4)
   },
   {
     id = "crippling_hex",
     name = "Crippling Hex",
-    description = "Reduce enemy speed by 4.",
-    cost = 10,
-    suspicion_delta = 3,
+    description = "Reduce target speed by 4.",
+    desc_key = "spell.desc.crippling_hex",
+    cost = 9,
+    suspicion_abs = 3,
     timeline_type = "insert",
+    target_mode = "char_single",
     effect = SpellEffect.debuff_speed(4)
   },
   {
     id = "stumble",
     name = "Stumble",
-    description = "Hinder the hero for 5 damage.",
+    description = "Deal 5 damage to target.",
+    desc_key = "spell.desc.stumble",
     cost = 0,
-    suspicion_delta = -8,
+    suspicion_abs = 6,
     timeline_type = "insert",
+    target_mode = "char_single",
     effect = SpellEffect.hinder(5)
   },
   {
     id = "weaken_foe",
     name = "Weaken Foe",
-    description = "Debuff enemy attack by 3.",
-    cost = 12,
-    suspicion_delta = 3,
+    description = "Debuff a faction's attack by 2.",
+    desc_key = "spell.desc.weaken_foe",
+    cost = 11,
+    suspicion_abs = 3,
     timeline_type = "insert",
-    effect = SpellEffect.debuff_attack(3)
+    target_mode = "char_faction",
+    effect = SpellEffect.debuff_attack(2)
   },
   {
     id = "dark_pact",
     name = "Dark Pact",
-    description = "Hinder the hero for 10 damage.",
-    cost = 10,
-    suspicion_delta = -15,
+    description = "Deal 10 damage to target.",
+    desc_key = "spell.desc.dark_pact",
+    cost = 8,
+    suspicion_abs = 12,
     timeline_type = "insert",
+    target_mode = "char_single",
     effect = SpellEffect.hinder(10)
   },
   {
     id = "minor_heal",
     name = "Minor Heal",
-    description = "Heal the hero for 5 HP.",
+    description = "Heal target for 5 HP.",
+    desc_key = "spell.desc.minor_heal",
     cost = 0,
-    suspicion_delta = 3,
+    suspicion_abs = 2,
     timeline_type = "insert",
+    target_mode = "char_single",
     effect = SpellEffect.heal(5)
   },
-  -- Manipulation spells
+  -- Insert spells: action-target variants
   {
     id = "time_warp",
     name = "Time Warp",
-    description = "Swap two actions on the timeline.",
-    cost = 20,
-    suspicion_delta = 8,
-    timeline_type = "manipulate_swap",
-    effect = SpellEffect.swap()
+    description = "Increase a faction's speed by 3.",
+    desc_key = "spell.desc.time_warp",
+    cost = 17,
+    suspicion_abs = 7,
+    timeline_type = "insert",
+    target_mode = "char_faction",
+    effect = SpellEffect.buff_speed(3)
   },
   {
     id = "nullify",
     name = "Nullify",
-    description = "Remove an action from the timeline.",
-    cost = 30,
-    suspicion_delta = 12,
-    timeline_type = "manipulate_remove",
-    effect = SpellEffect.nullify()
+    description = "Block the next action once.",
+    desc_key = "spell.desc.nullify",
+    cost = 22,
+    suspicion_abs = 9,
+    timeline_type = "insert",
+    target_mode = "action_next_n",
+    target_n = 1,
+    effect = SpellEffect.action_block(1)
   },
   {
     id = "delay_strike",
     name = "Delay Strike",
-    description = "Push an action back by 2 positions.",
+    description = "Reduce a faction's speed by 3.",
+    desc_key = "spell.desc.delay_strike",
     cost = 12,
-    suspicion_delta = 5,
-    timeline_type = "manipulate_delay",
-    effect = SpellEffect.delay(2)
+    suspicion_abs = 5,
+    timeline_type = "insert",
+    target_mode = "char_faction",
+    effect = SpellEffect.debuff_speed(3)
   },
   {
     id = "weaken_blow",
     name = "Weaken Blow",
-    description = "Reduce an action's damage by 5.",
-    cost = 12,
-    suspicion_delta = 4,
-    timeline_type = "manipulate_modify",
-    effect = SpellEffect.modify(-5)
+    description = "Reduce the next 2 action values by 3.",
+    desc_key = "spell.desc.weaken_blow",
+    cost = 14,
+    suspicion_abs = 5,
+    timeline_type = "insert",
+    target_mode = "action_next_n",
+    target_n = 2,
+    effect = SpellEffect.action_delta(-3)
   },
   {
     id = "empower_strike",
     name = "Empower Strike",
-    description = "Increase an action's damage by 5.",
-    cost = 20,
-    suspicion_delta = 7,
-    timeline_type = "manipulate_modify",
-    effect = SpellEffect.modify(5)
+    description = "Increase the next 2 action values by 3.",
+    desc_key = "spell.desc.empower_strike",
+    cost = 18,
+    suspicion_abs = 7,
+    timeline_type = "insert",
+    target_mode = "action_next_n",
+    target_n = 2,
+    effect = SpellEffect.action_delta(3)
   },
-  -- Global spells
+  -- Insert spells: all following actions
   {
     id = "chaos_field",
     name = "Chaos Field",
-    description = "Apply chaos to the entire timeline.",
-    cost = 25,
-    suspicion_delta = 7,
-    timeline_type = "global",
-    effect = SpellEffect.global_buff(2)
+    description = "Reduce all following action values by 2.",
+    desc_key = "spell.desc.chaos_field",
+    cost = 23,
+    suspicion_abs = 6,
+    timeline_type = "insert",
+    target_mode = "action_next_all",
+    effect = SpellEffect.action_delta(-2)
   },
   {
     id = "dark_blessing",
     name = "Dark Blessing",
-    description = "Bless all hero actions on the timeline.",
-    cost = 15,
-    suspicion_delta = 4,
-    timeline_type = "global",
-    effect = SpellEffect.global_buff(1)
+    description = "Increase all following action values by 2.",
+    desc_key = "spell.desc.dark_blessing",
+    cost = 28,
+    suspicion_abs = 9,
+    timeline_type = "insert",
+    target_mode = "action_next_all",
+    effect = SpellEffect.action_delta(2)
   }
 }

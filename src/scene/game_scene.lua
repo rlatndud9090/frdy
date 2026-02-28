@@ -270,17 +270,21 @@ function GameScene:keypressed(key)
     return
   end
 
-  if key == "escape" or key == "tab" then
-    self.settings_overlay:open()
-    return
-  end
-
   if self.map_overlay:is_open() then
     self.map_overlay:keypressed(key)
     return
   end
 
+  if self.phase == COMBAT and self.combat_handler:keypressed(key) then
+    return
+  end
+
   if self.phase == COMBAT and self.combat_handler:is_input_locked() then
+    return
+  end
+
+  if key == "escape" or key == "tab" then
+    self.settings_overlay:open()
     return
   end
 
@@ -497,7 +501,6 @@ function GameScene:_enter_event()
   -- event_handler에 이벤트 데이터 전달
   self.event_handler:start_event(event, {
     hero = self.hero,
-    suspicion_manager = self.suspicion_manager,
   })
 
   -- 애니메이션
@@ -554,14 +557,12 @@ function GameScene:_show_edge_select(edges)
       self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
-      suspicion_manager = self.suspicion_manager,
     })
   else
     self.edge_select_handler:setup(edges, function(edge)
       self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
-      suspicion_manager = self.suspicion_manager,
     })
   end
 

@@ -8,13 +8,8 @@ local i18n = require('src.i18n.init')
 ---@field increase_mental_load fun(self: Hero, amount: number): number
 ---@field get_max_mental_stage fun(self: Hero): number
 
----@class SuspicionManager
----@field add fun(self: SuspicionManager, amount: number)
----@field reduce fun(self: SuspicionManager, amount: number)
-
 ---@class EventHandlerContext
 ---@field hero Hero|nil
----@field suspicion_manager SuspicionManager|nil
 
 ---@class EventHandler
 ---@field event Event|nil
@@ -35,20 +30,6 @@ local i18n = require('src.i18n.init')
 local EventHandler = class('EventHandler')
 
 local BLINK_INTERVAL = 0.45
-
----@param delta number
----@param suspicion_manager SuspicionManager|nil
----@return nil
-local function apply_suspicion_delta(delta, suspicion_manager)
-  if not suspicion_manager or delta == 0 then
-    return
-  end
-  if delta > 0 then
-    suspicion_manager:add(delta)
-  else
-    suspicion_manager:reduce(math.abs(delta))
-  end
-end
 
 ---Constructor for EventHandler
 function EventHandler:initialize()
@@ -92,7 +73,7 @@ end
 
 ---Start a new event
 ---@param event Event
----@param context EventHandlerContext {hero, suspicion_manager}
+---@param context EventHandlerContext {hero}
 function EventHandler:start_event(event, context)
   self.event = event
   self.context = context
@@ -140,11 +121,6 @@ end
 ---@return Hero|nil
 function EventHandler:_get_hero()
   return self.context and self.context.hero or nil
-end
-
----@return SuspicionManager|nil
-function EventHandler:_get_suspicion_manager()
-  return self.context and self.context.suspicion_manager or nil
 end
 
 ---@return string
@@ -210,7 +186,6 @@ function EventHandler:_apply_intervention(choice)
   end
 
   hero:increase_mental_load(self.event:get_intervention_mental_increase())
-  apply_suspicion_delta(choice:get_intervention_suspicion_delta(), self:_get_suspicion_manager())
 end
 
 ---@return nil
@@ -330,19 +305,6 @@ function EventHandler:draw_ui()
       love.graphics.setLineWidth(2)
       love.graphics.rectangle("line", bx - 6, by - 6, bw + 12, bh + 12, 6, 6)
       love.graphics.setLineWidth(1)
-    end
-
-    -- 의심도 변동 표시 (버튼 오른쪽)
-    local choices = self.event:get_choices()
-    if choices[i] then
-      local susp = choices[i]:get_suspicion_delta()
-      if susp > 0 then
-        love.graphics.setColor(1, 0.3, 0.3, self.panel_alpha)
-        love.graphics.print(i18n.t("suspicion.increase", {value = susp}), 870, by + 12)
-      elseif susp < 0 then
-        love.graphics.setColor(0.3, 1, 0.3, self.panel_alpha)
-        love.graphics.print(i18n.t("suspicion.decrease", {value = susp}), 870, by + 12)
-      end
     end
 
     love.graphics.pop()

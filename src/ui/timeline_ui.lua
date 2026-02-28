@@ -17,6 +17,8 @@ local i18n = require("src.i18n.init")
 ---@field on_insert_callback function|nil
 ---@field on_manipulate_callback function|nil
 ---@field on_global_callback function|nil
+---@field focus_scale number
+---@field focus_target_scale number
 local TimelineUI = class("TimelineUI", UIElement)
 
 function TimelineUI:initialize()
@@ -35,6 +37,8 @@ function TimelineUI:initialize()
   self.on_insert_callback = nil
   self.on_manipulate_callback = nil
   self.on_global_callback = nil
+  self.focus_scale = 1.0
+  self.focus_target_scale = 1.0
 end
 
 ---@param timeline_manager TimelineManager
@@ -61,6 +65,48 @@ function TimelineUI:exit_insert_mode()
   self.selected_spell = nil
   self.insert_index = nil
   self.manipulate_target_index = nil
+end
+
+---@return string
+function TimelineUI:get_mode()
+  return self.mode
+end
+
+---@return Spell|nil
+function TimelineUI:get_selected_spell()
+  return self.selected_spell
+end
+
+---@return table {handled: boolean, canceled_spell: Spell|nil}
+function TimelineUI:step_back()
+  if self.mode == "MANIPULATE_SELECT_DEST" then
+    self.mode = "MANIPULATE_SELECT_TARGET"
+    self.manipulate_target_index = nil
+    return {handled = true, canceled_spell = nil}
+  end
+
+  if self.mode == "MANIPULATE_SELECT_TARGET" then
+    local spell = self.selected_spell
+    self:exit_insert_mode()
+    return {handled = true, canceled_spell = spell}
+  end
+
+  if self.mode == "INSERT_MODE" then
+    local spell = self.selected_spell
+    self:exit_insert_mode()
+    return {handled = true, canceled_spell = spell}
+  end
+
+  return {handled = false, canceled_spell = nil}
+end
+
+---@param enabled boolean
+function TimelineUI:set_focus_mode(enabled)
+  if enabled then
+    self.focus_target_scale = 1.3
+  else
+    self.focus_target_scale = 1.0
+  end
 end
 
 ---@return boolean
@@ -96,13 +142,9 @@ end
 
 function TimelineUI:_get_box_rect(index)
   local visible_index = index - self.scroll_offset
-  local area_x = 280
-  local area_width = 1000  -- 1280 - 280
-  local total_width = math.min(self.max_visible, self:_get_count()) * (self.box_width + self.box_spacing)
-  local start_x = area_x + (area_width - total_width) / 2
-  local x = start_x + (visible_index - 1) * (self.box_width + self.box_spacing)
-  local y = 140
-  return x, y, self.box_width, self.box_height
+  local bw, bh, spacing, start_x, y = self:_get_layout_metrics()
+  local x = start_x + (visible_index - 1) * (bw + spacing)
+  return x, y, bw, bh
 end
 
 function TimelineUI:_get_count()
@@ -112,6 +154,9 @@ end
 
 function TimelineUI:update(dt)
   if not self.visible or not self.timeline_manager then return end
+
+  local speed = math.min(1, dt * 12)
+  self.focus_scale = self.focus_scale + (self.focus_target_scale - self.focus_scale) * speed
 
   local mx, my = love.mouse.getPosition()
   self.hovered_index = nil
@@ -143,10 +188,11 @@ end
 ---@return number|nil
 function TimelineUI:_calc_insert_index(mx, my)
   local count = self:_get_count()
+  local _, bh, _, _, y = self:_get_layout_metrics()
 
   local gap_half = math.max(6, self.box_spacing)
-  local top = 138
-  local bottom = 138 + self.box_height + 4
+  local top = y - 2
+  local bottom = y + bh + 2
   if my < top or my > bottom then
     return nil
   end
@@ -179,12 +225,13 @@ function TimelineUI:draw()
 
   local timeline = self.timeline_manager:get_timeline()
   local count = math.min(self.max_visible, #timeline)
+  local _, bh, _, _, y = self:_get_layout_metrics()
 
   -- Draw insert indicator
   if self.mode == "INSERT_MODE" and self.insert_index then
     local ix = self:_get_insert_x(self.insert_index)
     love.graphics.setColor(0.6, 0.3, 1, 0.8)
-    love.graphics.rectangle("fill", ix - 2, 138, 4, self.box_height + 4, 2, 2)
+    love.graphics.rectangle("fill", ix - 2, y - 2, 4, bh + 4, 2, 2)
   end
 
   if #timeline > 0 then
@@ -252,15 +299,22 @@ function TimelineUI:draw()
   end
 
   -- Suspicion preview
+  local info_y = y + bh + 8
   if self.timeline_manager:has_interventions() then
     local susp = self.timeline_manager:get_total_suspicion_preview()
-    local susp_text = i18n.t("combat.suspicion_preview", {value = susp})
+    local susp_label = tostring(susp)
+    if susp > 0 then
+      susp_label = "+" .. tostring(susp)
+    end
+    local susp_text = i18n.t("combat.suspicion_preview", {value = susp_label})
     if susp > 0 then
       love.graphics.setColor(1, 0.3, 0.3, 0.9)
-    else
+    elseif susp < 0 then
       love.graphics.setColor(0.3, 1, 0.3, 0.9)
+    else
+      love.graphics.setColor(0.75, 0.75, 0.85, 0.9)
     end
-    love.graphics.printf(susp_text, 280, 208, 1000, "center")
+    love.graphics.printf(susp_text, 280, info_y, 1000, "center")
   end
 
   -- Scroll indicator
@@ -268,38 +322,54 @@ function TimelineUI:draw()
     love.graphics.setColor(0.7, 0.7, 0.7, 0.5)
     local info = string.format("%d-%d / %d", self.scroll_offset + 1,
       math.min(self.scroll_offset + self.max_visible, #timeline), #timeline)
-    love.graphics.printf(info, 280, 208, 1000, "right")
+    love.graphics.printf(info, 280, info_y, 1000, "right")
   end
 
   -- Hovered action tooltip
   if self.hovered_index and timeline[self.hovered_index] then
     local action = timeline[self.hovered_index]
     love.graphics.setColor(1, 1, 1, 0.9)
-    love.graphics.printf(action:get_description(), 280, 224, 1000, "center")
+    love.graphics.printf(action:get_description(), 280, info_y + 16, 1000, "center")
   end
 
   -- Mode hint text
+  local hint_y = y - 20
   if self.mode == "INSERT_MODE" then
     love.graphics.setColor(0.65, 0.4, 1, 0.95)
-    love.graphics.printf(i18n.t("combat.select_insert_timing"), 280, 120, 1000, "center")
+    love.graphics.printf(i18n.t("combat.select_insert_timing"), 280, hint_y, 1000, "center")
   elseif self.mode == "MANIPULATE_SELECT_TARGET" then
     love.graphics.setColor(1, 0.8, 0, 0.9)
-    love.graphics.printf(i18n.t("combat.select_target"), 280, 120, 1000, "center")
+    love.graphics.printf(i18n.t("combat.select_target"), 280, hint_y, 1000, "center")
   elseif self.mode == "MANIPULATE_SELECT_DEST" then
     love.graphics.setColor(1, 0.5, 0, 0.9)
-    love.graphics.printf(i18n.t("combat.select_destination"), 280, 120, 1000, "center")
+    love.graphics.printf(i18n.t("combat.select_destination"), 280, hint_y, 1000, "center")
   end
 
   love.graphics.setColor(1, 1, 1, 1)
 end
 
 function TimelineUI:_get_insert_x(index)
+  local bw, _, spacing, start_x = self:_get_layout_metrics()
   local visible_index = index - self.scroll_offset
+  return start_x + (visible_index - 1) * (bw + spacing)
+end
+
+---@return number
+---@return number
+---@return number
+---@return number
+---@return number
+function TimelineUI:_get_layout_metrics()
+  local scale = self.focus_scale or 1.0
+  local bw = self.box_width * scale
+  local bh = self.box_height * scale
+  local spacing = self.box_spacing * scale
   local area_x = 280
   local area_width = 1000
-  local total_width = math.min(self.max_visible, self:_get_count()) * (self.box_width + self.box_spacing)
+  local total_width = math.min(self.max_visible, self:_get_count()) * (bw + spacing)
   local start_x = area_x + (area_width - total_width) / 2
-  return start_x + (visible_index - 1) * (self.box_width + self.box_spacing)
+  local y = 140 - (scale - 1.0) * 36
+  return bw, bh, spacing, start_x, y
 end
 
 function TimelineUI:mousepressed(mx, my, button)

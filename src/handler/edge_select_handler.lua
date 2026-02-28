@@ -10,13 +10,8 @@
 ---@field increase_mental_load fun(self: Hero, amount: number): number
 ---@field get_max_mental_stage fun(self: Hero): number
 
----@class SuspicionManager
----@field add fun(self: SuspicionManager, amount: number)
----@field reduce fun(self: SuspicionManager, amount: number)
-
 ---@class EdgeSelectContext
 ---@field hero Hero|nil
----@field suspicion_manager SuspicionManager|nil
 
 ---@class EdgeSelectHandler
 ---@field edges Edge[]
@@ -25,7 +20,6 @@
 ---@field confirm_button Button
 ---@field active boolean
 ---@field hero Hero|nil
----@field suspicion_manager SuspicionManager|nil
 ---@field hero_choice_index number|nil
 ---@field selected_index number|nil
 ---@field locked_indices table<number, boolean>
@@ -44,20 +38,6 @@ local EdgeSelectHandler = class('EdgeSelectHandler')
 
 local BLINK_INTERVAL = 0.45
 
----@param delta number
----@param suspicion_manager SuspicionManager|nil
----@return nil
-local function apply_suspicion_delta(delta, suspicion_manager)
-  if not suspicion_manager or delta == 0 then
-    return
-  end
-  if delta > 0 then
-    suspicion_manager:add(delta)
-  else
-    suspicion_manager:reduce(math.abs(delta))
-  end
-end
-
 ---Constructor
 ---@param edges Edge[]
 ---@param on_select_callback function|nil
@@ -72,7 +52,6 @@ function EdgeSelectHandler:initialize(edges, on_select_callback, context)
   end)
   self.active = false
   self.hero = nil
-  self.suspicion_manager = nil
   self.hero_choice_index = nil
   self.selected_index = nil
   self.locked_indices = {}
@@ -162,22 +141,6 @@ function EdgeSelectHandler:_apply_intervention()
   end
 
   self.hero:increase_mental_load(self.path_control.mental_increase or 0)
-
-  local original_edge = self.edges[self.hero_choice_index]
-  local forced_edge = self.edges[self.selected_index]
-  if not original_edge or not forced_edge then
-    return
-  end
-
-  local from_type = original_edge:get_to_node():get_type()
-  local to_type = forced_edge:get_to_node():get_type()
-  local key = from_type .. "->" .. to_type
-  local delta = 0
-  if self.path_control.suspicion_by_transition then
-    delta = self.path_control.suspicion_by_transition[key] or 0
-  end
-
-  apply_suspicion_delta(delta, self.suspicion_manager)
 end
 
 ---Reinitialize with new edges
@@ -189,7 +152,6 @@ function EdgeSelectHandler:setup(edges, on_select_callback, context)
   self.edges = edges or {}
   self.on_select_callback = on_select_callback
   self.hero = context and context.hero or nil
-  self.suspicion_manager = context and context.suspicion_manager or nil
 
   self.hero_choice_index = self:_roll_hero_choice_index()
   self.selected_index = self.hero_choice_index

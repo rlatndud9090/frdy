@@ -108,51 +108,63 @@ function CombatManager:execute_next_action()
   local action_type = action:get_action_type()
   local value = math.max(0, action:get_value() or 0)
 
-  if source == "hero" then
-    if self.hero:is_alive() then
-      if action_type == "attack" then
-        if action.target and action.target:is_alive() then
-          action.target:take_damage(value)
-        end
-      elseif action_type == "defend" then
-        self.hero.defense = self.hero.defense + value
-      elseif action_type == "heal" then
-        self.hero:heal(value)
-      elseif action.pattern and action.target and action.target:is_alive() then
-        action.pattern:execute(self.hero, action.target)
-      end
+  if action.blocked then
+    if source == "enemy" and action.actor and action.actor:is_alive() and action.actor.consume_action then
+      action.actor:consume_action()
     end
-  elseif source == "enemy" then
-    if action.actor and action.actor:is_alive() then
-      if action_type == "attack" then
-        if self.hero:is_alive() then
-          self.hero:take_damage(value)
-        end
-      elseif action_type == "defend" then
-        action.actor.defense = action.actor.defense + value
-      elseif action_type == "heal" then
-        action.actor:heal(value)
-      elseif action.pattern then
-        if action.pattern.type == "attack" then
-          action.pattern:execute(action.actor, self.hero)
-        elseif action.pattern.type == "defend" then
-          action.pattern:execute(action.actor, action.actor)
+    local desc = action:get_description() or ""
+    if desc == "" then
+      action.description = "[BLOCKED]"
+    else
+      action.description = desc .. " [BLOCKED]"
+    end
+  else
+    if source == "hero" then
+      if self.hero:is_alive() then
+        if action_type == "attack" then
+          if action.target and action.target:is_alive() then
+            action.target:take_damage(value)
+          end
+        elseif action_type == "defend" then
+          self.hero.defense = self.hero.defense + value
+        elseif action_type == "heal" then
+          self.hero:heal(value)
+        elseif action.pattern and action.target and action.target:is_alive() then
+          action.pattern:execute(self.hero, action.target)
         end
       end
+    elseif source == "enemy" then
+      if action.actor and action.actor:is_alive() then
+        if action_type == "attack" then
+          if self.hero:is_alive() then
+            self.hero:take_damage(value)
+          end
+        elseif action_type == "defend" then
+          action.actor.defense = action.actor.defense + value
+        elseif action_type == "heal" then
+          action.actor:heal(value)
+        elseif action.pattern then
+          if action.pattern.type == "attack" then
+            action.pattern:execute(action.actor, self.hero)
+          elseif action.pattern.type == "defend" then
+            action.pattern:execute(action.actor, action.actor)
+          end
+        end
 
-      -- 적 행동이 실제로 실행된 시점에만 패턴 커서를 소비한다.
-      if action.actor.consume_action then
-        action.actor:consume_action()
+        -- 적 행동이 실제로 실행된 시점에만 패턴 커서를 소비한다.
+        if action.actor.consume_action then
+          action.actor:consume_action()
+        end
       end
-    end
-  elseif source == "spell" then
-    if action.spell and action.target then
-      local context = {
-        hero = self.hero,
-        enemies = self.enemies,
-        suspicion_manager = self._suspicion_manager,
-      }
-      action.spell:execute(action.target, context)
+    elseif source == "spell" then
+      if action.spell and action.target then
+        local context = {
+          hero = self.hero,
+          enemies = self.enemies,
+          suspicion_manager = self._suspicion_manager,
+        }
+        action.spell:execute(action.target, context)
+      end
     end
   end
 
