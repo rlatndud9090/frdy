@@ -9,7 +9,8 @@ local i18n = require("src.i18n.init")
 ---@field on_click_callback function|nil
 ---@field blink_timer number
 ---@field blink_on boolean
----@field padding number
+---@field padding_x number
+---@field padding_y number
 ---@field visible_column_count number
 local Minimap = class("Minimap", UIElement)
 
@@ -24,8 +25,24 @@ function Minimap:initialize(x, y, width, height)
   self.on_click_callback = nil
   self.blink_timer = 0
   self.blink_on = true
-  self.padding = 10
+  self.padding_x = 6
+  self.padding_y = 8
   self.visible_column_count = 5
+end
+
+---@param world_x number
+---@param world_y number
+---@param bounds table
+---@return number
+---@return number
+function Minimap:_world_to_minimap(world_x, world_y, bounds)
+  local inner_w = math.max(1, self.width - self.padding_x * 2)
+  local inner_h = math.max(1, self.height - self.padding_y * 2)
+  local nx = (world_x - bounds.min_x) / math.max(1, bounds.width)
+  local ny = (world_y - bounds.min_y) / math.max(1, bounds.height)
+  local sx = self.x + self.padding_x + nx * inner_w
+  local sy = self.y + self.padding_y + ny * inner_h
+  return sx, sy
 end
 
 ---@param floor Floor
@@ -231,15 +248,15 @@ function Minimap:draw()
 
     local clipped = self:_clip_edge_to_x_window(from_pos, to_pos, bounds.min_x, bounds.max_x)
     if clipped then
-      local fx, fy = MapUtils.world_to_view(clipped.x1, clipped.y1, bounds, self.x, self.y, self.width, self.height, self.padding)
-      local tx, ty = MapUtils.world_to_view(clipped.x2, clipped.y2, bounds, self.x, self.y, self.width, self.height, self.padding)
+      local fx, fy = self:_world_to_minimap(clipped.x1, clipped.y1, bounds)
+      local tx, ty = self:_world_to_minimap(clipped.x2, clipped.y2, bounds)
       love.graphics.line(fx, fy, tx, ty)
     end
   end
 
   for _, node in ipairs(visible_nodes) do
     local pos = node:get_position()
-    local mx, my = MapUtils.world_to_view(pos.x, pos.y, bounds, self.x, self.y, self.width, self.height, self.padding)
+    local mx, my = self:_world_to_minimap(pos.x, pos.y, bounds)
     local alpha = node:is_completed() and 0.4 or 0.9
 
     local color, _, is_boss = MapUtils.get_node_visual(node)

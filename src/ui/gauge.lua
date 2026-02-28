@@ -56,10 +56,13 @@ function Gauge:draw()
 	-- 라벨 텍스트 표시
 	love.graphics.setColor({1, 1, 1})  -- 흰색
 	local display_label = i18n.t(self.label)
+	local font = love.graphics.getFont()
+	local text_height = font:getHeight()
+	local text_y = self.y + (self.height - text_height) * 0.5 - 1
 	love.graphics.print(
 		string.format("%s: %d/%d", display_label, self.current_value, self.max_value),
 		self.x + 5,
-		self.y + (self.height - 10) / 2
+		text_y
 	)
 end
 

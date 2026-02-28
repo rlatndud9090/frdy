@@ -113,7 +113,7 @@ function GameScene:initialize()
   self.mana_gauge = Gauge:new(20, 60, 200, 30, "gauge.mana", {0, 0.5, 1})
   self.mana_gauge:set_value(self.mana_manager:get_current(), self.mana_manager:get_max())
 
-  self.minimap = Minimap:new(1280 - 220, 16, 200, 100)
+  self.minimap = Minimap:new(1280 - 196, 16, 180, 100)
   self.minimap:set_map_data(floor, self.current_node)
   self.minimap:set_on_click(function()
     self:_toggle_map_overlay()

@@ -18,7 +18,6 @@ local SpellKeywordCatalog = require("src.spell.spell_keyword_catalog")
 ---@field hovered_spell_index number|nil
 ---@field suspicion_gauge Gauge
 ---@field mana_gauge Gauge
----@field hero_hp_gauge Gauge
 ---@field confirm_button Button
 ---@field reset_button Button
 local SpellBookOverlay = class("SpellBookOverlay", UIElement)
@@ -26,12 +25,12 @@ local SpellBookOverlay = class("SpellBookOverlay", UIElement)
 -- Constants
 local TAB_NAMES = {"all", "insert"}
 local TAB_LABEL_KEYS = {"spell.tab.all", "spell.tab.insert"}
-local TAB_Y = 125
+local TAB_Y = 98
 local TAB_HEIGHT = 32
 local TAB_X = 15
 local TAB_WIDTH = 250
-local SPELL_LIST_Y = 162
-local SPELL_LIST_HEIGHT = 500
+local SPELL_LIST_Y = 136
+local SPELL_LIST_HEIGHT = 526
 local SPELL_ITEM_HEIGHT = 52
 local SPELL_ITEM_SPACING = 4
 local SPELL_ITEM_X = 15
@@ -55,7 +54,6 @@ function SpellBookOverlay:initialize()
   -- Gauges (absolute coordinates)
   self.suspicion_gauge = Gauge:new(20, 15, 240, 22, "gauge.suspicion", {1, 0, 0})
   self.mana_gauge = Gauge:new(20, 42, 240, 22, "gauge.mana", {0, 0.5, 1})
-  self.hero_hp_gauge = Gauge:new(20, 69, 240, 22, "entity.hero", {0.2, 0.8, 0.2})
 
   -- Buttons
   self.confirm_button = Button:new(15, 668, 120, 32, "ui.confirm")
@@ -141,10 +139,6 @@ function SpellBookOverlay:update(dt)
   if self.mana_manager then
     self.mana_gauge:set_value(self.mana_manager:get_current(), self.mana_manager:get_max())
   end
-  if self.hero then
-    self.hero_hp_gauge:set_value(self.hero:get_hp(), self.hero:get_max_hp())
-  end
-
   -- Update hover state
   local mx, my = love.mouse.getPosition()
   self.hovered_spell_index = nil
@@ -189,11 +183,10 @@ end
 function SpellBookOverlay:_draw_status_section()
   self.suspicion_gauge:draw()
   self.mana_gauge:draw()
-  self.hero_hp_gauge:draw()
 
   -- Phase text
   love.graphics.setColor(0.7, 0.7, 0.7, 0.8)
-  love.graphics.print("Planning", 20, 96)
+  love.graphics.print("Planning", 20, 72)
 end
 
 function SpellBookOverlay:_draw_tab_bar()
@@ -220,7 +213,10 @@ function SpellBookOverlay:_draw_tab_bar()
 
     -- Tab label
     love.graphics.setColor(1, 1, 1, is_active and 1 or 0.6)
-    love.graphics.printf(i18n.t(TAB_LABEL_KEYS[i]), tx, TAB_Y + 8, tab_w, "center")
+    local tab_label = i18n.t(TAB_LABEL_KEYS[i])
+    local font_h = love.graphics.getFont():getHeight()
+    local text_y = TAB_Y + (TAB_HEIGHT - font_h) * 0.5 - 1
+    love.graphics.printf(tab_label, tx, text_y, tab_w, "center")
   end
 end
 
@@ -304,30 +300,30 @@ function SpellBookOverlay:_draw_spell_item(spell, index, y)
 
   -- Spell name
   love.graphics.setColor(1, 1, 1, text_alpha)
-  love.graphics.print(spell:get_name(), SPELL_ITEM_X + 30, y + 6)
+  love.graphics.print(spell:get_name(), SPELL_ITEM_X + 30, y + 4)
 
   -- Status label (right-aligned)
   if status == "reserved" then
     local count = self.spell_book and self.spell_book:get_reserved_count(spell) or 0
     love.graphics.setColor(0.8, 0.4, 1, text_alpha * 0.8)
-    love.graphics.printf(i18n.t("spell.reserved") .. " x" .. tostring(count), SPELL_ITEM_X, y + 6, SPELL_ITEM_WIDTH - 8, "right")
+    love.graphics.printf(i18n.t("spell.reserved") .. " x" .. tostring(count), SPELL_ITEM_X, y + 4, SPELL_ITEM_WIDTH - 8, "right")
   elseif status == "no_mana" then
     love.graphics.setColor(0.5, 0.5, 0.5, text_alpha * 0.8)
-    love.graphics.printf("MANA", SPELL_ITEM_X, y + 6, SPELL_ITEM_WIDTH - 8, "right")
+    love.graphics.printf("MANA", SPELL_ITEM_X, y + 4, SPELL_ITEM_WIDTH - 8, "right")
   end
 
   -- Row 2: mana cost + suspicion delta
   love.graphics.setColor(0, 0.5, 1, text_alpha * 0.8)
-  love.graphics.print(spell:get_cost() .. " mana", SPELL_ITEM_X + 30, y + 28)
+  love.graphics.print(spell:get_cost() .. " mana", SPELL_ITEM_X + 30, y + 25)
 
   local susp = spell.get_suspicion_abs and spell:get_suspicion_abs() or math.abs(spell:get_suspicion_delta())
   local target_mode = spell.get_target_mode and spell:get_target_mode() or "char_single"
   if susp ~= 0 and (target_mode == "char_single" or target_mode == "char_faction" or target_mode == "char_all") then
     love.graphics.setColor(1, 0.85, 0.35, text_alpha * 0.85)
-    love.graphics.print("susp: ±" .. math.abs(susp), SPELL_ITEM_X + 120, y + 28)
+    love.graphics.print("susp: ±" .. math.abs(susp), SPELL_ITEM_X + 120, y + 25)
   elseif susp ~= 0 and (target_mode == "action_next_n" or target_mode == "action_next_all") then
     love.graphics.setColor(1, 0.85, 0.35, text_alpha * 0.85)
-    love.graphics.print(i18n.t("spell.suspicion_per_action", {value = math.abs(susp)}), SPELL_ITEM_X + 120, y + 28)
+    love.graphics.print(i18n.t("spell.suspicion_per_action", {value = math.abs(susp)}), SPELL_ITEM_X + 120, y + 25)
   end
 end
 
@@ -355,7 +351,7 @@ function SpellBookOverlay:_draw_hovered_spell_details()
   local panel_x = 280
   local panel_y = 510
   local panel_w = 520
-  local panel_h = 190
+  local panel_h = 210
 
   love.graphics.setColor(0.08, 0.08, 0.12, 0.92)
   love.graphics.rectangle("fill", panel_x, panel_y, panel_w, panel_h, 8, 8)
@@ -368,27 +364,45 @@ function SpellBookOverlay:_draw_hovered_spell_details()
   love.graphics.setColor(0.85, 0.9, 1, 0.92)
   love.graphics.printf(spell:get_description(), panel_x + 12, panel_y + 32, panel_w - 24, "left")
 
-  love.graphics.setColor(0.95, 0.85, 0.4, 0.95)
-  love.graphics.printf(i18n.t("spell.keywords"), panel_x + 12, panel_y + 78, panel_w - 24, "left")
+  local cursor_y = panel_y + 78
+  local status_entries = spell.get_status_entries and spell:get_status_entries() or {}
+  if #status_entries > 0 then
+    love.graphics.setColor(0.95, 0.85, 0.4, 0.95)
+    love.graphics.printf(i18n.t("spell.statuses"), panel_x + 12, cursor_y, panel_w - 24, "left")
+    cursor_y = cursor_y + 22
+
+    for _, status in ipairs(status_entries) do
+      if cursor_y > panel_y + panel_h - 18 then
+        break
+      end
+
+      love.graphics.setColor(0.9, 0.92, 1, 0.92)
+      love.graphics.printf("[" .. status.title .. "] " .. status.description, panel_x + 12, cursor_y, panel_w - 24, "left")
+      cursor_y = cursor_y + 18
+    end
+  end
 
   local keywords = spell.get_keywords and spell:get_keywords() or {}
   if #keywords == 0 then
-    love.graphics.setColor(0.7, 0.7, 0.75, 0.85)
-    love.graphics.printf(i18n.t("spell.no_keyword"), panel_x + 12, panel_y + 100, panel_w - 24, "left")
     return
   end
 
-  local line_y = panel_y + 100
+  love.graphics.setColor(0.95, 0.85, 0.4, 0.95)
+  love.graphics.printf(i18n.t("spell.keywords"), panel_x + 12, cursor_y, panel_w - 24, "left")
+  cursor_y = cursor_y + 22
+
   for _, keyword in ipairs(keywords) do
-    if line_y > panel_y + panel_h - 18 then
+    if cursor_y > panel_y + panel_h - 18 then
       break
     end
 
-    local title = SpellKeywordCatalog.get_title(keyword)
-    local description = SpellKeywordCatalog.get_description(keyword)
-    love.graphics.setColor(0.9, 0.92, 1, 0.92)
-    love.graphics.printf("[" .. title .. "] " .. description, panel_x + 12, line_y, panel_w - 24, "left")
-    line_y = line_y + 18
+    if SpellKeywordCatalog.get(keyword) then
+      local title = SpellKeywordCatalog.get_title(keyword)
+      local description = SpellKeywordCatalog.get_description(keyword)
+      love.graphics.setColor(0.9, 0.92, 1, 0.92)
+      love.graphics.printf("[" .. title .. "] " .. description, panel_x + 12, cursor_y, panel_w - 24, "left")
+      cursor_y = cursor_y + 18
+    end
   end
 end
 

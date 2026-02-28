@@ -42,7 +42,7 @@ function CombatHandler:initialize()
   self.suspicion_manager = nil
 
   -- UI
-  self.hero_gauge = Gauge:new(50, 520, 200, 25, "entity.hero", {0.2, 0.8, 0.2})
+  self.hero_gauge = Gauge:new(0, 0, 180, 20, "entity.hero", {0.2, 0.8, 0.2})
   self.enemy_gauges = {}
 
   -- SpellBook Overlay (replaces SpellPanel + confirm/reset buttons)
@@ -282,7 +282,22 @@ function CombatHandler:draw_world()
     end
   end
 
+  self:_draw_hero_world_gauge()
+
   love.graphics.setColor(1, 1, 1, 1)
+end
+
+---@return nil
+function CombatHandler:_draw_hero_world_gauge()
+  local hero = self.combat_manager:get_hero()
+  if not hero or not hero:is_alive() then
+    return
+  end
+
+  local hx, hy = self:_get_hero_world_position()
+  self.hero_gauge.x = hx - self.hero_gauge.width * 0.5
+  self.hero_gauge.y = hy - 54
+  self.hero_gauge:draw()
 end
 
 function CombatHandler:draw_ui()
@@ -325,7 +340,6 @@ function CombatHandler:draw_ui()
   end
 
   -- Gauges
-  self.hero_gauge:draw()
   for _, g in ipairs(self.enemy_gauges) do
     g:draw()
   end
@@ -548,6 +562,9 @@ function CombatHandler:_get_insert_target_scope(spell)
   if mode == "char_faction" then
     return "faction"
   end
+  if mode == "field" then
+    return "action"
+  end
   if mode == "action_next_n" or mode == "action_next_all" then
     return "action"
   end
@@ -666,6 +683,11 @@ end
 ---@return table|nil
 function CombatHandler:_build_action_target_payload(spell)
   local mode = spell:get_target_mode()
+  if mode == "field" then
+    return {
+      target_mode = mode,
+    }
+  end
   if mode == "action_next_all" then
     return {
       target_mode = mode,
