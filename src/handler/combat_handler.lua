@@ -28,7 +28,9 @@ local i18n = require('src.i18n.init')
 ---@field insert_selection_phase string "IDLE"|"SELECT_TARGET"|"SELECT_TIMING"
 ---@field pending_insert_spell Spell|nil
 ---@field pending_insert_target Entity|nil
----@field hovered_insert_target Enemy|nil
+---@field hovered_insert_target Entity|nil
+---@field hero_world_x number
+---@field hero_world_y number
 local CombatHandler = class('CombatHandler')
 
 function CombatHandler:initialize()
@@ -85,6 +87,8 @@ function CombatHandler:initialize()
   self.pending_insert_spell = nil
   self.pending_insert_target = nil
   self.hovered_insert_target = nil
+  self.hero_world_x = 0
+  self.hero_world_y = 0
 end
 
 function CombatHandler:set_on_combat_end(callback)
@@ -109,6 +113,11 @@ function CombatHandler:start_combat(hero, enemies, spell_book, mana_manager, sus
   self.suspicion_manager = suspicion_manager
   self.combat_log = {}
   self:_clear_insert_selection()
+
+  if self.camera then
+    self.hero_world_x = self.camera.target_x or self.camera.x or self.hero_world_x
+    self.hero_world_y = self.camera.target_y or self.camera.y or self.hero_world_y
+  end
 
   self.combat_manager:start_combat(hero, enemies)
   self.combat_manager:set_suspicion_manager(suspicion_manager)
@@ -228,6 +237,20 @@ function CombatHandler:draw_world()
       end
     end
   end
+
+  local hero = self.combat_manager:get_hero()
+  if self.insert_selection_phase == "SELECT_TARGET" and hero and self.hovered_insert_target == hero then
+    local hx, hy = self:_get_hero_world_position()
+    love.graphics.setColor(1, 0.9, 0.2, 1)
+    love.graphics.setLineWidth(3)
+    love.graphics.circle('line', hx, hy, 26)
+    love.graphics.setLineWidth(1)
+    love.graphics.polygon('fill',
+      hx, hy - 40,
+      hx - 10, hy - 60,
+      hx + 10, hy - 60)
+  end
+
   love.graphics.setColor(1, 1, 1, 1)
 end
 
@@ -383,10 +406,9 @@ function CombatHandler:_begin_insert_selection(spell)
   self.pending_insert_target = nil
   self.hovered_insert_target = nil
 
-  if self:_spell_requires_enemy_target(spell) then
-    local tm = self.combat_manager:get_turn_manager()
-    local living = tm and tm:get_living_enemies() or {}
-    if #living == 0 then
+  local target_mode = spell:get_target_mode()
+  if self:_spell_requires_target_selection(spell) then
+    if not self:_has_available_target_for_mode(target_mode) then
       self.spell_book:unreserve(spell)
       spell:unreserve(self.mana_manager)
       self:_clear_insert_selection()
@@ -404,22 +426,44 @@ end
 
 ---@param spell Spell
 ---@return boolean
-function CombatHandler:_spell_requires_enemy_target(spell)
-  local effect = spell:get_effect()
-  if not effect then return false end
-  return effect.type == "damage" or effect.type == "debuff_attack" or effect.type == "debuff_speed"
+function CombatHandler:_spell_requires_target_selection(spell)
+  local mode = spell:get_target_mode()
+  return mode == "enemy" or mode == "any"
+end
+
+---@param mode string
+---@return boolean
+function CombatHandler:_has_available_target_for_mode(mode)
+  local hero = self.combat_manager:get_hero()
+  local has_hero = hero and hero:is_alive() or false
+  local tm = self.combat_manager:get_turn_manager()
+  local living = tm and tm:get_living_enemies() or {}
+  local has_enemy = #living > 0
+
+  if mode == "enemy" then
+    return has_enemy
+  end
+  if mode == "any" then
+    return has_hero or has_enemy
+  end
+  return has_hero
 end
 
 ---@param spell Spell
 ---@return Entity|nil
 function CombatHandler:_get_default_insert_target(spell)
   local hero = self.combat_manager:get_hero()
-  local effect = spell:get_effect()
-  if effect and (effect.type == "damage" or effect.type == "debuff_attack" or effect.type == "debuff_speed") then
-    local tm = self.combat_manager:get_turn_manager()
-    local living = tm and tm:get_living_enemies() or {}
+  local tm = self.combat_manager:get_turn_manager()
+  local living = tm and tm:get_living_enemies() or {}
+  local mode = spell:get_target_mode()
+
+  if mode == "enemy" then
     return living[1]
   end
+  if mode == "any" then
+    return living[1] or (hero and hero:is_alive() and hero or nil)
+  end
+
   if hero and hero:is_alive() then
     return hero
   end
@@ -613,12 +657,24 @@ function CombatHandler:_update_insert_target_hover()
   if self.insert_selection_phase ~= "SELECT_TARGET" then
     return
   end
-  if not self.pending_insert_spell or not self:_spell_requires_enemy_target(self.pending_insert_spell) then
+  if not self.pending_insert_spell or not self:_spell_requires_target_selection(self.pending_insert_spell) then
     return
   end
 
   local mx, my = love.mouse.getPosition()
-  self.hovered_insert_target = self:_get_hovered_enemy_target(mx, my)
+  self.hovered_insert_target = self:_get_hovered_insert_target(mx, my, self.pending_insert_spell)
+end
+
+---@return number
+---@return number
+function CombatHandler:_get_hero_world_position()
+  if self.hero_world_x and self.hero_world_y then
+    return self.hero_world_x, self.hero_world_y
+  end
+  if self.camera then
+    return self.camera.target_x or self.camera.x, self.camera.target_y or self.camera.y
+  end
+  return 0, 0
 end
 
 ---@param sx number
@@ -634,29 +690,43 @@ end
 
 ---@param mx number
 ---@param my number
----@return Enemy|nil
-function CombatHandler:_get_hovered_enemy_target(mx, my)
+---@param spell Spell
+---@return Entity|nil
+function CombatHandler:_get_hovered_insert_target(mx, my, spell)
   local world_x, world_y = self:_screen_to_world(mx, my)
+  local mode = spell:get_target_mode()
+  local hero = self.combat_manager:get_hero()
   local enemies = self.combat_manager:get_enemies() or {}
-  local best_enemy = nil
+  local best_target = nil
   local best_dist2 = nil
   local hit_radius = 36
   local hit_radius2 = hit_radius * hit_radius
 
-  for i, enemy in ipairs(enemies) do
-    if enemy:is_alive() then
-      local ey = self.enemy_world_y + (i - 1) * 70
-      local dx = world_x - self.enemy_world_x
-      local dy = world_y - ey
-      local dist2 = dx * dx + dy * dy
-      if dist2 <= hit_radius2 and (not best_dist2 or dist2 < best_dist2) then
-        best_enemy = enemy
-        best_dist2 = dist2
+  local function try_target(target, tx, ty)
+    local dx = world_x - tx
+    local dy = world_y - ty
+    local dist2 = dx * dx + dy * dy
+    if dist2 <= hit_radius2 and (not best_dist2 or dist2 < best_dist2) then
+      best_target = target
+      best_dist2 = dist2
+    end
+  end
+
+  if (mode == "hero" or mode == "any") and hero and hero:is_alive() then
+    local hx, hy = self:_get_hero_world_position()
+    try_target(hero, hx, hy)
+  end
+
+  if mode == "enemy" or mode == "any" then
+    for i, enemy in ipairs(enemies) do
+      if enemy:is_alive() then
+        local ey = self.enemy_world_y + (i - 1) * 70
+        try_target(enemy, self.enemy_world_x, ey)
       end
     end
   end
 
-  return best_enemy
+  return best_target
 end
 
 --- Update gauges

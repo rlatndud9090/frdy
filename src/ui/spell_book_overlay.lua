@@ -318,7 +318,11 @@ function SpellBookOverlay:_draw_spell_item(spell, index, y)
   love.graphics.print(spell:get_cost() .. " mana", SPELL_ITEM_X + 30, y + 28)
 
   local susp = spell:get_suspicion_delta()
-  if susp > 0 then
+  local target_mode = spell.get_target_mode and spell:get_target_mode() or "hero"
+  if target_mode == "any" and susp ~= 0 then
+    love.graphics.setColor(1, 0.85, 0.35, text_alpha * 0.85)
+    love.graphics.print("susp: ±" .. math.abs(susp), SPELL_ITEM_X + 120, y + 28)
+  elseif susp > 0 then
     love.graphics.setColor(1, 0.3, 0.3, text_alpha * 0.8)
     love.graphics.print("susp: +" .. susp, SPELL_ITEM_X + 120, y + 28)
   elseif susp < 0 then

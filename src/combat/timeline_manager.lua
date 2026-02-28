@@ -186,6 +186,7 @@ function TimelineManager:insert_at(index, spell, predicted_action)
     type = "insert",
     index = index,
     spell = spell,
+    target = predicted_action and predicted_action.target or nil,
   })
   self:_recalculate_from(index)
 end
@@ -339,7 +340,11 @@ function TimelineManager:get_total_suspicion_preview()
   local total = 0
   for _, intervention in ipairs(self.interventions) do
     if intervention.spell then
-      total = total + (intervention.spell:get_suspicion_delta() or 0)
+      local delta = intervention.spell:get_suspicion_delta() or 0
+      if intervention.type == "insert" and intervention.spell.get_signed_suspicion_delta then
+        delta = intervention.spell:get_signed_suspicion_delta(intervention.target, self.hero)
+      end
+      total = total + delta
     end
   end
   return total

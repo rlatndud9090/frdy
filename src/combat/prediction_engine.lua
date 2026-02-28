@@ -256,7 +256,12 @@ function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
     return scaffold.target
   end
 
-  if effect.type == 'damage' or effect.type == 'debuff_attack' or effect.type == 'debuff_speed' then
+  if effect.type == 'global' then
+    return hero
+  end
+
+  local target_mode = spell.get_target_mode and spell:get_target_mode() or "hero"
+  if target_mode == "enemy" then
     local target = scaffold.target
     if target and target ~= hero and target.is_alive and target:is_alive() then
       return target
@@ -264,8 +269,27 @@ function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
     return self:_get_first_living(enemies)
   end
 
-  if effect.type == 'global' then
-    return hero
+  if target_mode == "hero" then
+    if hero:is_alive() then
+      return hero
+    end
+    return nil
+  end
+
+  if target_mode == "any" then
+    local target = scaffold.target
+    if target and target.is_alive and target:is_alive() then
+      return target
+    end
+
+    local enemy = self:_get_first_living(enemies)
+    if enemy then
+      return enemy
+    end
+    if hero:is_alive() then
+      return hero
+    end
+    return nil
   end
 
   local target = scaffold.target
