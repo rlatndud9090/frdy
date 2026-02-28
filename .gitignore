@@ -44,3 +44,6 @@ config.local.lua
 
 # .claude - ignore everything
 .claude/
+
+# .codex - local Codex environment data
+.codex/

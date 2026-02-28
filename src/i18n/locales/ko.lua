@@ -8,6 +8,11 @@ return {
   ["ui.minimap"] = "미니맵",
   ["ui.end_turn"] = "턴 종료",
   ["ui.select_next_path"] = "다음 경로를 선택하세요",
+  ["ui.path_prediction_hint"] = "용사의 예상 경로를 확인하고, 필요하면 정신 조종으로 개입하세요",
+  ["ui.event_prediction_hint"] = "용사의 예상 선택을 확인하고, 필요하면 정신 조종으로 개입하세요",
+  ["ui.hero_predicted_path"] = "용사 예상 경로: {label}",
+  ["ui.hero_predicted_choice"] = "용사 예상 선택: {label}",
+  ["ui.mental_stage"] = "용사 정신력 단계: {stage}/{max}",
   ["ui.close_hint"] = "M 키로 닫기",
   ["ui.settings"] = "설정",
   ["ui.language"] = "언어",
@@ -61,6 +66,12 @@ return {
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",
   ["suspicion.decrease"] = "의심 {value}",
+
+  -- Mind control
+  ["control.blocked_by_mental"] = "정신력이 높아 조종 불가 ({stage}단계 / 허용 {max}단계)",
+  ["control.path_intervened"] = "정신 조종으로 경로를 변경했습니다",
+  ["control.event_intervened"] = "정신 조종으로 선택지를 변경했습니다",
+  ["control.selection_reset"] = "용사의 원래 선택으로 되돌렸습니다",
 
   -- Enemies
   ["enemy.slime"] = "슬라임",
