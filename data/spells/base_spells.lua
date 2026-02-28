@@ -8,6 +8,8 @@ return {
     cost = 15,
     suspicion_delta = 5,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "hero",
     effect = SpellEffect.heal(10)
   },
   {
@@ -17,6 +19,8 @@ return {
     cost = 25,
     suspicion_delta = 10,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "hero",
     effect = SpellEffect.heal(25)
   },
   {
@@ -26,15 +30,19 @@ return {
     cost = 20,
     suspicion_delta = 8,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "enemy",
     effect = SpellEffect.damage(15)
   },
   {
     id = "war_cry",
     name = "War Cry",
-    description = "Buff hero attack by 3.",
+    description = "Buff a faction's attack by 3.",
     cost = 15,
     suspicion_delta = 6,
     timeline_type = "insert",
+    target_scope = "faction",
+    target_side = "both",
     effect = SpellEffect.buff_attack(3)
   },
   {
@@ -44,6 +52,8 @@ return {
     cost = 10,
     suspicion_delta = 4,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "both",
     effect = SpellEffect.buff_speed(5)
   },
   {
@@ -53,6 +63,8 @@ return {
     cost = 10,
     suspicion_delta = 3,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "enemy",
     effect = SpellEffect.debuff_speed(4)
   },
   {
@@ -62,6 +74,8 @@ return {
     cost = 0,
     suspicion_delta = -8,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "hero",
     effect = SpellEffect.hinder(5)
   },
   {
@@ -71,6 +85,8 @@ return {
     cost = 12,
     suspicion_delta = 3,
     timeline_type = "insert",
+    target_scope = "faction",
+    target_side = "enemy",
     effect = SpellEffect.debuff_attack(3)
   },
   {
@@ -80,6 +96,8 @@ return {
     cost = 10,
     suspicion_delta = -15,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "hero",
     effect = SpellEffect.hinder(10)
   },
   {
@@ -89,6 +107,8 @@ return {
     cost = 0,
     suspicion_delta = 3,
     timeline_type = "insert",
+    target_scope = "single",
+    target_side = "hero",
     effect = SpellEffect.heal(5)
   },
   -- Manipulation spells

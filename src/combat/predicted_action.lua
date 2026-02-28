@@ -4,7 +4,7 @@ local class = require('lib.middleclass')
 ---@field actor Entity
 ---@field pattern ActionPattern
 ---@field action_type string "attack"|"defend"|"heal"|"spell"
----@field target Entity|nil
+---@field target Entity|table|nil
 ---@field value number
 ---@field source_type string "hero"|"enemy"|"spell"
 ---@field spell Spell|nil

@@ -244,7 +244,7 @@ end
 ---@param scaffold PredictedAction
 ---@param hero Hero
 ---@param enemies Enemy[]
----@return Entity|nil
+---@return Entity|table|nil
 function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
   local spell = scaffold.spell
   if not spell then
@@ -258,6 +258,26 @@ function PredictionEngine:_resolve_spell_target(scaffold, hero, enemies)
 
   if effect.type == 'global' then
     return hero
+  end
+
+  if type(scaffold.target) == "table" and scaffold.target.entities then
+    local filtered = {}
+    for _, entity in ipairs(scaffold.target.entities) do
+      if entity and (not entity.is_alive or entity:is_alive()) then
+        filtered[#filtered + 1] = entity
+      end
+    end
+    if #filtered == 0 then
+      return nil
+    end
+
+    local payload = scaffold.target
+    payload.entities = filtered
+    if payload.primary and payload.primary.is_alive and not payload.primary:is_alive() then
+      payload.primary = nil
+    end
+    payload.primary = payload.primary or filtered[1]
+    return payload
   end
 
   local target_mode = spell.get_target_mode and spell:get_target_mode() or "hero"
