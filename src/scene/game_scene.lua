@@ -407,6 +407,8 @@ function GameScene:_enter_combat()
 
   -- combat_handler에 전투 데이터 전달
   self.combat_handler:start_combat(self.hero, enemies, self.spell_book, self.mana_manager, self.suspicion_manager)
+  self.combat_handler.hero_world_x = self.hero_world_x
+  self.combat_handler.hero_world_y = self.hero_world_y
 
   -- 애니메이션
   self.combat_handler.enemy_world_x = self.hero_world_x + 800

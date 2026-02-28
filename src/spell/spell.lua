@@ -6,10 +6,26 @@ local class = require('lib.middleclass')
 ---@field description string
 ---@field cost number
 ---@field suspicion_delta number
+---@field target_mode string "hero"|"enemy"|"any"
 ---@field effect SpellEffectObject
 ---@field timeline_type string "insert"|"manipulate_swap"|"manipulate_remove"|"manipulate_delay"|"manipulate_modify"|"global"
 ---@field new fun(self: Spell, data: table): Spell
 local Spell = class('Spell')
+
+---@param effect SpellEffectObject|nil
+---@return string
+local function infer_target_mode(effect)
+  if not effect then
+    return "hero"
+  end
+
+  if effect.type == "damage" or effect.type == "debuff_attack" or effect.type == "debuff_speed" then
+    -- Enemy-target spells are selectable on both sides in planning.
+    return "any"
+  end
+
+  return "hero"
+end
 
 --- Initialize a spell from a data table
 ---@param data table
@@ -20,6 +36,7 @@ function Spell:initialize(data)
   self.cost = data.cost
   self.suspicion_delta = data.suspicion_delta
   self.effect = data.effect
+  self.target_mode = data.target_mode or infer_target_mode(self.effect)
   self.timeline_type = data.timeline_type or "insert"
 end
 
@@ -46,6 +63,31 @@ end
 ---@return number
 function Spell:get_suspicion_delta()
   return self.suspicion_delta
+end
+
+---@return string
+function Spell:get_target_mode()
+  return self.target_mode
+end
+
+---@param target any
+---@param hero any
+---@return number
+function Spell:get_signed_suspicion_delta(target, hero)
+  local base = self.suspicion_delta or 0
+  if base == 0 then
+    return 0
+  end
+
+  if self.target_mode == "any" then
+    local magnitude = math.abs(base)
+    if target and hero and target == hero then
+      return -magnitude
+    end
+    return magnitude
+  end
+
+  return base
 end
 
 ---@return SpellEffectObject
@@ -84,11 +126,12 @@ end
 function Spell:execute(target, context)
   self.effect:apply(target, context)
 
-  if context.suspicion_manager then
-    if self.suspicion_delta > 0 then
-      context.suspicion_manager:add(self.suspicion_delta)
-    elseif self.suspicion_delta < 0 then
-      context.suspicion_manager:reduce(math.abs(self.suspicion_delta))
+  if context and context.suspicion_manager then
+    local delta = self:get_signed_suspicion_delta(target, context.hero)
+    if delta > 0 then
+      context.suspicion_manager:add(delta)
+    elseif delta < 0 then
+      context.suspicion_manager:reduce(math.abs(delta))
     end
   end
 end
