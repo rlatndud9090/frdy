@@ -17,6 +17,8 @@ local SpellBook = require('src.spell.spell_book')
 local ManaManager = require('src.spell.mana_manager')
 local SuspicionManager = require('src.spell.suspicion_manager')
 local EventManager = require('src.event.event_manager')
+local RewardManager = require('src.reward.reward_manager')
+local RewardHandler = require('src.handler.reward_handler')
 local Game = require('src.core.game')
 local i18n = require('src.i18n.init')
 
@@ -31,6 +33,7 @@ local EXITING_COMBAT = "EXITING_COMBAT"
 local ENTERING_EVENT = "ENTERING_EVENT"
 local EVENT = "EVENT"
 local EXITING_EVENT = "EXITING_EVENT"
+local SETTLEMENT = "SETTLEMENT"
 local EDGE_SELECT = "EDGE_SELECT"
 local START_NODE_SELECT = "START_NODE_SELECT"
 
@@ -48,8 +51,10 @@ local START_NODE_SELECT = "START_NODE_SELECT"
 ---@field suspicion_manager SuspicionManager
 ---@field event_manager EventManager
 ---@field floor_enemies table
+---@field reward_manager RewardManager
 ---@field combat_handler CombatHandler
 ---@field event_handler EventHandler
+---@field reward_handler RewardHandler
 ---@field edge_select_handler EdgeSelectHandler|nil
 ---@field overlay_alpha number
 ---@field suspicion_gauge Gauge
@@ -88,9 +93,17 @@ function GameScene:initialize()
 
   -- 마법서 생성
   local base_spells_data = require('data.spells.base_spells')
+  local starter_spell_ids = require('data.spells.starter_spell_ids')
+  local starter_lookup = {}
+  for _, spell_id in ipairs(starter_spell_ids) do
+    starter_lookup[spell_id] = true
+  end
+
   local spells = {}
   for _, spell_data in ipairs(base_spells_data) do
-    table.insert(spells, Spell:new(spell_data))
+    if starter_lookup[spell_data.id] then
+      table.insert(spells, Spell:new(spell_data))
+    end
   end
   self.spell_book = SpellBook:new(spells)
 
@@ -98,6 +111,7 @@ function GameScene:initialize()
   local event_bus = Game:getInstance().event_bus
   self.mana_manager = ManaManager:new(100)
   self.suspicion_manager = SuspicionManager:new(event_bus)
+  self.reward_manager = RewardManager:new(self.hero, self.spell_book, self.mana_manager, self.suspicion_manager)
 
   -- 이벤트 매니저 생성
   self.event_manager = EventManager:new()
@@ -133,6 +147,7 @@ function GameScene:initialize()
   self.event_handler:set_on_event_end(function()
     self:_on_event_ended()
   end)
+  self.reward_handler = RewardHandler:new()
 
   self.edge_select_handler = nil
 
@@ -164,6 +179,8 @@ function GameScene:update(dt)
     self.combat_handler:update(dt)
   elseif self.phase == EVENT then
     self.event_handler:update(dt)
+  elseif self.phase == SETTLEMENT then
+    self.reward_handler:update(dt)
   elseif self.phase == EDGE_SELECT then
     if self.edge_select_handler then
       self.edge_select_handler:update(dt)
@@ -229,6 +246,19 @@ function GameScene:_draw_ui()
     -- 용사 HP (텍스트)
     love.graphics.setColor(0.2, 0.8, 0.2, 1)
     love.graphics.print(i18n.t("gauge.hero_hp", {current = self.hero:get_hp(), max = self.hero:get_max_hp()}), 20, 100)
+    love.graphics.setColor(0.82, 0.82, 0.95, 1)
+    love.graphics.print(i18n.t("progress.hero_level", {level = self.hero:get_level()}), 20, 122)
+    love.graphics.print(
+      i18n.t("progress.hero_xp", {current = self.hero:get_experience(), max = self.hero:get_next_level_experience()}),
+      20,
+      144
+    )
+    local awakening = self.reward_manager:get_demon_awakening()
+    love.graphics.print(
+      i18n.t("progress.demon_awaken", {current = awakening:get_progress(), max = awakening:get_threshold()}),
+      20,
+      166
+    )
     love.graphics.setColor(1, 1, 1)
   end
 
@@ -250,6 +280,10 @@ function GameScene:_draw_ui()
     if self.edge_select_handler then
       self.edge_select_handler:draw()
     end
+  end
+
+  if self.phase == SETTLEMENT then
+    self.reward_handler:draw()
   end
 
   -- 디버그: 현재 페이즈 표시
@@ -283,6 +317,10 @@ function GameScene:keypressed(key)
     return
   end
 
+  if self.phase == SETTLEMENT then
+    return
+  end
+
   if key == "escape" or key == "tab" then
     self.settings_overlay:open()
     return
@@ -309,6 +347,11 @@ function GameScene:mousepressed(x, y, button)
 
   if self.phase == COMBAT and self.combat_handler:is_input_locked() then
     self.combat_handler:mousepressed(x, y, button)
+    return
+  end
+
+  if self.phase == SETTLEMENT then
+    self.reward_handler:mousepressed(x, y, button)
     return
   end
 
@@ -410,7 +453,14 @@ function GameScene:_enter_combat()
   local enemies = self:_create_enemies()
 
   -- combat_handler에 전투 데이터 전달
-  self.combat_handler:start_combat(self.hero, enemies, self.spell_book, self.mana_manager, self.suspicion_manager)
+  self.combat_handler:start_combat(
+    self.hero,
+    enemies,
+    self.spell_book,
+    self.mana_manager,
+    self.suspicion_manager,
+    self.reward_manager
+  )
   self.combat_handler.hero_world_x = self.hero_world_x
   self.combat_handler.hero_world_y = self.hero_world_y
 
@@ -450,6 +500,23 @@ function GameScene:_create_enemies()
       local data = self.floor_enemies[key]
       table.insert(enemies, Enemy:new(data.name, data.stats, data.action_patterns))
     end
+
+    if node.is_elite and node:is_elite() then
+      local elite_enemies = {}
+      local elite_count = math.random(2, 3)
+      for _ = 1, elite_count do
+        local key = enemy_keys[math.random(#enemy_keys)]
+        local data = self.floor_enemies[key]
+        local stats = {
+          hp = math.max(1, math.floor((data.stats.hp or 1) * 1.4 + 0.5)),
+          attack = math.max(1, math.floor((data.stats.attack or 1) * 1.25 + 0.5)),
+          defense = math.max(0, math.floor((data.stats.defense or 0) * 1.2 + 0.5)),
+          speed = math.max(1, math.floor((data.stats.speed or 1) * 1.1 + 0.5)),
+        }
+        table.insert(elite_enemies, Enemy:new(data.name, stats, data.action_patterns))
+      end
+      return elite_enemies
+    end
   end
 
   return enemies
@@ -465,8 +532,7 @@ function GameScene:_on_combat_ended(result)
   self.mana_manager:recover_after_combat(30)
 
   if result == "victory" then
-    -- 용사 성장
-    self.hero:grow({exp = 30, hp_bonus = 0, attack_bonus = 0})
+    self.reward_manager:prepare_combat_settlement(result, self.current_node)
   elseif result == "defeat" then
     -- 패배 처리 (TODO: 게임 오버 화면)
     print(i18n.t("combat.defeat"))
@@ -482,7 +548,7 @@ function GameScene:_on_combat_ended(result)
       if result == "defeat" then
         return  -- 게임 오버 시 진행하지 않음
       end
-      self:_check_next_move()
+      self:_enter_settlement_or_continue()
     end)
 end
 
@@ -501,6 +567,10 @@ function GameScene:_enter_event()
   -- event_handler에 이벤트 데이터 전달
   self.event_handler:start_event(event, {
     hero = self.hero,
+    reward_manager = self.reward_manager,
+    spell_book = self.spell_book,
+    mana_manager = self.mana_manager,
+    suspicion_manager = self.suspicion_manager,
   })
 
   -- 애니메이션
@@ -525,8 +595,35 @@ function GameScene:_on_event_ended()
   flux.to(self.event_handler, 0.3, {panel_alpha = 0, panel_y = -200})
     :ease("quadin")
     :oncomplete(function()
-      self:_check_next_move()
+      self:_enter_settlement_or_continue()
     end)
+end
+
+---@return nil
+function GameScene:_enter_settlement_or_continue()
+  if self.reward_manager:has_pending_offers() then
+    self.phase = SETTLEMENT
+    self:_show_next_reward_offer()
+    return
+  end
+  self:_check_next_move()
+end
+
+---@return nil
+function GameScene:_show_next_reward_offer()
+  local offer = self.reward_manager:peek_offer()
+  if not offer then
+    self.phase = ARRIVING
+    self:_check_next_move()
+    return
+  end
+
+  self.reward_handler:start_offer(offer, {
+    hero = self.hero,
+  }, function(selected_option)
+    self.reward_manager:resolve_current_offer(selected_option)
+    self:_show_next_reward_offer()
+  end)
 end
 
 ---@param start_nodes Node[]

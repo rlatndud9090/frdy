@@ -95,6 +95,13 @@ function ActionPattern:get_preview(actor)
       value = bonus,
       description = i18n.t("intent.defense") .. " +" .. bonus,
     }
+  elseif self.type == "heal" then
+    local amount = self.params.amount or 0
+    return {
+      type = "heal",
+      value = amount,
+      description = i18n.t("intent.heal") .. " +" .. amount,
+    }
   else
     return {
       type = self.type,

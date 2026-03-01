@@ -121,6 +121,9 @@ end
 function EdgeSelectHandler:_edge_label(edge)
   local node_type = edge:get_to_node():get_type()
   if node_type == "combat" then
+    if edge:get_to_node().is_elite and edge:get_to_node():is_elite() then
+      return i18n.t("node.elite")
+    end
     return i18n.t("node.combat")
   elseif node_type == "event" then
     return i18n.t("node.event")

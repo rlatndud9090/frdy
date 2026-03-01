@@ -10,6 +10,9 @@ return {
   ["ui.select_next_path"] = "Select your next path",
   ["ui.path_prediction_hint"] = "Check the hero's predicted path and intervene with mind control if needed",
   ["ui.event_prediction_hint"] = "Check the hero's predicted choice and intervene with mind control if needed",
+  ["ui.settlement_title"] = "Settlement",
+  ["ui.reward_choose"] = "Reward: {category}",
+  ["ui.reward_predicted_choice"] = "Hero predicted choice: {label}",
   ["ui.hero_predicted_path"] = "Hero predicted path: {label}",
   ["ui.hero_predicted_choice"] = "Hero predicted choice: {label}",
   ["ui.mental_stage"] = "Hero mental stage: {stage}/{max}",
@@ -21,6 +24,9 @@ return {
   ["gauge.suspicion"] = "Suspicion",
   ["gauge.mana"] = "Mana",
   ["gauge.hero_hp"] = "Hero HP: {current}/{max}",
+  ["progress.hero_level"] = "Hero Level: {level}",
+  ["progress.hero_xp"] = "Hero XP: {current}/{max}",
+  ["progress.demon_awaken"] = "Awakening: {current}/{max}",
 
   -- Combat
   ["combat.in_combat"] = "In Combat",
@@ -56,6 +62,7 @@ return {
   ["entity.hero"] = "Hero",
   ["intent.attack"] = "Attack",
   ["intent.defense"] = "Defense",
+  ["intent.heal"] = "Heal",
 
   -- UI buttons
   ["ui.confirm"] = "Confirm",
@@ -136,6 +143,7 @@ return {
   ["control.blocked_by_mental"] = "Mind control blocked ({stage} / allowed up to {max})",
   ["control.path_intervened"] = "Path changed by mind control",
   ["control.event_intervened"] = "Choice changed by mind control",
+  ["control.reward_intervened"] = "Reward changed by mind control",
   ["control.selection_reset"] = "Reverted to hero's original choice",
 
   -- Enemies
@@ -147,7 +155,40 @@ return {
 
   -- Edge types
   ["node.combat"] = "Combat",
+  ["node.elite"] = "Elite",
   ["node.event"] = "Event",
+
+  -- Reward categories
+  ["reward.demon_spell"] = "Demon Spell",
+  ["reward.hero_pattern"] = "Hero Pattern",
+  ["reward.legendary_item"] = "Legendary Item",
+  ["reward.unknown"] = "Reward",
+  ["reward.option.obtain"] = "Gain {name}",
+  ["reward.option.upgrade"] = "Upgrade {name}",
+
+  -- Hero patterns
+  ["pattern.hero_attack.name"] = "Basic Attack",
+  ["pattern.hero_guard.name"] = "Emergency Guard",
+  ["pattern.hero_power_slash.name"] = "Power Slash",
+  ["pattern.hero_execute.name"] = "Execution Strike",
+  ["pattern.hero_guard_wall.name"] = "Guard Wall",
+  ["pattern.hero_second_wind.name"] = "Second Wind",
+  ["pattern.hero_steady_strike.name"] = "Steady Strike",
+  ["pattern.hero_iron_barrier.name"] = "Iron Barrier",
+
+  -- Legendary items
+  ["item.ember_crown.name"] = "Ember Crown",
+  ["item.ember_crown.desc"] = "Hero attack +2",
+  ["item.titan_heart.name"] = "Titan Heart",
+  ["item.titan_heart.desc"] = "Hero max HP +18",
+  ["item.gale_boots.name"] = "Gale Boots",
+  ["item.gale_boots.desc"] = "Hero speed +1.5",
+  ["item.mind_diacadem.name"] = "Mind Diadem",
+  ["item.mind_diacadem.desc"] = "Reward control stage limit +1",
+  ["item.duelist_seal.name"] = "Duelist Seal",
+  ["item.duelist_seal.desc"] = "Hero attack +1, speed +0.7",
+  ["item.fortress_core.name"] = "Fortress Core",
+  ["item.fortress_core.desc"] = "Hero max HP +10, attack +1",
 
   -- Events
   ["event.mysterious_spring.title"] = "Mysterious Spring",

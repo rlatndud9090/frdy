@@ -1,6 +1,7 @@
 local Entity = require('src.combat.entity')
 local ActionPattern = require('src.combat.action_pattern')
 local PatternResolver = require('src.combat.pattern_resolver')
+local reward_config = require('data.rewards.config')
 
 ---@class Hero : Entity
 ---@field level number
@@ -21,15 +22,25 @@ function Hero:initialize(stats)
   self.cooldown_tracker = {}
   self.mental_load = 0
 
-  -- Hero default patterns: always attack
+  -- Hero default patterns: fallback attack + low HP guard
   self.action_patterns = {
     ActionPattern:new({
       id = "hero_attack",
-      name = "attack",
+      name = "pattern.hero_attack.name",
       type = "attack",
       priority = 1,
-      condition = "always",
+      condition = "fallback",
       params = {damage_mult = 1.0},
+    }),
+    ActionPattern:new({
+      id = "hero_guard",
+      name = "pattern.hero_guard.name",
+      type = "defend",
+      priority = 20,
+      condition = "hp_below",
+      condition_params = {threshold = 0.6},
+      cooldown = 2,
+      params = {defense_bonus = 3},
     }),
   }
 end
@@ -37,6 +48,22 @@ end
 ---@return number
 function Hero:get_mental_load()
   return self.mental_load
+end
+
+---@return number
+function Hero:get_level()
+  return self.level
+end
+
+---@return number
+function Hero:get_experience()
+  return self.experience
+end
+
+---@return number
+function Hero:get_next_level_experience()
+  local base = reward_config.hero_level and reward_config.hero_level.base_threshold or 100
+  return base * self.level
 end
 
 ---@return number
@@ -54,6 +81,108 @@ function Hero:get_mental_stage()
     return 1
   end
   return stage
+end
+
+---@param pattern_id string
+---@return ActionPattern|nil
+function Hero:get_action_pattern(pattern_id)
+  for _, pattern in ipairs(self.action_patterns) do
+    if pattern.id == pattern_id then
+      return pattern
+    end
+  end
+  return nil
+end
+
+---@param pattern_id string
+---@return boolean
+function Hero:has_action_pattern(pattern_id)
+  return self:get_action_pattern(pattern_id) ~= nil
+end
+
+---@return number
+function Hero:get_action_pattern_count()
+  return #self.action_patterns
+end
+
+---@param protected_ids string[]|nil
+---@return string[]
+function Hero:get_removable_pattern_ids(protected_ids)
+  local protected_lookup = {}
+  for _, id in ipairs(protected_ids or {}) do
+    protected_lookup[id] = true
+  end
+
+  local ids = {}
+  for _, pattern in ipairs(self.action_patterns) do
+    if not protected_lookup[pattern.id] then
+      ids[#ids + 1] = pattern.id
+    end
+  end
+  return ids
+end
+
+---@param pattern_data table
+---@return boolean
+function Hero:add_action_pattern(pattern_data)
+  if not pattern_data or not pattern_data.id then
+    return false
+  end
+  if self:has_action_pattern(pattern_data.id) then
+    return false
+  end
+
+  local data = {}
+  for k, v in pairs(pattern_data) do
+    data[k] = v
+  end
+  local pattern = ActionPattern:new(data)
+  pattern.reward_rank = 1
+  pattern.max_reward_rank = (reward_config.pattern_upgrade and reward_config.pattern_upgrade.max_rank) or 5
+  self.action_patterns[#self.action_patterns + 1] = pattern
+  return true
+end
+
+---@param pattern_id string
+---@return boolean
+function Hero:remove_action_pattern(pattern_id)
+  for i = #self.action_patterns, 1, -1 do
+    if self.action_patterns[i].id == pattern_id then
+      table.remove(self.action_patterns, i)
+      return true
+    end
+  end
+  return false
+end
+
+---@param pattern_id string
+---@param upgrade_spec table|nil
+---@return boolean
+function Hero:upgrade_action_pattern(pattern_id, upgrade_spec)
+  local pattern = self:get_action_pattern(pattern_id)
+  if not pattern then
+    return false
+  end
+
+  local spec = upgrade_spec or reward_config.pattern_upgrade or {}
+  local max_rank = spec.max_rank or 5
+  local rank = pattern.reward_rank or 1
+  if rank >= max_rank then
+    return false
+  end
+
+  pattern.reward_rank = rank + 1
+  pattern.max_reward_rank = max_rank
+
+  if pattern.type == "attack" then
+    pattern.params.damage_mult = (pattern.params.damage_mult or 1.0) + (spec.attack_mult_delta or 0.15)
+  elseif pattern.type == "defend" then
+    pattern.params.defense_bonus = (pattern.params.defense_bonus or 0) + (spec.defense_bonus_delta or 1)
+  elseif pattern.type == "heal" then
+    pattern.params.amount = (pattern.params.amount or 0) + (spec.heal_amount_delta or 2)
+  end
+
+  return true
 end
 
 ---@param max_stage number
@@ -88,22 +217,57 @@ function Hero:get_intent()
   return nil
 end
 
----@param rewards {exp: number, hp_bonus: number, attack_bonus: number}
-function Hero:grow(rewards)
-  self.experience = self.experience + (rewards.exp or 0)
-  self.max_hp = self.max_hp + (rewards.hp_bonus or 0)
-  self.hp = math.min(self.max_hp, self.hp + (rewards.hp_bonus or 0))
-  self.attack = self.attack + (rewards.attack_bonus or 0)
+---@class HeroLevelResult
+---@field gained_levels number
+---@field crossed_milestones number
 
-  local threshold = 100 * self.level
+---@param amount number
+---@return HeroLevelResult
+function Hero:add_experience(amount)
+  local gained_levels = 0
+  local crossed_milestones = 0
+  local exp_gain = math.max(0, math.floor(amount or 0))
+  self.experience = self.experience + exp_gain
+
+  local base_threshold = reward_config.hero_level and reward_config.hero_level.base_threshold or 100
+  local hp_per_level = reward_config.hero_level and reward_config.hero_level.hp_per_level or 5
+  local attack_per_level = reward_config.hero_level and reward_config.hero_level.attack_per_level or 1
+  local speed_per_level = reward_config.hero_level and reward_config.hero_level.speed_per_level or 0.5
+  local milestone_interval = reward_config.hero_level and reward_config.hero_level.milestone_interval or 5
+
+  local threshold = base_threshold * self.level
   while self.experience >= threshold do
     self.experience = self.experience - threshold
     self.level = self.level + 1
-    self.max_hp = self.max_hp + 5
+    gained_levels = gained_levels + 1
+
+    self.max_hp = self.max_hp + hp_per_level
+    self.attack = self.attack + attack_per_level
+    self.speed = self.speed + speed_per_level
     self.hp = self.max_hp
-    self.attack = self.attack + 1
-    threshold = 100 * self.level
+
+    if self.level % milestone_interval == 0 then
+      crossed_milestones = crossed_milestones + 1
+    end
+
+    threshold = base_threshold * self.level
   end
+
+  return {
+    gained_levels = gained_levels,
+    crossed_milestones = crossed_milestones,
+  }
+end
+
+---@param rewards {exp?: number, hp_bonus?: number, attack_bonus?: number}
+---@return HeroLevelResult
+function Hero:grow(rewards)
+  rewards = rewards or {}
+  local level_result = self:add_experience(rewards.exp or 0)
+  self.max_hp = self.max_hp + (rewards.hp_bonus or 0)
+  self.hp = math.min(self.max_hp, self.hp + (rewards.hp_bonus or 0))
+  self.attack = self.attack + (rewards.attack_bonus or 0)
+  return level_result
 end
 
 function Hero:snapshot()

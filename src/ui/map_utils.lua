@@ -68,6 +68,8 @@ function MapUtils.get_node_visual(node)
   if node_type == "combat" then
     if node:is_boss() then
       return {0.8, 0.1, 0.1}, "BOSS", true
+    elseif node.is_elite and node:is_elite() then
+      return {0.9, 0.48, 0.16}, i18n.t("node.elite"), false
     else
       return {0.3, 0.3, 0.8}, i18n.t("node.combat"), false
     end

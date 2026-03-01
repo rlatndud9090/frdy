@@ -10,6 +10,10 @@ local i18n = require('src.i18n.init')
 
 ---@class EventHandlerContext
 ---@field hero Hero|nil
+---@field reward_manager RewardManager|nil
+---@field spell_book SpellBook|nil
+---@field mana_manager ManaManager|nil
+---@field suspicion_manager SuspicionManager|nil
 
 ---@class EventHandler
 ---@field event Event|nil

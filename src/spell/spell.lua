@@ -10,6 +10,8 @@ local StatusRegistry = require('src.combat.status_registry')
 ---@field cost number
 ---@field suspicion_delta number
 ---@field suspicion_abs number
+---@field reward_rank number
+---@field max_reward_rank number
 ---@field target_mode string "char_single"|"char_faction"|"char_all"|"action_next_n"|"action_next_all"|"field"
 ---@field target_n number|nil
 ---@field keywords string[]
@@ -168,6 +170,8 @@ function Spell:initialize(data)
   self.cost = data.cost
   self.suspicion_delta = data.suspicion_delta or data.suspicion_abs or 0
   self.suspicion_abs = math.abs(data.suspicion_abs or self.suspicion_delta or 0)
+  self.reward_rank = data.reward_rank or 1
+  self.max_reward_rank = data.max_reward_rank or 5
   self.effect = data.effect
   self.timeline_type = "insert"
 
@@ -404,7 +408,7 @@ end
 
 --- Execute spell effect (after confirmation, during EXECUTION phase)
 ---@param target any
----@param context {hero: any, enemies: any, suspicion_manager: SuspicionManager}
+---@param context {hero: any, enemies: any, suspicion_manager: SuspicionManager, demon_awakening?: DemonAwakening}
 function Spell:execute(target, context)
   if self.effect.type == "global" or self.effect.type == "apply_field_status" then
     self.effect:apply(target, context)
@@ -432,6 +436,10 @@ function Spell:execute(target, context)
     elseif delta < 0 then
       context.suspicion_manager:reduce(math.abs(delta))
     end
+  end
+
+  if context and context.demon_awakening then
+    context.demon_awakening:on_spell_executed(self.cost)
   end
 end
 

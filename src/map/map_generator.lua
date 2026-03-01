@@ -260,7 +260,7 @@ function MapGenerator:_build_start_column(floor, columns, floor_index, config)
 
   for row = 1, node_count do
     local y = y_positions[row]
-    local node = CombatNode:new(self:_generate_id(), {x = 0, y = y}, floor_index, nil, false)
+    local node = CombatNode:new(self:_generate_id(), {x = 0, y = y}, floor_index, nil, false, false)
     table.insert(columns[0], node)
     floor:add_node(node)
   end
@@ -286,7 +286,14 @@ function MapGenerator:_build_middle_columns(floor, columns, floor_index, config,
       local y = y_positions[row]
       local node = nil
       if math.random() < config.combat_ratio then
-        node = CombatNode:new(self:_generate_id(), {x = x, y = y}, floor_index, nil, false)
+        local interval = config.elite_hot_column_interval or 4
+        local offset = config.elite_hot_column_offset or 2
+        local hot_chance = config.elite_hot_chance or 0.8
+        local normal_chance = config.elite_normal_chance or 0.1
+        local is_hot_column = ((col - offset) % interval) == 0
+        local elite_chance = is_hot_column and hot_chance or normal_chance
+        local is_elite = math.random() < elite_chance
+        node = CombatNode:new(self:_generate_id(), {x = x, y = y}, floor_index, nil, false, is_elite)
       else
         node = EventNode:new(self:_generate_id(), {x = x, y = y}, floor_index, nil)
       end
@@ -308,7 +315,7 @@ function MapGenerator:_build_boss_column(floor, columns, floor_index, config, nu
   local map_height = self:_get_map_height(config)
   local boss_x = num_columns * segment_width
   local boss_pos = {x = boss_x, y = map_height / 2}
-  local boss_node = CombatNode:new(self:_generate_id(), boss_pos, floor_index, nil, true)
+  local boss_node = CombatNode:new(self:_generate_id(), boss_pos, floor_index, nil, true, false)
   table.insert(columns[num_columns], boss_node)
   floor:add_node(boss_node)
 end

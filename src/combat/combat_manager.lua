@@ -16,6 +16,7 @@ local StatusContainer = require('src.combat.status_container')
 ---@field on_combat_end function|nil
 ---@field execution_index number
 ---@field _suspicion_manager SuspicionManager|nil
+---@field _demon_awakening DemonAwakening|nil
 ---@field field_status_container StatusContainer|nil
 local CombatManager = class('CombatManager')
 
@@ -30,6 +31,7 @@ function CombatManager:initialize()
   self.on_combat_end = nil
   self.execution_index = 0
   self._suspicion_manager = nil
+  self._demon_awakening = nil
   self.field_status_container = nil
 end
 
@@ -325,6 +327,7 @@ function CombatManager:execute_next_action()
           hero = self.hero,
           enemies = self.enemies,
           suspicion_manager = self._suspicion_manager,
+          demon_awakening = self._demon_awakening,
           field_statuses = self.field_status_container,
           apply_damage = function(target, amount, source_override, parent_ctx)
             return self:_apply_damage(target, amount, source_override or spell_source, parent_ctx or action_ctx)
@@ -375,6 +378,11 @@ end
 ---@param sm SuspicionManager
 function CombatManager:set_suspicion_manager(sm)
   self._suspicion_manager = sm
+end
+
+---@param awakening DemonAwakening|nil
+function CombatManager:set_demon_awakening(awakening)
+  self._demon_awakening = awakening
 end
 
 ---@param callback function

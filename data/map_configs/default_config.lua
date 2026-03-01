@@ -17,6 +17,11 @@ return {
   combat_ratio = 0.7,
   event_ratio = 0.3,
 
+  elite_hot_column_interval = 4,
+  elite_hot_column_offset = 2,
+  elite_hot_chance = 0.8,
+  elite_normal_chance = 0.1,
+
   -- Normal nodes: in/out edge upper bound.
   max_in_edges_per_node = 3,
   max_out_edges_per_node = 3,

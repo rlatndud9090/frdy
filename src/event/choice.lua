@@ -22,7 +22,7 @@ function Choice:get_effects()
   return self.effects
 end
 
----@param context {hero: table}
+---@param context {hero: Hero|nil, reward_manager?: RewardManager}
 function Choice:apply(context)
   for _, effect in ipairs(self.effects) do
     if effect.type == "heal_hero" and context.hero then
@@ -31,6 +31,17 @@ function Choice:apply(context)
       context.hero:take_damage(effect.amount)
     elseif effect.type == "buff_attack" and context.hero then
       context.hero.attack = context.hero.attack + effect.amount
+    elseif effect.type == "grant_hero_exp" and context.reward_manager then
+      context.reward_manager:grant_hero_experience(effect.amount or 0, "event")
+    elseif effect.type == "grant_reward_offer" and context.reward_manager then
+      context.reward_manager:enqueue_offer(effect.category, "event", effect.count or 1)
+    elseif effect.type == "remove_owned_reward" and context.reward_manager then
+      context.reward_manager:remove_owned_reward(
+        effect.category,
+        effect.count or 1,
+        effect.mode,
+        effect.id
+      )
     end
   end
 end

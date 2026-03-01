@@ -10,6 +10,9 @@ return {
   ["ui.select_next_path"] = "다음 경로를 선택하세요",
   ["ui.path_prediction_hint"] = "용사의 예상 경로를 확인하고, 필요하면 정신 조종으로 개입하세요",
   ["ui.event_prediction_hint"] = "용사의 예상 선택을 확인하고, 필요하면 정신 조종으로 개입하세요",
+  ["ui.settlement_title"] = "전투 정산",
+  ["ui.reward_choose"] = "보상 선택: {category}",
+  ["ui.reward_predicted_choice"] = "용사 예상 선택: {label}",
   ["ui.hero_predicted_path"] = "용사 예상 경로: {label}",
   ["ui.hero_predicted_choice"] = "용사 예상 선택: {label}",
   ["ui.mental_stage"] = "용사 정신력 단계: {stage}/{max}",
@@ -21,6 +24,9 @@ return {
   ["gauge.suspicion"] = "의심",
   ["gauge.mana"] = "마나",
   ["gauge.hero_hp"] = "용사 HP: {current}/{max}",
+  ["progress.hero_level"] = "용사 레벨: {level}",
+  ["progress.hero_xp"] = "용사 경험치: {current}/{max}",
+  ["progress.demon_awaken"] = "마왕 각성: {current}/{max}",
 
   -- Combat
   ["combat.in_combat"] = "전투 중",
@@ -56,6 +62,7 @@ return {
   ["entity.hero"] = "용사",
   ["intent.attack"] = "공격",
   ["intent.defense"] = "방어",
+  ["intent.heal"] = "치유",
 
   -- UI buttons
   ["ui.confirm"] = "확정",
@@ -136,6 +143,7 @@ return {
   ["control.blocked_by_mental"] = "정신력이 높아 조종 불가 ({stage}단계 / 허용 {max}단계)",
   ["control.path_intervened"] = "정신 조종으로 경로를 변경했습니다",
   ["control.event_intervened"] = "정신 조종으로 선택지를 변경했습니다",
+  ["control.reward_intervened"] = "정신 조종으로 보상을 변경했습니다",
   ["control.selection_reset"] = "용사의 원래 선택으로 되돌렸습니다",
 
   -- Enemies
@@ -147,7 +155,40 @@ return {
 
   -- Edge types
   ["node.combat"] = "전투",
+  ["node.elite"] = "엘리트",
   ["node.event"] = "이벤트",
+
+  -- Reward categories
+  ["reward.demon_spell"] = "마왕 개입 마법",
+  ["reward.hero_pattern"] = "용사 행동 패턴",
+  ["reward.legendary_item"] = "전설 아이템",
+  ["reward.unknown"] = "보상",
+  ["reward.option.obtain"] = "{name} 획득",
+  ["reward.option.upgrade"] = "{name} 강화",
+
+  -- Hero patterns
+  ["pattern.hero_attack.name"] = "기본 공격",
+  ["pattern.hero_guard.name"] = "응급 방어",
+  ["pattern.hero_power_slash.name"] = "강습 베기",
+  ["pattern.hero_execute.name"] = "처형 일격",
+  ["pattern.hero_guard_wall.name"] = "수비 진형",
+  ["pattern.hero_second_wind.name"] = "세컨드 윈드",
+  ["pattern.hero_steady_strike.name"] = "정교한 타격",
+  ["pattern.hero_iron_barrier.name"] = "철벽 수호",
+
+  -- Legendary items
+  ["item.ember_crown.name"] = "화염 왕관",
+  ["item.ember_crown.desc"] = "용사 공격력 +2",
+  ["item.titan_heart.name"] = "거인의 심장",
+  ["item.titan_heart.desc"] = "용사 최대 체력 +18",
+  ["item.gale_boots.name"] = "질풍 장화",
+  ["item.gale_boots.desc"] = "용사 속도 +1.5",
+  ["item.mind_diacadem.name"] = "정신의 왕관",
+  ["item.mind_diacadem.desc"] = "보상 조종 허용 정신력 단계 +1",
+  ["item.duelist_seal.name"] = "결투가의 인장",
+  ["item.duelist_seal.desc"] = "용사 공격력 +1, 속도 +0.7",
+  ["item.fortress_core.name"] = "요새 핵심",
+  ["item.fortress_core.desc"] = "용사 최대 체력 +10, 공격력 +1",
 
   -- Events
   ["event.mysterious_spring.title"] = "신비로운 샘",
