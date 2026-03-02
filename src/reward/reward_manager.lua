@@ -377,7 +377,12 @@ function RewardManager:_upgrade_spell(spell_id)
 
   local effect = spell:get_effect()
   local delta = (config.spell_upgrade and config.spell_upgrade.effect_amount_delta) or 0
-  if effect and type(effect.amount) == 'number' and effect.amount ~= 0 then
+  if effect and effect.type == 'action_block' and spell.target_n then
+    spell.target_n = spell.target_n + 1
+    if type(effect.amount) == 'number' then
+      effect.amount = math.max(1, math.floor(spell.target_n))
+    end
+  elseif effect and type(effect.amount) == 'number' and effect.amount ~= 0 then
     local sign = effect.amount > 0 and 1 or -1
     effect.amount = effect.amount + sign * delta
     if (effect.type == 'apply_status' or effect.type == 'apply_field_status') and type(effect.status_spec) == 'table' then
@@ -388,8 +393,6 @@ function RewardManager:_upgrade_spell(spell_id)
       end
       bump_first_numeric_payload(status_spec.payload, delta)
     end
-  elseif effect and effect.type == 'action_block' and spell.target_n then
-    spell.target_n = spell.target_n + 1
   elseif effect and type(effect.payload) == 'table' then
     bump_first_numeric_payload(effect.payload, delta)
   end
