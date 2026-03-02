@@ -155,7 +155,14 @@ function ClassName:method(name, optional_param)
 
 ### 실행 검증 (필수)
 
-**코드 변경 후 반드시 Love2D 실행 검증을 수행해야 합니다.**
+**코드 변경 후 반드시 자동화 테스트 + Love2D 실행 검증을 수행해야 합니다.**
+
+```bash
+./scripts/run_tests.sh
+```
+
+- Lua 단위/통합 테스트 실행
+- **exit code 0** = 정상, 그 외 = 실패
 
 ```bash
 ./scripts/check_love.sh
@@ -167,6 +174,11 @@ function ClassName:method(name, optional_param)
 - **exit code 0** = 정상
 - **에러 출력/비정상 종료** = 실패
 - 에러 발생 시 반드시 수정 후 재검증할 것
+
+### 테스트 작성 컨벤션 (필수)
+
+- `src/`, `data/` 하위 Lua 로직 변경 시 `tests/*_test.lua`를 함께 추가/수정한다.
+- PR에서는 테스트 누락 시 CI(`scripts/check_test_required.sh`)에서 실패하도록 유지한다.
 
 ### 로컬 실행
 
