@@ -318,18 +318,23 @@ function CombatManager:execute_next_action()
   else
     if source == "hero" then
       if self.hero:is_alive() then
+        local hero_pattern_executed = false
         if action_type == "attack" then
           if action.target and action.target:is_alive() then
             self:_apply_damage(action.target, value, self.hero, action_ctx)
+            hero_pattern_executed = true
           end
         elseif action_type == "defend" then
           self:_apply_temp_defense_bonus(self.hero, value)
+          hero_pattern_executed = true
         elseif action_type == "heal" then
           self:_apply_heal(self.hero, value, self.hero, action_ctx)
+          hero_pattern_executed = true
         elseif action.pattern and action.target and action.target:is_alive() then
           action.pattern:execute(self.hero, action.target)
+          hero_pattern_executed = true
         end
-        if action.pattern and self.hero.mark_pattern_used then
+        if hero_pattern_executed and action.pattern and self.hero.mark_pattern_used then
           local turn_count = self.turn_manager and self.turn_manager:get_turn_count() or 0
           self.hero:mark_pattern_used(action.pattern.id, turn_count)
         end
