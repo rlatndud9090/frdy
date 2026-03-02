@@ -123,6 +123,16 @@ local function pick_unique_random(list, count)
   return picked
 end
 
+---@param raw_count number|nil
+---@param default_count number
+---@return number
+local function normalize_iteration_count(raw_count, default_count)
+  if raw_count == nil then
+    return math.max(0, math.floor(default_count or 1))
+  end
+  return math.max(0, math.floor(raw_count))
+end
+
 ---@param payload table|nil
 ---@param delta number
 ---@return boolean
@@ -131,12 +141,43 @@ local function bump_first_numeric_payload(payload, delta)
     return false
   end
 
-  for key, value in pairs(payload) do
+  local preferred_keys = {
+    'amount',
+    'damage',
+    'attack_bonus',
+    'attack_penalty',
+    'speed_bonus',
+    'speed_penalty',
+    'attack_gain_per_hit',
+    'attack_reduction_ratio',
+  }
+
+  for _, key in ipairs(preferred_keys) do
+    local value = payload[key]
     if type(value) == 'number' then
       local sign = value >= 0 and 1 or -1
       payload[key] = value + sign * delta
       return true
     end
+  end
+
+  -- Fallback: deterministic key order to avoid non-deterministic pairs() iteration.
+  local numeric_keys = {}
+  for key, value in pairs(payload) do
+    if type(value) == 'number' then
+      numeric_keys[#numeric_keys + 1] = key
+    end
+  end
+  table.sort(numeric_keys, function(a, b)
+    return tostring(a) < tostring(b)
+  end)
+
+  local key = numeric_keys[1]
+  if key then
+    local value = payload[key]
+    local sign = value >= 0 and 1 or -1
+    payload[key] = value + sign * delta
+    return true
   end
 
   return false
@@ -163,7 +204,10 @@ end
 ---@param count number|nil
 ---@return nil
 function RewardManager:enqueue_offer(category, source, count)
-  local iterations = math.max(1, math.floor(count or 1))
+  local iterations = normalize_iteration_count(count, 1)
+  if iterations <= 0 then
+    return
+  end
   for _ = 1, iterations do
     local offer = self:_build_offer(category, source)
     if offer then
@@ -261,7 +305,10 @@ end
 ---@param id string|nil
 ---@return number removed_count
 function RewardManager:remove_owned_reward(category, count, mode, id)
-  local requested = math.max(1, math.floor(count or 1))
+  local requested = normalize_iteration_count(count, 1)
+  if requested <= 0 then
+    return 0
+  end
   local removed = 0
 
   if category == 'demon_spell' then
