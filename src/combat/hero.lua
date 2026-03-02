@@ -9,6 +9,7 @@ local reward_config = require('data.rewards.config')
 ---@field action_patterns ActionPattern[]
 ---@field cooldown_tracker table
 ---@field mental_load number
+---@field current_turn number
 local Hero = Entity:subclass('Hero')
 
 local MAX_MENTAL_STAGE = 5
@@ -21,6 +22,7 @@ function Hero:initialize(stats)
   self.experience = 0
   self.cooldown_tracker = {}
   self.mental_load = 0
+  self.current_turn = 0
 
   -- Hero default patterns: fallback attack + low HP guard
   self.action_patterns = {
@@ -43,6 +45,37 @@ function Hero:initialize(stats)
       params = {defense_bonus = 3},
     }),
   }
+end
+
+---@return number
+function Hero:get_current_turn()
+  return self.current_turn or 0
+end
+
+---@param turn number|nil
+---@return nil
+function Hero:set_current_turn(turn)
+  self.current_turn = math.max(0, math.floor(turn or 0))
+end
+
+---@return nil
+function Hero:reset_action_state()
+  self.cooldown_tracker = {}
+  self.current_turn = 0
+end
+
+---@param pattern_id string|nil
+---@param turn number|nil
+---@return nil
+function Hero:mark_pattern_used(pattern_id, turn)
+  if not pattern_id or pattern_id == '' then
+    return
+  end
+  local current_turn = turn
+  if current_turn == nil then
+    current_turn = self.current_turn or 0
+  end
+  self.cooldown_tracker[pattern_id] = math.max(0, math.floor(current_turn))
 end
 
 ---@return number
@@ -205,6 +238,7 @@ function Hero:choose_action(context)
   context = context or {}
   context.actor = self
   context.cooldown_tracker = self.cooldown_tracker
+  context.current_turn = context.current_turn or self.current_turn or 0
   return PatternResolver.resolve(self.action_patterns, context)
 end
 
