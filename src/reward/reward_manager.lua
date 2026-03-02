@@ -123,6 +123,22 @@ local function pick_unique_random(list, count)
   return picked
 end
 
+---@param spell Spell
+---@return boolean
+function RewardManager:_is_spell_upgradable(spell)
+  local current_rank = spell.reward_rank or 1
+  local max_rank = spell.max_reward_rank or (config.spell_upgrade and config.spell_upgrade.max_rank) or 5
+  return current_rank < max_rank
+end
+
+---@param pattern ActionPattern
+---@return boolean
+function RewardManager:_is_pattern_upgradable(pattern)
+  local current_rank = pattern.reward_rank or 1
+  local max_rank = pattern.max_reward_rank or (config.pattern_upgrade and config.pattern_upgrade.max_rank) or 5
+  return current_rank < max_rank
+end
+
 ---@param category string
 ---@param source string
 ---@param count number|nil
@@ -454,18 +470,24 @@ end
 ---@return RewardOption[]
 function RewardManager:_build_demon_spell_options()
   local ids = RewardCatalog.get_all_spell_ids()
-  local picked = pick_unique_random(ids, 3)
+  local picked = pick_unique_random(ids, #ids)
   local options = {}
 
   for _, spell_id in ipairs(picked) do
+    if #options >= 3 then
+      break
+    end
+
     local owned_spell = self:_find_spell(spell_id)
     if owned_spell then
-      options[#options + 1] = {
-        category = 'demon_spell',
-        id = spell_id,
-        action = 'upgrade',
-        display_text = i18n.t('reward.option.upgrade', {name = owned_spell:get_name()}),
-      }
+      if self:_is_spell_upgradable(owned_spell) then
+        options[#options + 1] = {
+          category = 'demon_spell',
+          id = spell_id,
+          action = 'upgrade',
+          display_text = i18n.t('reward.option.upgrade', {name = owned_spell:get_name()}),
+        }
+      end
     else
       local spell_data = RewardCatalog.get_spell_data(spell_id)
       if spell_data then
@@ -485,20 +507,27 @@ end
 ---@return RewardOption[]
 function RewardManager:_build_hero_pattern_options()
   local ids = RewardCatalog.get_all_pattern_ids()
-  local picked = pick_unique_random(ids, 3)
+  local picked = pick_unique_random(ids, #ids)
   local options = {}
 
   for _, pattern_id in ipairs(picked) do
+    if #options >= 3 then
+      break
+    end
+
     local pattern_data = RewardCatalog.get_pattern_data(pattern_id)
     if pattern_data then
       local pattern_name = i18n.t(pattern_data.name)
       if self.hero:has_action_pattern(pattern_id) then
-        options[#options + 1] = {
-          category = 'hero_pattern',
-          id = pattern_id,
-          action = 'upgrade',
-          display_text = i18n.t('reward.option.upgrade', {name = pattern_name}),
-        }
+        local pattern = self.hero:get_action_pattern(pattern_id)
+        if pattern and self:_is_pattern_upgradable(pattern) then
+          options[#options + 1] = {
+            category = 'hero_pattern',
+            id = pattern_id,
+            action = 'upgrade',
+            display_text = i18n.t('reward.option.upgrade', {name = pattern_name}),
+          }
+        end
       else
         options[#options + 1] = {
           category = 'hero_pattern',
