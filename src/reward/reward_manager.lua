@@ -91,7 +91,13 @@ end
 
 ---@return boolean
 function RewardManager:has_pending_offers()
-  return #self.offer_queue > 0
+  if self.current_offer then
+    return true
+  end
+  if #self.offer_queue == 0 then
+    return false
+  end
+  return self:peek_offer() ~= nil
 end
 
 ---@return RewardOffer|nil
@@ -713,11 +719,16 @@ function RewardManager:_build_demon_spell_options()
     else
       local spell_data = RewardCatalog.get_spell_data(spell_id)
       if spell_data then
+        local name_key = 'spell.name.' .. spell_id
+        local localized_name = i18n.t(name_key)
+        if localized_name == name_key then
+          localized_name = spell_data.name
+        end
         options[#options + 1] = {
           category = 'demon_spell',
           id = spell_id,
           action = 'add',
-          display_text = i18n.t('reward.option.obtain', {name = spell_data.name}),
+          display_text = i18n.t('reward.option.obtain', {name = localized_name}),
         }
       end
     end

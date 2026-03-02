@@ -1,4 +1,48 @@
-return {
+---@class RewardConfigHeroXP
+---@field normal number
+---@field elite number
+---@field boss number
+
+---@class RewardConfigHeroLevel
+---@field base_threshold number
+---@field milestone_interval number
+---@field hp_per_level number
+---@field attack_per_level number
+---@field speed_per_level number
+
+---@class RewardConfigDemonAwakening
+---@field threshold number
+
+---@class RewardConfigRewardControl
+---@field max_stage number
+---@field mental_increase number
+
+---@class RewardConfigMinHoldings
+---@field spells number
+---@field patterns number
+
+---@class RewardConfigSpellUpgrade
+---@field max_rank number
+---@field cost_reduction number
+---@field effect_amount_delta number
+
+---@class RewardConfigPatternUpgrade
+---@field max_rank number
+---@field attack_mult_delta number
+---@field defense_bonus_delta number
+---@field heal_amount_delta number
+
+---@class RewardConfig
+---@field hero_xp RewardConfigHeroXP
+---@field hero_level RewardConfigHeroLevel
+---@field demon_awakening RewardConfigDemonAwakening
+---@field reward_control RewardConfigRewardControl
+---@field min_holdings RewardConfigMinHoldings
+---@field spell_upgrade RewardConfigSpellUpgrade
+---@field pattern_upgrade RewardConfigPatternUpgrade
+
+---@type RewardConfig
+local reward_config = {
   hero_xp = {
     normal = 30,
     elite = 45,
@@ -40,3 +84,5 @@ return {
     heal_amount_delta = 2,
   },
 }
+
+return reward_config

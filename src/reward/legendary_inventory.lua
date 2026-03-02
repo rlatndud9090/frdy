@@ -66,7 +66,11 @@ end
 
 ---@return string[]
 function LegendaryInventory:get_owned_ids()
-  return self._owned_ids
+  local copied = {}
+  for i = 1, #self._owned_ids do
+    copied[i] = self._owned_ids[i]
+  end
+  return copied
 end
 
 ---@return number

@@ -1,4 +1,11 @@
-return {
+---@class LegendaryItemPoolEntry
+---@field id string
+---@field name_key string
+---@field desc_key string
+---@field modifiers table|nil
+
+---@type LegendaryItemPoolEntry[]
+local legendary_item_pool = {
   {
     id = "ember_crown",
     name_key = "item.ember_crown.name",
@@ -50,3 +57,5 @@ return {
     },
   },
 }
+
+return legendary_item_pool

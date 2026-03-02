@@ -1,4 +1,15 @@
-return {
+---@class HeroPatternPoolEntry
+---@field id string
+---@field name string
+---@field type string
+---@field priority number
+---@field condition string
+---@field condition_params table|nil
+---@field cooldown number
+---@field params table
+
+---@type HeroPatternPoolEntry[]
+local hero_pattern_pool = {
   {
     id = "hero_attack",
     name = "pattern.hero_attack.name",
@@ -103,3 +114,5 @@ return {
     },
   },
 }
+
+return hero_pattern_pool

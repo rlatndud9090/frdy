@@ -230,6 +230,11 @@ end
 
 ---@return string
 function Spell:get_name()
+  local name_key = "spell.name." .. self.id
+  local translated = i18n.t(name_key)
+  if translated ~= name_key then
+    return translated
+  end
   return self.name
 end
 

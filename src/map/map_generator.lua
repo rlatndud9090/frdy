@@ -286,7 +286,7 @@ function MapGenerator:_build_middle_columns(floor, columns, floor_index, config,
       local y = y_positions[row]
       local node = nil
       if math.random() < config.combat_ratio then
-        local interval = config.elite_hot_column_interval or 4
+        local interval = math.max(1, math.floor(config.elite_hot_column_interval or 4))
         local offset = config.elite_hot_column_offset or 2
         local hot_chance = config.elite_hot_chance or 0.8
         local normal_chance = config.elite_normal_chance or 0.1
