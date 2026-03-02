@@ -812,14 +812,15 @@ end
 --- Confirm planning: transition to execution
 function CombatHandler:_confirm_planning()
   local tlm = self.combat_manager:get_timeline_manager()
+  local confirmed_interventions = tlm and tlm:get_interventions() or nil
   self:_clear_insert_selection()
   self.timeline_ui:exit_insert_mode()
   self:_set_timing_focus(false)
 
   -- Manipulate/global cards don't create spell actions in execution,
   -- so apply suspicion once at confirm time.
-  if tlm and self.suspicion_manager then
-    for _, intervention in ipairs(tlm:get_interventions()) do
+  if confirmed_interventions and self.suspicion_manager then
+    for _, intervention in ipairs(confirmed_interventions) do
       if intervention.spell and intervention.type ~= "insert" then
         local delta = intervention.spell:get_suspicion_delta() or 0
         if delta > 0 then
@@ -829,10 +830,6 @@ function CombatHandler:_confirm_planning()
         end
       end
     end
-  end
-
-  if tlm and self.reward_manager and self.reward_manager.on_non_insert_spells_confirmed then
-    self.reward_manager:on_non_insert_spells_confirmed(tlm:get_interventions())
   end
 
   -- Confirm spell book (reserved → used)
@@ -848,6 +845,9 @@ function CombatHandler:_confirm_planning()
 
   -- Start execution
   self.combat_manager:start_execution()
+  if confirmed_interventions and self.reward_manager and self.reward_manager.on_non_insert_spells_confirmed then
+    self.reward_manager:on_non_insert_spells_confirmed(confirmed_interventions)
+  end
   self.execution_timer = self.execution_delay
 
   table.insert(self.combat_log, i18n.t("combat.execution_start"))
