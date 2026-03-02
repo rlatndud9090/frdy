@@ -1,5 +1,46 @@
 local SpellEffect = require('src.spell.spell_effect')
 
+---@param path string
+---@param value number
+---@param min number|nil
+---@param round string|nil
+---@return table
+local function patch_add(path, value, min, round)
+  local patch = {
+    path = path,
+    mode = "add",
+    value = value,
+  }
+  if min ~= nil then
+    patch.min = min
+  end
+  if round then
+    patch.round = round
+  end
+  return patch
+end
+
+---@param path string
+---@param value number
+---@return table
+local function patch_signed(path, value)
+  return {
+    path = path,
+    mode = "signed_add",
+    value = value,
+  }
+end
+
+---@param patches table[]
+---@param max_rank number|nil
+---@return table
+local function make_upgrade(patches, max_rank)
+  return {
+    max_rank = max_rank or 5,
+    patches = patches,
+  }
+end
+
 return {
   {
     id = "heal_light",
@@ -10,7 +51,11 @@ return {
     suspicion_abs = 4,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.heal(10)
+    effect = SpellEffect.heal(10),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 2),
+    })
   },
   {
     id = "heal_heavy",
@@ -21,7 +66,11 @@ return {
     suspicion_abs = 8,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.heal(22)
+    effect = SpellEffect.heal(22),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 3),
+    })
   },
   {
     id = "divine_strike",
@@ -32,7 +81,11 @@ return {
     suspicion_abs = 6,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.damage(14)
+    effect = SpellEffect.damage(14),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 2),
+    })
   },
   {
     id = "war_cry",
@@ -46,6 +99,12 @@ return {
     effect = SpellEffect.apply_status("attack_up_flat", {
       payload = {attack_bonus = 2},
       preview_amount = 2,
+    }),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 1),
+      patch_add("effect.status_spec.preview_amount", 1),
+      patch_add("effect.status_spec.payload.attack_bonus", 1),
     })
   },
   {
@@ -60,6 +119,12 @@ return {
     effect = SpellEffect.apply_status("speed_up_flat", {
       payload = {speed_bonus = 4},
       preview_amount = 4,
+    }),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 1),
+      patch_add("effect.status_spec.preview_amount", 1),
+      patch_add("effect.status_spec.payload.speed_bonus", 1),
     })
   },
   {
@@ -74,6 +139,12 @@ return {
     effect = SpellEffect.apply_status("speed_down_flat", {
       payload = {speed_penalty = 4},
       preview_amount = 4,
+    }),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 1),
+      patch_add("effect.status_spec.preview_amount", 1),
+      patch_add("effect.status_spec.payload.speed_penalty", 1),
     })
   },
   {
@@ -85,7 +156,10 @@ return {
     suspicion_abs = 6,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.hinder(5)
+    effect = SpellEffect.hinder(5),
+    upgrade = make_upgrade({
+      patch_add("effect.amount", 1),
+    })
   },
   {
     id = "weaken_foe",
@@ -99,6 +173,12 @@ return {
     effect = SpellEffect.apply_status("attack_down_flat", {
       payload = {attack_penalty = 2},
       preview_amount = 2,
+    }),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 1),
+      patch_add("effect.status_spec.preview_amount", 1),
+      patch_add("effect.status_spec.payload.attack_penalty", 1),
     })
   },
   {
@@ -110,7 +190,11 @@ return {
     suspicion_abs = 12,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.hinder(10)
+    effect = SpellEffect.hinder(10),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 2),
+    })
   },
   {
     id = "minor_heal",
@@ -121,7 +205,10 @@ return {
     suspicion_abs = 2,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.heal(5)
+    effect = SpellEffect.heal(5),
+    upgrade = make_upgrade({
+      patch_add("effect.amount", 1),
+    })
   },
   -- Insert spells: action-target variants
   {
@@ -136,6 +223,12 @@ return {
     effect = SpellEffect.apply_status("speed_up_flat", {
       payload = {speed_bonus = 3},
       preview_amount = 3,
+    }),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 1),
+      patch_add("effect.status_spec.preview_amount", 1),
+      patch_add("effect.status_spec.payload.speed_bonus", 1),
     })
   },
   {
@@ -148,7 +241,12 @@ return {
     timeline_type = "insert",
     target_mode = "action_next_n",
     target_n = 1,
-    effect = SpellEffect.action_block(1)
+    effect = SpellEffect.action_block(1),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("target_n", 1, 1, "floor"),
+      patch_add("effect.amount", 1, 1, "floor"),
+    })
   },
   {
     id = "delay_strike",
@@ -162,6 +260,12 @@ return {
     effect = SpellEffect.apply_status("speed_down_flat", {
       payload = {speed_penalty = 3},
       preview_amount = 3,
+    }),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 1),
+      patch_add("effect.status_spec.preview_amount", 1),
+      patch_add("effect.status_spec.payload.speed_penalty", 1),
     })
   },
   {
@@ -174,7 +278,11 @@ return {
     timeline_type = "insert",
     target_mode = "action_next_n",
     target_n = 2,
-    effect = SpellEffect.action_delta(-3)
+    effect = SpellEffect.action_delta(-3),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_signed("effect.amount", 1),
+    })
   },
   {
     id = "empower_strike",
@@ -186,7 +294,11 @@ return {
     timeline_type = "insert",
     target_mode = "action_next_n",
     target_n = 2,
-    effect = SpellEffect.action_delta(3)
+    effect = SpellEffect.action_delta(3),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_signed("effect.amount", 1),
+    })
   },
   -- Insert spells: all following actions
   {
@@ -198,7 +310,11 @@ return {
     suspicion_abs = 6,
     timeline_type = "insert",
     target_mode = "action_next_all",
-    effect = SpellEffect.action_delta(-2)
+    effect = SpellEffect.action_delta(-2),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_signed("effect.amount", 1),
+    })
   },
   {
     id = "dark_blessing",
@@ -209,6 +325,10 @@ return {
     suspicion_abs = 9,
     timeline_type = "insert",
     target_mode = "action_next_all",
-    effect = SpellEffect.action_delta(2)
+    effect = SpellEffect.action_delta(2),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_signed("effect.amount", 1),
+    })
   }
 }

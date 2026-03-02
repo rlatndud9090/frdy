@@ -44,4 +44,9 @@ function Node:is_boss()
   return false
 end
 
+---@return boolean
+function Node:is_elite()
+  return false
+end
+
 return Node

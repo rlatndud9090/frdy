@@ -108,6 +108,23 @@ function SpellBook:get_all_spells()
   return self.spells
 end
 
+---@param spell_id string
+---@return Spell|nil
+function SpellBook:get_spell_by_id(spell_id)
+  for _, spell in ipairs(self.spells) do
+    if spell:get_id() == spell_id then
+      return spell
+    end
+  end
+  return nil
+end
+
+---@param spell_id string
+---@return boolean
+function SpellBook:has_spell(spell_id)
+  return self:get_spell_by_id(spell_id) ~= nil
+end
+
 --- Filter spells by timeline type
 ---@param type_filter string "all"|"insert"|"manipulate"|"global"
 ---@return Spell[]

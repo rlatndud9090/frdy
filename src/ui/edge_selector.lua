@@ -70,7 +70,11 @@ function EdgeSelector:_rebuild_options()
 
     local label_key = node_type
     if node_type == "combat" then
-      label_key = "node.combat"
+      if to_node.is_elite and to_node:is_elite() then
+        label_key = "node.elite"
+      else
+        label_key = "node.combat"
+      end
     elseif node_type == "event" then
       label_key = "node.event"
     end

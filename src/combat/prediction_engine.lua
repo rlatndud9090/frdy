@@ -301,7 +301,7 @@ function PredictionEngine:_build_actor_action(actor, hero, enemies, slot_token)
       actor = hero,
       target = target,
       enemies = self:_get_living(enemies),
-      current_turn = 0,
+      current_turn = hero.get_current_turn and hero:get_current_turn() or 0,
     })
     if not pattern then
       return nil

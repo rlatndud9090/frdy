@@ -16,7 +16,9 @@ local StatusContainer = require('src.combat.status_container')
 ---@field on_combat_end function|nil
 ---@field execution_index number
 ---@field _suspicion_manager SuspicionManager|nil
+---@field _demon_awakening DemonAwakening|nil
 ---@field field_status_container StatusContainer|nil
+---@field _temp_defense_bonuses table<Entity, number>
 local CombatManager = class('CombatManager')
 
 function CombatManager:initialize()
@@ -30,7 +32,9 @@ function CombatManager:initialize()
   self.on_combat_end = nil
   self.execution_index = 0
   self._suspicion_manager = nil
+  self._demon_awakening = nil
   self.field_status_container = nil
+  self._temp_defense_bonuses = {}
 end
 
 ---@param hero Hero
@@ -38,12 +42,17 @@ end
 function CombatManager:start_combat(hero, enemies)
   self.hero = hero
   self.enemies = enemies
+  self._temp_defense_bonuses = {}
   self.field_status_container = StatusContainer:new(self, "field")
   self.turn_manager = TurnManager:new(hero, enemies)
   self.action_queue = ActionQueue:new()
   self.prediction_engine = PredictionEngine:new(20)
   self.prediction_engine:set_field_status_container(self.field_status_container)
   self.timeline_manager = TimelineManager:new(self.prediction_engine)
+  if self.hero and self.hero.reset_action_state then
+    self.hero:reset_action_state()
+    self.hero:set_current_turn(self.turn_manager:get_turn_count())
+  end
   self.timeline_manager:setup(hero, enemies)
   self.state = "active"
   self.execution_index = 0
@@ -51,6 +60,7 @@ function CombatManager:start_combat(hero, enemies)
 end
 
 function CombatManager:end_combat()
+  self:_clear_temp_defense_bonuses()
   if self.on_combat_end then
     self.on_combat_end(self.state)
   end
@@ -226,6 +236,31 @@ function CombatManager:_consume_action_statuses(action_ctx, source_entity)
   end
 end
 
+---@param actor Entity|nil
+---@param bonus number
+---@return nil
+function CombatManager:_apply_temp_defense_bonus(actor, bonus)
+  if not actor or type(actor) ~= "table" then
+    return
+  end
+  local amount = math.max(0, math.floor(bonus or 0))
+  if amount <= 0 then
+    return
+  end
+  actor.defense = (actor.defense or 0) + amount
+  self._temp_defense_bonuses[actor] = (self._temp_defense_bonuses[actor] or 0) + amount
+end
+
+---@return nil
+function CombatManager:_clear_temp_defense_bonuses()
+  for actor, bonus in pairs(self._temp_defense_bonuses or {}) do
+    if actor and type(actor) == "table" and type(actor.defense) == "number" then
+      actor.defense = math.max(0, actor.defense - bonus)
+    end
+  end
+  self._temp_defense_bonuses = {}
+end
+
 ---@return nil
 function CombatManager:_tick_status_turns()
   if self.field_status_container then
@@ -283,16 +318,25 @@ function CombatManager:execute_next_action()
   else
     if source == "hero" then
       if self.hero:is_alive() then
+        local hero_pattern_executed = false
         if action_type == "attack" then
           if action.target and action.target:is_alive() then
             self:_apply_damage(action.target, value, self.hero, action_ctx)
+            hero_pattern_executed = true
           end
         elseif action_type == "defend" then
-          self.hero.defense = self.hero.defense + value
+          self:_apply_temp_defense_bonus(self.hero, value)
+          hero_pattern_executed = true
         elseif action_type == "heal" then
           self:_apply_heal(self.hero, value, self.hero, action_ctx)
+          hero_pattern_executed = true
         elseif action.pattern and action.target and action.target:is_alive() then
           action.pattern:execute(self.hero, action.target)
+          hero_pattern_executed = true
+        end
+        if hero_pattern_executed and action.pattern and self.hero.mark_pattern_used then
+          local turn_count = self.turn_manager and self.turn_manager:get_turn_count() or 0
+          self.hero:mark_pattern_used(action.pattern.id, turn_count)
         end
       end
     elseif source == "enemy" then
@@ -302,7 +346,7 @@ function CombatManager:execute_next_action()
             self:_apply_damage(self.hero, value, action.actor, action_ctx)
           end
         elseif action_type == "defend" then
-          action.actor.defense = action.actor.defense + value
+          self:_apply_temp_defense_bonus(action.actor, value)
         elseif action_type == "heal" then
           self:_apply_heal(action.actor, value, action.actor, action_ctx)
         elseif action.pattern then
@@ -325,6 +369,7 @@ function CombatManager:execute_next_action()
           hero = self.hero,
           enemies = self.enemies,
           suspicion_manager = self._suspicion_manager,
+          demon_awakening = self._demon_awakening,
           field_statuses = self.field_status_container,
           apply_damage = function(target, amount, source_override, parent_ctx)
             return self:_apply_damage(target, amount, source_override or spell_source, parent_ctx or action_ctx)
@@ -363,8 +408,12 @@ end
 
 --- Start next planning phase
 function CombatManager:next_planning()
+  self:_clear_temp_defense_bonuses()
   self:_tick_status_turns()
   self.turn_manager:next_planning()
+  if self.hero and self.hero.set_current_turn then
+    self.hero:set_current_turn(self.turn_manager:get_turn_count())
+  end
   self.execution_index = 0
   if self.timeline_manager then
     self.timeline_manager:setup(self.hero, self.enemies)
@@ -375,6 +424,11 @@ end
 ---@param sm SuspicionManager
 function CombatManager:set_suspicion_manager(sm)
   self._suspicion_manager = sm
+end
+
+---@param awakening DemonAwakening|nil
+function CombatManager:set_demon_awakening(awakening)
+  self._demon_awakening = awakening
 end
 
 ---@param callback function

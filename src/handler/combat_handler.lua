@@ -12,6 +12,8 @@ local i18n = require('src.i18n.init')
 ---@field spell_book SpellBook|nil
 ---@field mana_manager ManaManager|nil
 ---@field suspicion_manager SuspicionManager|nil
+---@field reward_manager RewardManager|nil
+---@field demon_awakening DemonAwakening|nil
 ---@field hero_gauge Gauge
 ---@field enemy_gauges Gauge[]
 ---@field spell_book_overlay SpellBookOverlay
@@ -40,6 +42,8 @@ function CombatHandler:initialize()
   self.spell_book = nil
   self.mana_manager = nil
   self.suspicion_manager = nil
+  self.reward_manager = nil
+  self.demon_awakening = nil
 
   -- UI
   self.hero_gauge = Gauge:new(0, 0, 180, 20, "entity.hero", {0.2, 0.8, 0.2})
@@ -135,10 +139,13 @@ function CombatHandler:keypressed(key)
 end
 
 --- Start combat
-function CombatHandler:start_combat(hero, enemies, spell_book, mana_manager, suspicion_manager)
+---@param reward_manager? RewardManager
+function CombatHandler:start_combat(hero, enemies, spell_book, mana_manager, suspicion_manager, reward_manager)
   self.spell_book = spell_book
   self.mana_manager = mana_manager
   self.suspicion_manager = suspicion_manager
+  self.reward_manager = reward_manager
+  self.demon_awakening = reward_manager and reward_manager.get_demon_awakening and reward_manager:get_demon_awakening() or nil
   self.combat_log = {}
   self:_clear_insert_selection()
   self:_set_timing_focus(false)
@@ -150,6 +157,7 @@ function CombatHandler:start_combat(hero, enemies, spell_book, mana_manager, sus
 
   self.combat_manager:start_combat(hero, enemies)
   self.combat_manager:set_suspicion_manager(suspicion_manager)
+  self.combat_manager:set_demon_awakening(self.demon_awakening)
   self.combat_manager:set_on_combat_end(function(result)
     if self.on_combat_end then
       self.on_combat_end(result)
@@ -821,6 +829,10 @@ function CombatHandler:_confirm_planning()
         end
       end
     end
+  end
+
+  if tlm and self.reward_manager and self.reward_manager.on_non_insert_spells_confirmed then
+    self.reward_manager:on_non_insert_spells_confirmed(tlm:get_interventions())
   end
 
   -- Confirm spell book (reserved → used)
