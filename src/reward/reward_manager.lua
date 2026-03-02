@@ -4,6 +4,7 @@ local Spell = require('src.spell.spell')
 local RewardCatalog = require('src.reward.reward_catalog')
 local DemonAwakening = require('src.reward.demon_awakening')
 local LegendaryInventory = require('src.reward.legendary_inventory')
+local RNG = require('src.core.rng')
 
 local config = require('data.rewards.config')
 
@@ -35,22 +36,34 @@ local config = require('data.rewards.config')
 ---@field demon_awakening DemonAwakening
 ---@field legendary_inventory LegendaryInventory
 ---@field reward_control_bonus_stage number
+---@field rng RNG
 local RewardManager = class('RewardManager')
 
 ---@param hero Hero
 ---@param spell_book SpellBook
 ---@param mana_manager ManaManager
 ---@param suspicion_manager SuspicionManager
-function RewardManager:initialize(hero, spell_book, mana_manager, suspicion_manager)
+---@param rng? RNG
+function RewardManager:initialize(hero, spell_book, mana_manager, suspicion_manager, rng)
   self.hero = hero
   self.spell_book = spell_book
   self.mana_manager = mana_manager
   self.suspicion_manager = suspicion_manager
   self.offer_queue = {}
   self.current_offer = nil
+  self.rng = rng or RNG:new(os.time())
   self.demon_awakening = DemonAwakening:new(config.demon_awakening)
-  self.legendary_inventory = LegendaryInventory:new()
+  self.legendary_inventory = LegendaryInventory:new(self.rng)
   self.reward_control_bonus_stage = 0
+end
+
+---@param rng RNG
+---@return nil
+function RewardManager:set_rng(rng)
+  self.rng = rng
+  if self.legendary_inventory and self.legendary_inventory.set_rng then
+    self.legendary_inventory:set_rng(rng)
+  end
 end
 
 ---@param hero Hero
@@ -130,8 +143,9 @@ end
 
 ---@param list string[]
 ---@param count number
+---@param rng RNG
 ---@return string[]
-local function pick_unique_random(list, count)
+local function pick_unique_random(list, count, rng)
   local working = {}
   for i = 1, #list do
     working[i] = list[i]
@@ -140,7 +154,7 @@ local function pick_unique_random(list, count)
   local picked = {}
   local max_pick = math.min(count, #working)
   for _ = 1, max_pick do
-    local index = math.random(#working)
+    local index = rng:next_int(1, #working)
     picked[#picked + 1] = working[index]
     table.remove(working, index)
   end
@@ -648,7 +662,7 @@ function RewardManager:_remove_owned_spell(mode, item_id)
   if #candidates == 0 then
     return false
   end
-  local index = math.random(#candidates)
+  local index = self.rng:next_int(1, #candidates)
   return self.spell_book:remove_spell(candidates[index])
 end
 
@@ -672,7 +686,7 @@ function RewardManager:_remove_owned_pattern(mode, pattern_id)
   if #removable == 0 then
     return false
   end
-  local index = math.random(#removable)
+  local index = self.rng:next_int(1, #removable)
   return self.hero:remove_action_pattern(removable[index])
 end
 
@@ -698,7 +712,7 @@ end
 ---@return RewardOption[]
 function RewardManager:_build_demon_spell_options()
   local ids = RewardCatalog.get_all_spell_ids()
-  local picked = pick_unique_random(ids, #ids)
+  local picked = pick_unique_random(ids, #ids, self.rng)
   local options = {}
 
   for _, spell_id in ipairs(picked) do
@@ -740,7 +754,7 @@ end
 ---@return RewardOption[]
 function RewardManager:_build_hero_pattern_options()
   local ids = RewardCatalog.get_all_pattern_ids()
-  local picked = pick_unique_random(ids, #ids)
+  local picked = pick_unique_random(ids, #ids, self.rng)
   local options = {}
 
   for _, pattern_id in ipairs(picked) do
@@ -789,7 +803,7 @@ function RewardManager:_build_legendary_item_options()
     return {}
   end
 
-  local picked = pick_unique_random(candidates, 3)
+  local picked = pick_unique_random(candidates, 3, self.rng)
   local options = {}
   for _, item_id in ipairs(picked) do
     local item_data = RewardCatalog.get_legendary_data(item_id)

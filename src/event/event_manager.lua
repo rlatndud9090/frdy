@@ -1,15 +1,26 @@
 local class = require('lib.middleclass')
 local Event = require('src.event.event')
 local Choice = require('src.event.choice')
+local RNG = require('src.core.rng')
 
 ---@class EventManager
 ---@field events table<string, Event>
 ---@field event_list Event[]
+---@field rng RNG
 local EventManager = class('EventManager')
 
-function EventManager:initialize()
+---@param rng? RNG
+---@return nil
+function EventManager:initialize(rng)
   self.events = {}
   self.event_list = {}
+  self.rng = rng or RNG:new(os.time())
+end
+
+---@param rng RNG
+---@return nil
+function EventManager:set_rng(rng)
+  self.rng = rng
 end
 
 ---@param data_table table[]
@@ -43,7 +54,8 @@ end
 ---@return Event|nil
 function EventManager:get_random_event()
   if #self.event_list == 0 then return nil end
-  return self.event_list[math.random(#self.event_list)]
+  local index = self.rng:next_int(1, #self.event_list)
+  return self.event_list[index]
 end
 
 ---@return number

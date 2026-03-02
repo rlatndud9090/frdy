@@ -1,6 +1,7 @@
 local class = require('lib.middleclass')
 local Button = require('src.ui.button')
 local i18n = require('src.i18n.init')
+local RNG = require('src.core.rng')
 
 ---@class Hero
 ---@field get_mental_stage fun(self: Hero): number
@@ -29,11 +30,14 @@ local i18n = require('src.i18n.init')
 ---@field feedback_text string|nil
 ---@field active boolean
 ---@field on_resolved fun(selected_option: RewardOption|nil)|nil
+---@field rng RNG
 local RewardHandler = class('RewardHandler')
 
 local BLINK_INTERVAL = 0.45
 
-function RewardHandler:initialize()
+---@param rng? RNG
+---@return nil
+function RewardHandler:initialize(rng)
   self.offer = nil
   self.hero = nil
   self.option_buttons = {}
@@ -48,6 +52,13 @@ function RewardHandler:initialize()
   self.feedback_text = nil
   self.active = false
   self.on_resolved = nil
+  self.rng = rng or RNG:new(os.time())
+end
+
+---@param rng RNG
+---@return nil
+function RewardHandler:set_rng(rng)
+  self.rng = rng
 end
 
 ---@param offer RewardOffer
@@ -96,7 +107,7 @@ function RewardHandler:_roll_hero_choice()
   if count <= 0 then
     return nil
   end
-  return math.random(count)
+  return self.rng:next_int(1, count)
 end
 
 ---@return Hero|nil

@@ -12,4 +12,5 @@ else
   exit 127
 fi
 
+"$ROOT_DIR/scripts/check_rng_usage.sh"
 "$LUA_BIN" "$ROOT_DIR/tests/run.lua"

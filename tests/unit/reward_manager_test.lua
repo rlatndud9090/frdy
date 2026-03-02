@@ -4,6 +4,19 @@ local RewardCatalog = require('src.reward.reward_catalog')
 
 local suite = {}
 
+---@param offer RewardOffer|nil
+---@return string
+local function option_signature(offer)
+  if not offer then
+    return ""
+  end
+  local entries = {}
+  for _, option in ipairs(offer.options or {}) do
+    entries[#entries + 1] = string.format("%s:%s", option.id, option.action)
+  end
+  return table.concat(entries, ",")
+end
+
 ---@return nil
 function suite.test_enqueue_offer_ignores_non_positive_counts()
   local fixture = Fixtures.create_reward_fixture()
@@ -71,6 +84,23 @@ function suite.test_remove_owned_reward_respects_spell_minimum_holdings()
   TestHelper.assert_true(reward_manager:_add_spell("heal_heavy"))
   local removed_with_extra = reward_manager:remove_owned_reward("demon_spell", 1, "id", "heal_heavy")
   TestHelper.assert_equal(removed_with_extra, 1)
+end
+
+---@return nil
+function suite.test_same_seed_builds_same_demon_offer_options()
+  local fixture_a = Fixtures.create_reward_fixture(20260302)
+  local fixture_b = Fixtures.create_reward_fixture(20260302)
+  local reward_a = fixture_a.reward_manager
+  local reward_b = fixture_b.reward_manager
+
+  reward_a:enqueue_offer("demon_spell", "seed_test", 1)
+  reward_b:enqueue_offer("demon_spell", "seed_test", 1)
+
+  local offer_a = reward_a:peek_offer()
+  local offer_b = reward_b:peek_offer()
+  TestHelper.assert_true(offer_a ~= nil)
+  TestHelper.assert_true(offer_b ~= nil)
+  TestHelper.assert_equal(option_signature(offer_a), option_signature(offer_b))
 end
 
 return suite

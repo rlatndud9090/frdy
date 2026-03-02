@@ -20,6 +20,7 @@ local EventManager = require('src.event.event_manager')
 local RewardManager = require('src.reward.reward_manager')
 local RewardHandler = require('src.handler.reward_handler')
 local RewardCatalog = require('src.reward.reward_catalog')
+local RunContext = require('src.core.run_context')
 local Game = require('src.core.game')
 local i18n = require('src.i18n.init')
 
@@ -40,6 +41,9 @@ local START_NODE_SELECT = "START_NODE_SELECT"
 
 ---@class GameScene : Scene
 ---@field phase string
+---@field run_seed number
+---@field run_context RunContext
+---@field enemy_rng RNG
 ---@field map Map
 ---@field current_node Node|nil
 ---@field target_node Node|nil
@@ -65,11 +69,28 @@ local START_NODE_SELECT = "START_NODE_SELECT"
 ---@field settings_overlay SettingsOverlay
 local GameScene = class('GameScene', Scene)
 
+---@return number
+function GameScene:_resolve_run_seed()
+  local env_seed = os.getenv('FRDY_RUN_SEED')
+  if env_seed and env_seed ~= '' then
+    local parsed = tonumber(env_seed)
+    if parsed then
+      return RunContext.normalize_seed(parsed)
+    end
+  end
+  return RunContext.normalize_seed(os.time())
+end
+
 function GameScene:initialize()
   Scene.initialize(self)
 
+  self.run_seed = self:_resolve_run_seed()
+  self.run_context = RunContext:new(self.run_seed)
+  local map_rng = self.run_context:get_stream('gameplay.map')
+  self.enemy_rng = self.run_context:get_stream('gameplay.enemy')
+
   -- 맵 생성
-  local generator = MapGenerator:new()
+  local generator = MapGenerator:new(map_rng)
   local config = require('data.map_configs.default_config')
   self.map = generator:generate_map(config)
 
@@ -84,7 +105,7 @@ function GameScene:initialize()
   self.hero_world_y = 360
 
   -- 카메라 생성 및 즉시 위치 설정 (초기 lerp 없이)
-  self.camera = Camera:new()
+  self.camera = Camera:new(self.run_context:get_stream('ui.camera'))
   self.camera:set_target(self.hero_world_x, self.hero_world_y)
   self.camera.x = self.hero_world_x
   self.camera.target_x = self.hero_world_x
@@ -108,10 +129,16 @@ function GameScene:initialize()
   local event_bus = Game:getInstance().event_bus
   self.mana_manager = ManaManager:new(100)
   self.suspicion_manager = SuspicionManager:new(event_bus)
-  self.reward_manager = RewardManager:new(self.hero, self.spell_book, self.mana_manager, self.suspicion_manager)
+  self.reward_manager = RewardManager:new(
+    self.hero,
+    self.spell_book,
+    self.mana_manager,
+    self.suspicion_manager,
+    self.run_context:get_stream('gameplay.reward')
+  )
 
   -- 이벤트 매니저 생성
-  self.event_manager = EventManager:new()
+  self.event_manager = EventManager:new(self.run_context:get_stream('gameplay.event'))
   self.event_manager:load_events(require('data.events.floor1_events'))
 
   -- 적 데이터 로드
@@ -140,11 +167,11 @@ function GameScene:initialize()
     self:_on_combat_ended(result)
   end)
 
-  self.event_handler = EventHandler:new()
+  self.event_handler = EventHandler:new(self.run_context:get_stream('gameplay.event_choice'))
   self.event_handler:set_on_event_end(function()
     self:_on_event_ended()
   end)
-  self.reward_handler = RewardHandler:new()
+  self.reward_handler = RewardHandler:new(self.run_context:get_stream('gameplay.reward_choice'))
 
   self.edge_select_handler = nil
 
@@ -156,6 +183,22 @@ function GameScene:initialize()
   self:_show_start_node_select(start_nodes)
 
   -- 게임 흐름 시작
+end
+
+---@return number
+function GameScene:get_run_seed()
+  return self.run_seed
+end
+
+---@return RunContextSnapshot
+function GameScene:get_rng_snapshot()
+  return self.run_context:snapshot()
+end
+
+---@param snapshot RunContextSnapshot
+---@return boolean
+function GameScene:restore_rng_snapshot(snapshot)
+  return self.run_context:restore(snapshot)
 end
 
 ---@param dt number
@@ -491,18 +534,18 @@ function GameScene:_create_enemies()
   else
     -- 일반 전투: 랜덤 1~2마리
     local enemy_keys = {"slime", "goblin", "skeleton", "wolf"}
-    local count = math.random(1, 2)
+    local count = self.enemy_rng:next_int(1, 2)
     for _ = 1, count do
-      local key = enemy_keys[math.random(#enemy_keys)]
+      local key = enemy_keys[self.enemy_rng:next_int(1, #enemy_keys)]
       local data = self.floor_enemies[key]
       table.insert(enemies, Enemy:new(data.name, data.stats, data.action_patterns))
     end
 
     if node.is_elite and node:is_elite() then
       local elite_enemies = {}
-      local elite_count = math.random(2, 3)
+      local elite_count = self.enemy_rng:next_int(2, 3)
       for _ = 1, elite_count do
-        local key = enemy_keys[math.random(#enemy_keys)]
+        local key = enemy_keys[self.enemy_rng:next_int(1, #enemy_keys)]
         local data = self.floor_enemies[key]
         local stats = {
           hp = math.max(1, math.floor((data.stats.hp or 1) * 1.4 + 0.5)),
@@ -651,7 +694,7 @@ function GameScene:_show_edge_select(edges)
       self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
-    })
+    }, self.run_context:get_stream('gameplay.path_choice'))
   else
     self.edge_select_handler:setup(edges, function(edge)
       self:_on_edge_selected(edge)

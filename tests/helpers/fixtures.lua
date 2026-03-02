@@ -1,4 +1,5 @@
 local EventBus = require('src.core.event_bus')
+local RunContext = require('src.core.run_context')
 local Hero = require('src.combat.hero')
 local Spell = require('src.spell.spell')
 local SpellBook = require('src.spell.spell_book')
@@ -31,13 +32,19 @@ function Fixtures.create_spell_book(ids)
   return SpellBook:new(spells)
 end
 
+---@param run_seed? number
 ---@return RewardFixture
-function Fixtures.create_reward_fixture()
+function Fixtures.create_reward_fixture(run_seed)
   local hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
   local spell_book = Fixtures.create_spell_book(starter_spell_ids)
   local mana_manager = ManaManager:new(100)
   local suspicion_manager = SuspicionManager:new(EventBus:new())
-  local reward_manager = RewardManager:new(hero, spell_book, mana_manager, suspicion_manager)
+  local reward_rng = nil
+  if run_seed ~= nil then
+    local run_context = RunContext:new(run_seed)
+    reward_rng = run_context:get_stream('gameplay.reward')
+  end
+  local reward_manager = RewardManager:new(hero, spell_book, mana_manager, suspicion_manager, reward_rng)
   return {
     hero = hero,
     spell_book = spell_book,
