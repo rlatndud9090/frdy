@@ -123,6 +123,25 @@ local function pick_unique_random(list, count)
   return picked
 end
 
+---@param payload table|nil
+---@param delta number
+---@return boolean
+local function bump_first_numeric_payload(payload, delta)
+  if type(payload) ~= 'table' then
+    return false
+  end
+
+  for key, value in pairs(payload) do
+    if type(value) == 'number' then
+      local sign = value >= 0 and 1 or -1
+      payload[key] = value + sign * delta
+      return true
+    end
+  end
+
+  return false
+end
+
 ---@param spell Spell
 ---@return boolean
 function RewardManager:_is_spell_upgradable(spell)
@@ -361,16 +380,18 @@ function RewardManager:_upgrade_spell(spell_id)
   if effect and type(effect.amount) == 'number' and effect.amount ~= 0 then
     local sign = effect.amount > 0 and 1 or -1
     effect.amount = effect.amount + sign * delta
+    if (effect.type == 'apply_status' or effect.type == 'apply_field_status') and type(effect.status_spec) == 'table' then
+      local status_spec = effect.status_spec
+      if type(status_spec.preview_amount) == 'number' then
+        local preview_sign = status_spec.preview_amount >= 0 and 1 or -1
+        status_spec.preview_amount = status_spec.preview_amount + preview_sign * delta
+      end
+      bump_first_numeric_payload(status_spec.payload, delta)
+    end
   elseif effect and effect.type == 'action_block' and spell.target_n then
     spell.target_n = spell.target_n + 1
   elseif effect and type(effect.payload) == 'table' then
-    for k, v in pairs(effect.payload) do
-      if type(v) == 'number' then
-        local sign = v >= 0 and 1 or -1
-        effect.payload[k] = v + sign * delta
-        break
-      end
-    end
+    bump_first_numeric_payload(effect.payload, delta)
   end
 
   return true
