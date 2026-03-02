@@ -21,12 +21,17 @@ local config = require('data.rewards.config')
 ---@field options RewardOption[]
 ---@field control {max_stage: number, mental_increase: number}
 
+---@class RewardOfferRequest
+---@field category string
+---@field source string
+
 ---@class RewardManager
 ---@field hero Hero
 ---@field spell_book SpellBook
 ---@field mana_manager ManaManager
 ---@field suspicion_manager SuspicionManager
----@field offer_queue RewardOffer[]
+---@field offer_queue RewardOfferRequest[]
+---@field current_offer RewardOffer|nil
 ---@field demon_awakening DemonAwakening
 ---@field legendary_inventory LegendaryInventory
 ---@field reward_control_bonus_stage number
@@ -42,6 +47,7 @@ function RewardManager:initialize(hero, spell_book, mana_manager, suspicion_mana
   self.mana_manager = mana_manager
   self.suspicion_manager = suspicion_manager
   self.offer_queue = {}
+  self.current_offer = nil
   self.demon_awakening = DemonAwakening:new(config.demon_awakening)
   self.legendary_inventory = LegendaryInventory:new()
   self.reward_control_bonus_stage = 0
@@ -90,12 +96,25 @@ end
 
 ---@return RewardOffer|nil
 function RewardManager:peek_offer()
-  local offer = self.offer_queue[1]
-  if not offer then
-    return nil
+  if self.current_offer then
+    self.current_offer.control = self:get_reward_control_rule()
+    return self.current_offer
   end
-  offer.control = self:get_reward_control_rule()
-  return offer
+
+  while #self.offer_queue > 0 do
+    local request = self.offer_queue[1]
+    local offer = self:_build_offer(request.category, request.source)
+    if offer then
+      offer.control = self:get_reward_control_rule()
+      self.current_offer = offer
+      return offer
+    end
+    -- 현재 상태에서 생성 가능한 선택지가 없는 보상은 큐에서 제거한다.
+    table.remove(self.offer_queue, 1)
+  end
+
+  self.current_offer = nil
+  return nil
 end
 
 ---@return number
@@ -183,11 +202,102 @@ local function bump_first_numeric_payload(payload, delta)
   return false
 end
 
+---@param path string
+---@return string[]
+local function split_path(path)
+  local parts = {}
+  for token in string.gmatch(path, '[^%.]+') do
+    parts[#parts + 1] = token
+  end
+  return parts
+end
+
+---@param root table
+---@param path string
+---@return table|nil, string|nil
+local function resolve_path_parent(root, path)
+  if type(root) ~= 'table' or type(path) ~= 'string' or path == '' then
+    return nil, nil
+  end
+
+  local parts = split_path(path)
+  if #parts == 0 then
+    return nil, nil
+  end
+
+  local current = root
+  for i = 1, #parts - 1 do
+    local key = parts[i]
+    local next_value = current[key]
+    if type(next_value) ~= 'table' then
+      return nil, nil
+    end
+    current = next_value
+  end
+
+  return current, parts[#parts]
+end
+
+---@param root table
+---@param patch table
+---@return boolean
+local function apply_numeric_patch(root, patch)
+  if type(root) ~= 'table' or type(patch) ~= 'table' then
+    return false
+  end
+
+  local parent, key = resolve_path_parent(root, patch.path)
+  if not parent or not key then
+    return false
+  end
+
+  local current = parent[key]
+  if type(current) ~= 'number' then
+    return false
+  end
+
+  local mode = patch.mode or 'add'
+  local value = patch.value or 0
+  local next_value = current
+
+  if mode == 'add' then
+    next_value = current + value
+  elseif mode == 'signed_add' then
+    local sign = current >= 0 and 1 or -1
+    next_value = current + sign * math.abs(value)
+  elseif mode == 'multiply' then
+    next_value = current * value
+  else
+    return false
+  end
+
+  if type(patch.min) == 'number' then
+    next_value = math.max(patch.min, next_value)
+  end
+  if type(patch.max) == 'number' then
+    next_value = math.min(patch.max, next_value)
+  end
+
+  if patch.round == 'floor' then
+    next_value = math.floor(next_value)
+  elseif patch.round == 'ceil' then
+    next_value = math.ceil(next_value)
+  elseif patch.round == 'round' then
+    next_value = math.floor(next_value + 0.5)
+  end
+
+  parent[key] = next_value
+  return true
+end
+
 ---@param spell Spell
 ---@return boolean
 function RewardManager:_is_spell_upgradable(spell)
   local current_rank = spell.reward_rank or 1
-  local max_rank = spell.max_reward_rank or (config.spell_upgrade and config.spell_upgrade.max_rank) or 5
+  local max_rank = (spell.upgrade and spell.upgrade.max_rank)
+    or spell.max_reward_rank
+    or (config.spell_upgrade and config.spell_upgrade.max_rank)
+    or 5
   return current_rank < max_rank
 end
 
@@ -209,38 +319,67 @@ function RewardManager:enqueue_offer(category, source, count)
     return
   end
   for _ = 1, iterations do
-    local offer = self:_build_offer(category, source)
-    if offer then
-      self.offer_queue[#self.offer_queue + 1] = offer
-    end
+    self.offer_queue[#self.offer_queue + 1] = {
+      category = category,
+      source = source,
+    }
   end
 end
 
----@param option RewardOption|nil
----@return RewardOffer|nil
-function RewardManager:resolve_current_offer(option)
-  local offer = table.remove(self.offer_queue, 1)
-  if not offer or not option then
-    return offer
+---@param offer RewardOffer
+---@param option RewardOption
+---@return boolean
+function RewardManager:_is_option_in_offer(offer, option)
+  for _, candidate in ipairs(offer.options or {}) do
+    if candidate.id == option.id and candidate.action == option.action then
+      return true
+    end
   end
+  return false
+end
 
+---@param offer RewardOffer
+---@param option RewardOption
+---@return boolean
+function RewardManager:_apply_offer_option(offer, option)
   if offer.category == 'demon_spell' then
     if option.action == 'upgrade' then
-      self:_upgrade_spell(option.id)
-    else
-      self:_add_spell(option.id)
+      return self:_upgrade_spell(option.id)
     end
+    return self:_add_spell(option.id)
   elseif offer.category == 'hero_pattern' then
     if option.action == 'upgrade' then
-      self.hero:upgrade_action_pattern(option.id, config.pattern_upgrade)
-    else
-      self:_add_pattern(option.id)
+      return self.hero:upgrade_action_pattern(option.id, config.pattern_upgrade)
     end
+    return self:_add_pattern(option.id)
   elseif offer.category == 'legendary_item' then
-    self:_add_legendary_item(option.id)
+    return self:_add_legendary_item(option.id)
+  end
+  return false
+end
+
+---@param option RewardOption|nil
+---@return RewardOffer|nil, boolean applied
+function RewardManager:resolve_current_offer(option)
+  local offer = self.current_offer or self:peek_offer()
+  if not offer then
+    return nil, false
+  end
+  if not option then
+    return offer, false
   end
 
-  return offer
+  if not self:_is_option_in_offer(offer, option) then
+    return offer, false
+  end
+
+  local applied = self:_apply_offer_option(offer, option)
+  self.current_offer = nil
+  if applied then
+    table.remove(self.offer_queue, 1)
+  end
+
+  return offer, applied
 end
 
 ---@param result string
@@ -410,40 +549,52 @@ function RewardManager:_upgrade_spell(spell_id)
     return false
   end
 
-  local max_rank = (config.spell_upgrade and config.spell_upgrade.max_rank) or 5
+  local upgrade = spell.upgrade or {}
+  local max_rank = upgrade.max_rank
+    or spell.max_reward_rank
+    or (config.spell_upgrade and config.spell_upgrade.max_rank)
+    or 5
   local current_rank = spell.reward_rank or 1
   if current_rank >= max_rank then
     return false
   end
 
-  spell.reward_rank = current_rank + 1
-  spell.max_reward_rank = max_rank
-
-  local cost_reduction = (config.spell_upgrade and config.spell_upgrade.cost_reduction) or 0
-  spell.cost = math.max(0, (spell.cost or 0) - cost_reduction)
-
-  local effect = spell:get_effect()
-  local delta = (config.spell_upgrade and config.spell_upgrade.effect_amount_delta) or 0
-  if effect and effect.type == 'action_block' and spell.target_n then
-    spell.target_n = spell.target_n + 1
-    if type(effect.amount) == 'number' then
-      effect.amount = math.max(1, math.floor(spell.target_n))
+  local applied_by_patch = false
+  for _, patch_spec in ipairs(upgrade.patches or {}) do
+    if apply_numeric_patch(spell, patch_spec) then
+      applied_by_patch = true
     end
-  elseif effect and type(effect.amount) == 'number' and effect.amount ~= 0 then
-    local sign = effect.amount > 0 and 1 or -1
-    effect.amount = effect.amount + sign * delta
-    if (effect.type == 'apply_status' or effect.type == 'apply_field_status') and type(effect.status_spec) == 'table' then
-      local status_spec = effect.status_spec
-      if type(status_spec.preview_amount) == 'number' then
-        local preview_sign = status_spec.preview_amount >= 0 and 1 or -1
-        status_spec.preview_amount = status_spec.preview_amount + preview_sign * delta
-      end
-      bump_first_numeric_payload(status_spec.payload, delta)
-    end
-  elseif effect and type(effect.payload) == 'table' then
-    bump_first_numeric_payload(effect.payload, delta)
   end
 
+  if not applied_by_patch then
+    local cost_reduction = (config.spell_upgrade and config.spell_upgrade.cost_reduction) or 0
+    spell.cost = math.max(0, (spell.cost or 0) - cost_reduction)
+
+    local effect = spell:get_effect()
+    local delta = (config.spell_upgrade and config.spell_upgrade.effect_amount_delta) or 0
+    if effect and effect.type == 'action_block' and spell.target_n then
+      spell.target_n = spell.target_n + 1
+      if type(effect.amount) == 'number' then
+        effect.amount = math.max(1, math.floor(spell.target_n))
+      end
+    elseif effect and type(effect.amount) == 'number' and effect.amount ~= 0 then
+      local sign = effect.amount > 0 and 1 or -1
+      effect.amount = effect.amount + sign * delta
+      if (effect.type == 'apply_status' or effect.type == 'apply_field_status') and type(effect.status_spec) == 'table' then
+        local status_spec = effect.status_spec
+        if type(status_spec.preview_amount) == 'number' then
+          local preview_sign = status_spec.preview_amount >= 0 and 1 or -1
+          status_spec.preview_amount = status_spec.preview_amount + preview_sign * delta
+        end
+        bump_first_numeric_payload(status_spec.payload, delta)
+      end
+    elseif effect and type(effect.payload) == 'table' then
+      bump_first_numeric_payload(effect.payload, delta)
+    end
+  end
+
+  spell.reward_rank = current_rank + 1
+  spell.max_reward_rank = max_rank
   return true
 end
 

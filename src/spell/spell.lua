@@ -12,6 +12,7 @@ local StatusRegistry = require('src.combat.status_registry')
 ---@field suspicion_abs number
 ---@field reward_rank number
 ---@field max_reward_rank number
+---@field upgrade table|nil
 ---@field target_mode string "char_single"|"char_faction"|"char_all"|"action_next_n"|"action_next_all"|"field"
 ---@field target_n number|nil
 ---@field keywords string[]
@@ -74,6 +75,19 @@ local function merge_params(dst, src)
   for key, value in pairs(src) do
     dst[key] = value
   end
+end
+
+---@param value any
+---@return any
+local function deep_copy(value)
+  if type(value) ~= 'table' then
+    return value
+  end
+  local copied = {}
+  for k, v in pairs(value) do
+    copied[k] = deep_copy(v)
+  end
+  return copied
 end
 
 ---@param payload table|nil
@@ -172,6 +186,7 @@ function Spell:initialize(data)
   self.suspicion_abs = math.abs(data.suspicion_abs or self.suspicion_delta or 0)
   self.reward_rank = data.reward_rank or 1
   self.max_reward_rank = data.max_reward_rank or 5
+  self.upgrade = deep_copy(data.upgrade)
   self.effect = data.effect
   self.timeline_type = "insert"
 
