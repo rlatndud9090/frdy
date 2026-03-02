@@ -49,13 +49,13 @@ function CombatManager:start_combat(hero, enemies)
   self.prediction_engine = PredictionEngine:new(20)
   self.prediction_engine:set_field_status_container(self.field_status_container)
   self.timeline_manager = TimelineManager:new(self.prediction_engine)
-  self.timeline_manager:setup(hero, enemies)
-  self.state = "active"
-  self.execution_index = 0
   if self.hero and self.hero.reset_action_state then
     self.hero:reset_action_state()
     self.hero:set_current_turn(self.turn_manager:get_turn_count())
   end
+  self.timeline_manager:setup(hero, enemies)
+  self.state = "active"
+  self.execution_index = 0
   self.turn_manager:prepare_enemy_intents()
 end
 
