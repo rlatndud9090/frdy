@@ -19,6 +19,7 @@ local SuspicionManager = require('src.spell.suspicion_manager')
 local EventManager = require('src.event.event_manager')
 local RewardManager = require('src.reward.reward_manager')
 local RewardHandler = require('src.handler.reward_handler')
+local RewardCatalog = require('src.reward.reward_catalog')
 local Game = require('src.core.game')
 local i18n = require('src.i18n.init')
 
@@ -92,16 +93,12 @@ function GameScene:initialize()
   self.hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
 
   -- 마법서 생성
-  local base_spells_data = require('data.spells.base_spells')
   local starter_spell_ids = require('data.spells.starter_spell_ids')
-  local starter_lookup = {}
-  for _, spell_id in ipairs(starter_spell_ids) do
-    starter_lookup[spell_id] = true
-  end
 
   local spells = {}
-  for _, spell_data in ipairs(base_spells_data) do
-    if starter_lookup[spell_data.id] then
+  for _, spell_id in ipairs(starter_spell_ids) do
+    local spell_data = RewardCatalog.get_spell_data(spell_id)
+    if spell_data then
       table.insert(spells, Spell:new(spell_data))
     end
   end
