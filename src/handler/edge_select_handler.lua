@@ -27,12 +27,14 @@
 ---@field blink_on boolean
 ---@field feedback_text string|nil
 ---@field path_control table
+---@field rng RNG
 
 local class = require('lib.middleclass')
 local EdgeSelector = require('src.ui.edge_selector')
 local Button = require('src.ui.button')
 local i18n = require('src.i18n.init')
 local path_control = require('data.interventions.path_control')
+local RNG = require('src.core.rng')
 
 local EdgeSelectHandler = class('EdgeSelectHandler')
 
@@ -42,7 +44,8 @@ local BLINK_INTERVAL = 0.45
 ---@param edges Edge[]
 ---@param on_select_callback function|nil
 ---@param context? EdgeSelectContext
-function EdgeSelectHandler:initialize(edges, on_select_callback, context)
+---@param rng? RNG
+function EdgeSelectHandler:initialize(edges, on_select_callback, context, rng)
   self.edges = edges or {}
   self.on_select_callback = on_select_callback
   self.edge_selector = nil
@@ -59,7 +62,14 @@ function EdgeSelectHandler:initialize(edges, on_select_callback, context)
   self.blink_on = true
   self.feedback_text = nil
   self.path_control = path_control
+  self.rng = rng or RNG:new(os.time())
   self:setup(self.edges, self.on_select_callback, context)
+end
+
+---@param rng RNG
+---@return nil
+function EdgeSelectHandler:set_rng(rng)
+  self.rng = rng
 end
 
 ---Activate handler
@@ -79,7 +89,7 @@ function EdgeSelectHandler:_roll_hero_choice_index()
   if #self.edges == 0 then
     return nil
   end
-  return math.random(#self.edges)
+  return self.rng:next_int(1, #self.edges)
 end
 
 ---@return boolean

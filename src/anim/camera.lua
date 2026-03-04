@@ -1,5 +1,6 @@
 local class = require('lib.middleclass')
 local flux = require('lib.flux')
+local RNG = require('src.core.rng')
 
 ---@class Camera
 ---@field x number current camera center world X
@@ -10,11 +11,15 @@ local flux = require('lib.flux')
 ---@field shake_amount number current shake intensity
 ---@field shake_timer number remaining shake duration
 ---@field _active_tween table|nil reference to active move tween for cancellation
+---@field _shake_offset_x number
+---@field _shake_offset_y number
+---@field rng RNG
 local Camera = class('Camera')
 
 ---Initialize camera with default values
+---@param rng? RNG
 ---@return nil
-function Camera:initialize()
+function Camera:initialize(rng)
   self.x = 0
   self.y = 0
   self.target_x = 0
@@ -23,6 +28,15 @@ function Camera:initialize()
   self.shake_amount = 0
   self.shake_timer = 0
   self._active_tween = nil
+  self._shake_offset_x = 0
+  self._shake_offset_y = 0
+  self.rng = rng or RNG:new(os.time())
+end
+
+---@param rng RNG
+---@return nil
+function Camera:set_rng(rng)
+  self.rng = rng
 end
 
 ---Update camera position with smooth following and shake
@@ -39,7 +53,15 @@ function Camera:update(dt)
     if self.shake_timer <= 0 then
       self.shake_timer = 0
       self.shake_amount = 0
+      self._shake_offset_x = 0
+      self._shake_offset_y = 0
+    else
+      self._shake_offset_x = (self.rng:next_float() * 2 - 1) * self.shake_amount
+      self._shake_offset_y = (self.rng:next_float() * 2 - 1) * self.shake_amount
     end
+  else
+    self._shake_offset_x = 0
+    self._shake_offset_y = 0
   end
 end
 
@@ -99,10 +121,8 @@ function Camera:apply()
   local offset_y = -(self.y - screen_height / 2)
 
   -- Add shake offset
-  if self.shake_timer > 0 then
-    offset_x = offset_x + (math.random() * 2 - 1) * self.shake_amount
-    offset_y = offset_y + (math.random() * 2 - 1) * self.shake_amount
-  end
+  offset_x = offset_x + self._shake_offset_x
+  offset_y = offset_y + self._shake_offset_y
 
   love.graphics.push()
   love.graphics.translate(offset_x, offset_y)
@@ -125,10 +145,8 @@ function Camera:get_offset()
   local offset_y = -(self.y - screen_height / 2)
 
   -- Add shake offset if active
-  if self.shake_timer > 0 then
-    offset_x = offset_x + (math.random() * 2 - 1) * self.shake_amount
-    offset_y = offset_y + (math.random() * 2 - 1) * self.shake_amount
-  end
+  offset_x = offset_x + self._shake_offset_x
+  offset_y = offset_y + self._shake_offset_y
 
   return offset_x, offset_y
 end

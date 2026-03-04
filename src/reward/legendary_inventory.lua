@@ -1,4 +1,5 @@
 local class = require('lib.middleclass')
+local RNG = require('src.core.rng')
 
 ---@class LegendaryItemDefinition
 ---@field id string
@@ -10,12 +11,22 @@ local class = require('lib.middleclass')
 ---@field _owned_ids string[]
 ---@field _owned_lookup table<string, LegendaryItemDefinition>
 ---@field _reward_control_bonus number
+---@field _rng RNG
 local LegendaryInventory = class('LegendaryInventory')
 
-function LegendaryInventory:initialize()
+---@param rng? RNG
+---@return nil
+function LegendaryInventory:initialize(rng)
   self._owned_ids = {}
   self._owned_lookup = {}
   self._reward_control_bonus = 0
+  self._rng = rng or RNG:new(os.time())
+end
+
+---@param rng RNG
+---@return nil
+function LegendaryInventory:set_rng(rng)
+  self._rng = rng
 end
 
 ---@param item_def LegendaryItemDefinition
@@ -128,7 +139,7 @@ function LegendaryInventory:remove_random(context)
     return nil
   end
 
-  local index = math.random(#self._owned_ids)
+  local index = self._rng:next_int(1, #self._owned_ids)
   local item_id = self._owned_ids[index]
   return self:remove_by_id(item_id, context)
 end

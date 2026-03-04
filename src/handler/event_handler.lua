@@ -1,6 +1,7 @@
 local class = require('lib.middleclass')
 local Button = require('src.ui.button')
 local i18n = require('src.i18n.init')
+local RNG = require('src.core.rng')
 
 ---@class Hero
 ---@field get_mental_stage fun(self: Hero): number
@@ -31,12 +32,15 @@ local i18n = require('src.i18n.init')
 ---@field blink_timer number
 ---@field blink_on boolean
 ---@field feedback_text string|nil
+---@field rng RNG
 local EventHandler = class('EventHandler')
 
 local BLINK_INTERVAL = 0.45
 
 ---Constructor for EventHandler
-function EventHandler:initialize()
+---@param rng? RNG
+---@return nil
+function EventHandler:initialize(rng)
   self.event = nil
   self.context = nil
   self.choice_buttons = {}
@@ -55,6 +59,13 @@ function EventHandler:initialize()
   self.blink_timer = 0
   self.blink_on = true
   self.feedback_text = nil
+  self.rng = rng or RNG:new(os.time())
+end
+
+---@param rng RNG
+---@return nil
+function EventHandler:set_rng(rng)
+  self.rng = rng
 end
 
 ---Set the event end callback
@@ -72,7 +83,7 @@ function EventHandler:_roll_hero_choice()
   if count <= 0 then
     return nil
   end
-  return math.random(count)
+  return self.rng:next_int(1, count)
 end
 
 ---Start a new event

@@ -4,9 +4,11 @@ local EventNode = require("src.map.event_node")
 local Edge = require("src.map.edge")
 local Floor = require("src.map.floor")
 local Map = require("src.map.map")
+local RNG = require("src.core.rng")
 
 ---@class MapGenerator
 ---@field _next_node_id number
+---@field rng RNG
 local MapGenerator = class("MapGenerator")
 
 local DEFAULT_MAP_HEIGHT = 1800
@@ -17,9 +19,11 @@ local DEFAULT_NODE_VERTICAL_MARGIN = 140
 local MAX_FLOOR_GENERATION_ATTEMPTS = 20
 local MAX_PAIR_CONNECTION_ATTEMPTS = 12
 
+---@param rng? RNG
 ---@return nil
-function MapGenerator:initialize()
+function MapGenerator:initialize(rng)
   self._next_node_id = 0
+  self.rng = rng or RNG:new(os.time())
 end
 
 ---@return number
@@ -31,8 +35,13 @@ end
 ---@param min_val number
 ---@param max_val number
 ---@return number
-local function rand_int(min_val, max_val)
-  return math.random(min_val, max_val)
+function MapGenerator:_rand_int(min_val, max_val)
+  return self.rng:next_int(min_val, max_val)
+end
+
+---@return number
+function MapGenerator:_rand_float()
+  return self.rng:next_float()
 end
 
 ---@param value number
@@ -171,7 +180,7 @@ end
 ---@param config table
 ---@return table<number, Node[]>, number
 function MapGenerator:_build_columns(floor, floor_index, config)
-  local num_columns = rand_int(config.columns_per_floor.min, config.columns_per_floor.max)
+  local num_columns = self:_rand_int(config.columns_per_floor.min, config.columns_per_floor.max)
   local columns = {}
   for col = 0, num_columns do
     columns[col] = {}
@@ -199,7 +208,7 @@ function MapGenerator:_generate_random_y_positions(node_count, map_height, confi
   end
 
   if node_count <= 1 then
-    local single_y = min_y + math.random() * (max_y - min_y)
+    local single_y = min_y + self:_rand_float() * (max_y - min_y)
     return {single_y}
   end
 
@@ -211,7 +220,7 @@ function MapGenerator:_generate_random_y_positions(node_count, map_height, confi
   local slack = math.max(usable_height - min_gap * (node_count - 1), 0)
 
   for idx = 1, node_count do
-    positions[idx] = math.random() * slack
+    positions[idx] = self:_rand_float() * slack
   end
 
   table.sort(positions)
@@ -241,10 +250,10 @@ function MapGenerator:_choose_middle_node_count(config, previous_count)
 
   if #candidates == 0 then
     -- Fallback for invalid config combinations.
-    return rand_int(min_count, max_count)
+    return self:_rand_int(min_count, max_count)
   end
 
-  return candidates[rand_int(1, #candidates)]
+  return candidates[self:_rand_int(1, #candidates)]
 end
 
 ---@param floor Floor
@@ -254,7 +263,7 @@ end
 ---@return nil
 function MapGenerator:_build_start_column(floor, columns, floor_index, config)
   local start_cfg = config.start_nodes_per_column or {min = 4, max = 5}
-  local node_count = rand_int(start_cfg.min, start_cfg.max)
+  local node_count = self:_rand_int(start_cfg.min, start_cfg.max)
   local map_height = self:_get_map_height(config)
   local y_positions = self:_generate_random_y_positions(node_count, map_height, config)
 
@@ -285,14 +294,14 @@ function MapGenerator:_build_middle_columns(floor, columns, floor_index, config,
     for row = 1, node_count do
       local y = y_positions[row]
       local node = nil
-      if math.random() < config.combat_ratio then
+      if self:_rand_float() < config.combat_ratio then
         local interval = math.max(1, math.floor(config.elite_hot_column_interval or 4))
         local offset = config.elite_hot_column_offset or 2
         local hot_chance = config.elite_hot_chance or 0.8
         local normal_chance = config.elite_normal_chance or 0.1
         local is_hot_column = ((col - offset) % interval) == 0
         local elite_chance = is_hot_column and hot_chance or normal_chance
-        local is_elite = math.random() < elite_chance
+        local is_elite = self:_rand_float() < elite_chance
         node = CombatNode:new(self:_generate_id(), {x = x, y = y}, floor_index, nil, false, is_elite)
       else
         node = EventNode:new(self:_generate_id(), {x = x, y = y}, floor_index, nil)
@@ -404,7 +413,7 @@ function MapGenerator:_pick_lowest_count_random(candidates, count_table)
     end
   end
 
-  return best[rand_int(1, #best)]
+  return best[self:_rand_int(1, #best)]
 end
 
 ---@param current_col Node[]
@@ -494,7 +503,7 @@ function MapGenerator:_build_regular_pair_edges(current_col, next_col, config)
 
   -- Add optional extra edges up to per-node target (max 3).
   for current_idx = 1, #current_col do
-    local desired = rand_int(config.edges_per_node.min, config.edges_per_node.max)
+    local desired = self:_rand_int(config.edges_per_node.min, config.edges_per_node.max)
     local target_out = math.min(desired, max_out)
 
     while out_count[current_idx] < target_out do
