@@ -23,4 +23,21 @@ function suite.test_same_seed_returns_same_event_sequence()
   end
 end
 
+---@return nil
+function suite.test_load_events_is_idempotent_for_same_dataset()
+  local event_data = require('data.events.floor1_events')
+  local manager = EventManager:new(RNG:new(2222))
+  local expected_count = #event_data
+
+  manager:load_events(event_data)
+  TestHelper.assert_equal(manager:get_event_count(), expected_count)
+
+  manager:load_events(event_data)
+  TestHelper.assert_equal(manager:get_event_count(), expected_count)
+
+  for _, event in ipairs(event_data) do
+    TestHelper.assert_true(manager:get_event(event.id) ~= nil)
+  end
+end
+
 return suite

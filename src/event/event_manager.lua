@@ -25,6 +25,9 @@ end
 
 ---@param data_table table[]
 function EventManager:load_events(data_table)
+  self.events = {}
+  self.event_list = {}
+
   for _, event_data in ipairs(data_table) do
     local choices = {}
     for _, choice_data in ipairs(event_data.choices or {}) do
