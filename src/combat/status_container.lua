@@ -16,6 +16,7 @@ local StatusRegistry = require("src.combat.status_registry")
 ---@field owner any
 ---@field domain string
 ---@field statuses StatusInstance[]
+---@field _status_by_uid table<string, StatusInstance>
 ---@field _next_uid number
 local StatusContainer = class("StatusContainer")
 
@@ -38,6 +39,7 @@ function StatusContainer:initialize(owner, domain)
   self.owner = owner
   self.domain = domain or "character"
   self.statuses = {}
+  self._status_by_uid = {}
   self._next_uid = 1
 end
 
@@ -148,6 +150,7 @@ function StatusContainer:_remove_instance(instance)
     if self.statuses[i] == instance then
       self:_call_hook(instance, "on_remove", {owner = self.owner})
       table.remove(self.statuses, i)
+      self._status_by_uid[instance.uid] = nil
       return
     end
   end
@@ -183,6 +186,7 @@ function StatusContainer:add(status_id, spec)
 
   local instance = self:_build_instance(def, spec)
   self.statuses[#self.statuses + 1] = instance
+  self._status_by_uid[instance.uid] = instance
   self:_call_hook(instance, "on_apply", {owner = self.owner})
   return instance
 end
@@ -190,11 +194,10 @@ end
 ---@param uid string
 ---@return boolean
 function StatusContainer:remove(uid)
-  for _, instance in ipairs(self.statuses) do
-    if instance.uid == uid then
-      self:_remove_instance(instance)
-      return true
-    end
+  local instance = self._status_by_uid[uid]
+  if instance then
+    self:_remove_instance(instance)
+    return true
   end
   return false
 end
@@ -215,15 +218,8 @@ function StatusContainer:emit(hook_name, ctx)
   end
 
   for _, instance in ipairs(snapshot) do
-    -- emit 중 제거될 수 있으므로 생존 확인
-    local alive = false
-    for _, current in ipairs(self.statuses) do
-      if current == instance then
-        alive = true
-        break
-      end
-    end
-    if alive then
+    -- emit 중 제거될 수 있으므로 uid 인덱스로 O(1) 생존 확인
+    if self._status_by_uid[instance.uid] == instance then
       self:_call_hook(instance, hook_name, ctx)
     end
   end
@@ -279,6 +275,7 @@ end
 ---@return nil
 function StatusContainer:restore(snap)
   self.statuses = {}
+  self._status_by_uid = {}
   self._next_uid = 1
   if not snap then
     return
@@ -288,7 +285,7 @@ function StatusContainer:restore(snap)
   for _, item in ipairs(snap.statuses or {}) do
     local def = StatusRegistry.get(item.status_id)
     if def and def.domain == self.domain then
-      self.statuses[#self.statuses + 1] = {
+      local restored = {
         uid = item.uid or self:_allocate_uid(),
         status_id = item.status_id,
         definition = def,
@@ -299,6 +296,8 @@ function StatusContainer:restore(snap)
         remaining_actions = item.remaining_actions,
         payload = deep_copy(item.payload or {}),
       }
+      self.statuses[#self.statuses + 1] = restored
+      self._status_by_uid[restored.uid] = restored
     end
   end
 end
