@@ -146,7 +146,7 @@ function StatusContainer:_call_hook(instance, hook_name, ctx)
 end
 
 ---@param instance StatusInstance
----@return nil
+---@return boolean
 function StatusContainer:_remove_instance(instance)
   for i = #self.statuses, 1, -1 do
     if self.statuses[i] == instance then
@@ -155,9 +155,10 @@ function StatusContainer:_remove_instance(instance)
       table.remove(self.statuses, i)
       self._status_by_uid[uid_key] = nil
       self._alive_instances[instance] = nil
-      return
+      return true
     end
   end
+  return false
 end
 
 ---@param status_id string
@@ -219,8 +220,11 @@ function StatusContainer:remove(uid)
     end
   end
   if instance then
-    self:_remove_instance(instance)
-    return true
+    local removed = self:_remove_instance(instance)
+    if not removed then
+      self._status_by_uid[uid] = nil
+    end
+    return removed
   end
   return false
 end

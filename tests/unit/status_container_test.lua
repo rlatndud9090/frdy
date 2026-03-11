@@ -163,4 +163,23 @@ function suite.test_runtime_uid_mutation_keeps_emit_and_remove_consistent()
   TestHelper.assert_true(container:remove(mutated_uid))
 end
 
+---@return nil
+function suite.test_remove_returns_false_for_stale_uid_index_entry()
+  local stale_id = "__test_status_container_stale_uid_remove"
+
+  StatusRegistry.register({
+    id = stale_id,
+    domain = "character",
+    hooks = {},
+  })
+
+  local container = StatusContainer:new({}, "character")
+  local added = container:add(stale_id)
+  TestHelper.assert_true(added ~= nil)
+  TestHelper.assert_true(container:remove(added.uid))
+
+  container._status_by_uid["__stale_uid_key"] = added
+  TestHelper.assert_false(container:remove("__stale_uid_key"))
+end
+
 return suite
