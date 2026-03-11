@@ -214,6 +214,10 @@ end
 ---@param uid string
 ---@return boolean
 function StatusContainer:remove(uid)
+  if uid == nil then
+    return false
+  end
+
   local instance = self._status_by_uid[uid]
   if instance and instance.uid ~= uid then
     self._status_by_uid[uid] = nil

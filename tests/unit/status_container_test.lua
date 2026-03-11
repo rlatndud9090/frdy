@@ -248,4 +248,29 @@ function suite.test_on_apply_uid_nil_does_not_crash_reindex()
   TestHelper.assert_true(container._status_by_uid[old_uid] == nil)
 end
 
+---@return nil
+function suite.test_remove_nil_uid_returns_false_without_crash()
+  local nil_uid_id = "__test_status_container_remove_nil_uid"
+
+  StatusRegistry.register({
+    id = nil_uid_id,
+    domain = "character",
+    hooks = {
+      on_apply = function(instance, _)
+        instance.uid = nil
+      end,
+    },
+  })
+
+  local container = StatusContainer:new({}, "character")
+  local added = container:add(nil_uid_id)
+  TestHelper.assert_true(added ~= nil)
+
+  local ok, result = pcall(function()
+    return container:remove(nil)
+  end)
+  TestHelper.assert_true(ok)
+  TestHelper.assert_false(result)
+end
+
 return suite
