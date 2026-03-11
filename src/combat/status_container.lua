@@ -187,8 +187,13 @@ function StatusContainer:add(status_id, spec)
 
   local instance = self:_build_instance(def, spec)
   self.statuses[#self.statuses + 1] = instance
-  self._status_by_uid[instance.uid] = instance
+  local uid_key = instance.uid
+  self._status_by_uid[uid_key] = instance
   self:_call_hook(instance, "on_apply", {owner = self.owner})
+  if self._status_by_uid[uid_key] == instance and instance.uid ~= uid_key then
+    self._status_by_uid[uid_key] = nil
+    self._status_by_uid[instance.uid] = instance
+  end
   return instance
 end
 

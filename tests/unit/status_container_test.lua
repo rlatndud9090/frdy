@@ -93,4 +93,38 @@ function suite.test_on_remove_uid_mutation_does_not_leave_stale_index()
   TestHelper.assert_false(container:remove(original_uid))
 end
 
+---@return nil
+function suite.test_on_apply_uid_mutation_updates_index_mapping()
+  local mutate_uid_id = "__test_status_container_on_apply_uid_mutation"
+  local mutated_uid = "__mutated_uid_after_apply"
+  local original_uid = nil
+
+  StatusRegistry.register({
+    id = mutate_uid_id,
+    domain = "character",
+    hooks = {
+      on_apply = function(instance, _)
+        original_uid = instance.uid
+        instance.uid = mutated_uid
+      end,
+      on_tick = function(_, ctx)
+        ctx.hit = true
+      end,
+    },
+  })
+
+  local container = StatusContainer:new({}, "character")
+  local added = container:add(mutate_uid_id)
+  TestHelper.assert_true(added ~= nil)
+  TestHelper.assert_true(original_uid ~= nil)
+  TestHelper.assert_equal(added.uid, mutated_uid)
+
+  local ctx = {hit = false}
+  container:emit("on_tick", ctx)
+  TestHelper.assert_true(ctx.hit)
+
+  TestHelper.assert_false(container:remove(original_uid))
+  TestHelper.assert_true(container:remove(mutated_uid))
+end
+
 return suite
