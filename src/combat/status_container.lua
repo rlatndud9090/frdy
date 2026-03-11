@@ -17,6 +17,7 @@ local StatusRegistry = require("src.combat.status_registry")
 ---@field domain string
 ---@field statuses StatusInstance[]
 ---@field _status_by_uid table<string, StatusInstance>
+---@field _alive_instances table<StatusInstance, boolean>
 ---@field _next_uid number
 local StatusContainer = class("StatusContainer")
 
@@ -40,6 +41,7 @@ function StatusContainer:initialize(owner, domain)
   self.domain = domain or "character"
   self.statuses = {}
   self._status_by_uid = {}
+  self._alive_instances = {}
   self._next_uid = 1
 end
 
@@ -152,6 +154,7 @@ function StatusContainer:_remove_instance(instance)
       self:_call_hook(instance, "on_remove", {owner = self.owner})
       table.remove(self.statuses, i)
       self._status_by_uid[uid_key] = nil
+      self._alive_instances[instance] = nil
       return
     end
   end
@@ -187,6 +190,7 @@ function StatusContainer:add(status_id, spec)
 
   local instance = self:_build_instance(def, spec)
   self.statuses[#self.statuses + 1] = instance
+  self._alive_instances[instance] = true
   local uid_key = instance.uid
   self._status_by_uid[uid_key] = instance
   self:_call_hook(instance, "on_apply", {owner = self.owner})
@@ -201,6 +205,19 @@ end
 ---@return boolean
 function StatusContainer:remove(uid)
   local instance = self._status_by_uid[uid]
+  if instance and instance.uid ~= uid then
+    self._status_by_uid[uid] = nil
+    instance = nil
+  end
+  if not instance then
+    for _, current in ipairs(self.statuses) do
+      if current.uid == uid then
+        instance = current
+        self._status_by_uid[uid] = current
+        break
+      end
+    end
+  end
   if instance then
     self:_remove_instance(instance)
     return true
@@ -224,8 +241,8 @@ function StatusContainer:emit(hook_name, ctx)
   end
 
   for _, instance in ipairs(snapshot) do
-    -- emit 중 제거될 수 있으므로 uid 인덱스로 O(1) 생존 확인
-    if self._status_by_uid[instance.uid] == instance then
+    -- emit 중 제거될 수 있으므로 인스턴스 생존 인덱스로 O(1) 생존 확인
+    if self._alive_instances[instance] then
       self:_call_hook(instance, hook_name, ctx)
     end
   end
@@ -282,6 +299,7 @@ end
 function StatusContainer:restore(snap)
   self.statuses = {}
   self._status_by_uid = {}
+  self._alive_instances = {}
   self._next_uid = 1
   if not snap then
     return
@@ -304,6 +322,7 @@ function StatusContainer:restore(snap)
       }
       self.statuses[#self.statuses + 1] = restored
       self._status_by_uid[restored.uid] = restored
+      self._alive_instances[restored] = true
     end
   end
 end

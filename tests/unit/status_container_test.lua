@@ -127,4 +127,40 @@ function suite.test_on_apply_uid_mutation_updates_index_mapping()
   TestHelper.assert_true(container:remove(mutated_uid))
 end
 
+---@return nil
+function suite.test_runtime_uid_mutation_keeps_emit_and_remove_consistent()
+  local mutate_uid_id = "__test_status_container_runtime_uid_mutation"
+  local mutated_uid = "__mutated_uid_runtime"
+  local original_uid = nil
+  local mutated = false
+
+  StatusRegistry.register({
+    id = mutate_uid_id,
+    domain = "character",
+    hooks = {
+      on_tick = function(instance, ctx)
+        ctx.hit_count = (ctx.hit_count or 0) + 1
+        if not mutated then
+          original_uid = instance.uid
+          instance.uid = mutated_uid
+          mutated = true
+        end
+      end,
+    },
+  })
+
+  local container = StatusContainer:new({}, "character")
+  local added = container:add(mutate_uid_id)
+  TestHelper.assert_true(added ~= nil)
+
+  local ctx = {hit_count = 0}
+  container:emit("on_tick", ctx)
+  container:emit("on_tick", ctx)
+
+  TestHelper.assert_equal(ctx.hit_count, 2)
+  TestHelper.assert_true(original_uid ~= nil)
+  TestHelper.assert_false(container:remove(original_uid))
+  TestHelper.assert_true(container:remove(mutated_uid))
+end
+
 return suite
