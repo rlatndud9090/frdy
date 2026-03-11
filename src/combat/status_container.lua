@@ -204,7 +204,9 @@ function StatusContainer:add(status_id, spec)
   self:_call_hook(instance, "on_apply", {owner = self.owner})
   if self._status_by_uid[uid_key] == instance and instance.uid ~= uid_key then
     self._status_by_uid[uid_key] = nil
-    self._status_by_uid[instance.uid] = instance
+    if instance.uid ~= nil then
+      self._status_by_uid[instance.uid] = instance
+    end
   end
   return instance
 end

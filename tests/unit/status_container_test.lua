@@ -218,4 +218,34 @@ function suite.test_expire_removal_clears_all_uid_aliases()
   TestHelper.assert_true(container._status_by_uid[mutated_uid] == nil)
 end
 
+---@return nil
+function suite.test_on_apply_uid_nil_does_not_crash_reindex()
+  local nil_uid_id = "__test_status_container_on_apply_uid_nil"
+  local old_uid = nil
+
+  StatusRegistry.register({
+    id = nil_uid_id,
+    domain = "character",
+    hooks = {
+      on_apply = function(instance, _)
+        old_uid = instance.uid
+        instance.uid = nil
+      end,
+      on_tick = function(_, ctx)
+        ctx.hit = true
+      end,
+    },
+  })
+
+  local container = StatusContainer:new({}, "character")
+  local added = container:add(nil_uid_id)
+  TestHelper.assert_true(added ~= nil)
+  TestHelper.assert_true(old_uid ~= nil)
+
+  local ctx = {hit = false}
+  container:emit("on_tick", ctx)
+  TestHelper.assert_true(ctx.hit)
+  TestHelper.assert_true(container._status_by_uid[old_uid] == nil)
+end
+
 return suite
