@@ -182,4 +182,40 @@ function suite.test_remove_returns_false_for_stale_uid_index_entry()
   TestHelper.assert_false(container:remove("__stale_uid_key"))
 end
 
+---@return nil
+function suite.test_expire_removal_clears_all_uid_aliases()
+  local expiring_id = "__test_status_container_expire_uid_alias_cleanup"
+  local mutated_uid = "__mutated_uid_expire"
+  local original_uid = nil
+  local mutated = false
+
+  StatusRegistry.register({
+    id = expiring_id,
+    domain = "character",
+    default_duration_turns = 1,
+    hooks = {
+      on_tick = function(instance, _)
+        if not mutated then
+          original_uid = instance.uid
+          instance.uid = mutated_uid
+          mutated = true
+        end
+      end,
+    },
+  })
+
+  local container = StatusContainer:new({}, "character")
+  local added = container:add(expiring_id)
+  TestHelper.assert_true(added ~= nil)
+
+  container:emit("on_tick", {})
+  TestHelper.assert_true(original_uid ~= nil)
+  TestHelper.assert_true(container._status_by_uid[original_uid] ~= nil)
+
+  container:consume_turn()
+  TestHelper.assert_equal(#container:get_all(), 0)
+  TestHelper.assert_true(container._status_by_uid[original_uid] == nil)
+  TestHelper.assert_true(container._status_by_uid[mutated_uid] == nil)
+end
+
 return suite

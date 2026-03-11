@@ -153,7 +153,14 @@ function StatusContainer:_remove_instance(instance)
       local uid_key = instance.uid
       self:_call_hook(instance, "on_remove", {owner = self.owner})
       table.remove(self.statuses, i)
-      self._status_by_uid[uid_key] = nil
+      if self._status_by_uid[uid_key] == instance then
+        self._status_by_uid[uid_key] = nil
+      end
+      for key, current in pairs(self._status_by_uid) do
+        if current == instance then
+          self._status_by_uid[key] = nil
+        end
+      end
       self._alive_instances[instance] = nil
       return true
     end
