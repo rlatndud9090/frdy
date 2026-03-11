@@ -16,6 +16,8 @@ local StatusRegistry = require("src.combat.status_registry")
 ---@field owner any
 ---@field domain string
 ---@field statuses StatusInstance[]
+---@field _status_by_uid table<string, StatusInstance>
+---@field _alive_instances table<StatusInstance, boolean>
 ---@field _next_uid number
 local StatusContainer = class("StatusContainer")
 
@@ -38,6 +40,8 @@ function StatusContainer:initialize(owner, domain)
   self.owner = owner
   self.domain = domain or "character"
   self.statuses = {}
+  self._status_by_uid = {}
+  self._alive_instances = {}
   self._next_uid = 1
 end
 
@@ -142,15 +146,26 @@ function StatusContainer:_call_hook(instance, hook_name, ctx)
 end
 
 ---@param instance StatusInstance
----@return nil
+---@return boolean
 function StatusContainer:_remove_instance(instance)
   for i = #self.statuses, 1, -1 do
     if self.statuses[i] == instance then
+      local uid_key = instance.uid
       self:_call_hook(instance, "on_remove", {owner = self.owner})
       table.remove(self.statuses, i)
-      return
+      if self._status_by_uid[uid_key] == instance then
+        self._status_by_uid[uid_key] = nil
+      end
+      for key, current in pairs(self._status_by_uid) do
+        if current == instance then
+          self._status_by_uid[key] = nil
+        end
+      end
+      self._alive_instances[instance] = nil
+      return true
     end
   end
+  return false
 end
 
 ---@param status_id string
@@ -183,18 +198,46 @@ function StatusContainer:add(status_id, spec)
 
   local instance = self:_build_instance(def, spec)
   self.statuses[#self.statuses + 1] = instance
+  self._alive_instances[instance] = true
+  local uid_key = instance.uid
+  self._status_by_uid[uid_key] = instance
   self:_call_hook(instance, "on_apply", {owner = self.owner})
+  if self._status_by_uid[uid_key] == instance and instance.uid ~= uid_key then
+    self._status_by_uid[uid_key] = nil
+    if instance.uid ~= nil then
+      self._status_by_uid[instance.uid] = instance
+    end
+  end
   return instance
 end
 
 ---@param uid string
 ---@return boolean
 function StatusContainer:remove(uid)
-  for _, instance in ipairs(self.statuses) do
-    if instance.uid == uid then
-      self:_remove_instance(instance)
-      return true
+  if uid == nil then
+    return false
+  end
+
+  local instance = self._status_by_uid[uid]
+  if instance and instance.uid ~= uid then
+    self._status_by_uid[uid] = nil
+    instance = nil
+  end
+  if not instance then
+    for _, current in ipairs(self.statuses) do
+      if current.uid == uid then
+        instance = current
+        self._status_by_uid[uid] = current
+        break
+      end
     end
+  end
+  if instance then
+    local removed = self:_remove_instance(instance)
+    if not removed then
+      self._status_by_uid[uid] = nil
+    end
+    return removed
   end
   return false
 end
@@ -215,15 +258,8 @@ function StatusContainer:emit(hook_name, ctx)
   end
 
   for _, instance in ipairs(snapshot) do
-    -- emit 중 제거될 수 있으므로 생존 확인
-    local alive = false
-    for _, current in ipairs(self.statuses) do
-      if current == instance then
-        alive = true
-        break
-      end
-    end
-    if alive then
+    -- emit 중 제거될 수 있으므로 인스턴스 생존 인덱스로 O(1) 생존 확인
+    if self._alive_instances[instance] then
       self:_call_hook(instance, hook_name, ctx)
     end
   end
@@ -279,6 +315,8 @@ end
 ---@return nil
 function StatusContainer:restore(snap)
   self.statuses = {}
+  self._status_by_uid = {}
+  self._alive_instances = {}
   self._next_uid = 1
   if not snap then
     return
@@ -288,7 +326,7 @@ function StatusContainer:restore(snap)
   for _, item in ipairs(snap.statuses or {}) do
     local def = StatusRegistry.get(item.status_id)
     if def and def.domain == self.domain then
-      self.statuses[#self.statuses + 1] = {
+      local restored = {
         uid = item.uid or self:_allocate_uid(),
         status_id = item.status_id,
         definition = def,
@@ -299,6 +337,9 @@ function StatusContainer:restore(snap)
         remaining_actions = item.remaining_actions,
         payload = deep_copy(item.payload or {}),
       }
+      self.statuses[#self.statuses + 1] = restored
+      self._status_by_uid[restored.uid] = restored
+      self._alive_instances[restored] = true
     end
   end
 end
