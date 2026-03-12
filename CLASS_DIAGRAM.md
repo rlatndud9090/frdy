@@ -1,203 +1,215 @@
-# 클래스 다이어그램
+# 클래스 다이어그램 (현재 코드 기준)
 
-이 문서는 "마왕의 은밀한 조력" 게임의 전체 클래스 구조를 보여줍니다.
+이 문서는 `origin/main`의 실제 클래스 구조를 요약합니다.
+과거 문서에 있던 `MapScene/CombatScene`, `Deck/Card` 중심 구조는 현재 코드와 다릅니다.
 
----
+## 1) 상위 구성도
 
-## 전체 시스템 다이어그램
+```mermaid
+flowchart LR
+  A[main.lua] --> B[Game Singleton]
+  B --> C[SceneManager]
+  C --> D[GameScene]
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CORE FRAMEWORK                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────┐    ┌──────────────┐    ┌──────────────┐          │
-│  │  Game     │───→│ SceneManager │───→│ Scene (base) │          │
-│  │ (싱글턴) │    │ (스택 기반)  │    │ (추상 클래스)│          │
-│  └──────────┘    └──────────────┘    └──────┬───────┘          │
-│       │                                      │                  │
-│       │          ┌──────────────┐     ┌──────┴───────────┐     │
-│       └─────────→│ EventBus     │     │ Concrete Scenes: │     │
-│                  │ (옵저버)     │     │  - GameScene     │     │
-│                  └──────────────┘     │    (통합 게임)  │     │
-│                       ↑               │  - MapScene      │     │
-│                       │               │    (맵/탐색)     │     │
-│                  ┌────┴──────┐        └──────────────────┘     │
-│                  │  Handlers  │                                 │
-│                  │ (모듈들):  │  GameScene 내부 UI 모듈:       │
-│                  │ - Combat   │  - Minimap (축소 맵 위젯)     │
-│                  │ - Event    │  - MapOverlay (전체 맵 보기)   │
-│                  │ - EdgeSel. │                                 │
-│                  └────────────┘                                 │
-└─────────────────────────────────────────────────────────────────┘
+  D --> E[Map System]
+  D --> F[Combat Handler]
+  D --> G[Event Handler]
+  D --> H[Reward Handler]
+  D --> I[UI Widgets]
+  D --> J[RunContext/RNG]
 
-┌─────────────────────────────────────────────────────────────────┐
-│                        MAP SYSTEM                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────┐    ┌──────────────┐          │
-│  │ MapGenerator  │───→│ Map      │◆──→│ Floor        │          │
-│  │ (팩토리)     │    │ (전체맵) │    │ (층)         │          │
-│  └──────────────┘    └──────────┘    └──────┬───────┘          │
-│                                              │                  │
-│                                       ┌──────┴───────┐         │
-│                                       │              │         │
-│                                  ┌────┴────┐  ┌─────┴─────┐   │
-│                                  │  Node   │◆─│   Edge    │   │
-│                                  │ (노드)  │  │  (간선)   │   │
-│                                  └────┬────┘  └───────────┘   │
-│                                       │                        │
-│                                ┌──────┴──────┐                 │
-│                                │             │                 │
-│                          ┌─────┴─────┐ ┌────┴──────┐          │
-│                          │CombatNode │ │EventNode  │          │
-│                          └───────────┘ └───────────┘          │
-└─────────────────────────────────────────────────────────────────┘
+  F --> K[CombatManager]
+  K --> L[TurnManager]
+  K --> M[TimelineManager]
+  K --> N[PredictionEngine]
 
-┌─────────────────────────────────────────────────────────────────┐
-│                      COMBAT SYSTEM                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────┐          │
-│  │ CombatManager │───→│ TurnManager  │    │ Entity   │          │
-│  └──────┬───────┘    └──────────────┘    │ (base)   │          │
-│         │                                 └────┬─────┘          │
-│         │            ┌──────────────┐    ┌─────┴─────┐         │
-│         ├───────────→│ ActionQueue  │    │          │         │
-│         │            └──────────────┘  ┌─┴──┐  ┌───┴───┐     │
-│         │                              │Hero│  │Enemy  │     │
-│         │                              └──┬─┘  └──┬────┘     │
-│         │                                 │       │           │
-│         │                              ┌──┴───────┴──┐        │
-│         │                              │ActionPattern │        │
-│         │                              │(행동 패턴)   │        │
-│         │                              │ +condition   │        │
-│         │                              │ +cooldown    │        │
-│         │                              │ +priority    │        │
-│         │                              └─────────────┘        │
-│         │                                                      │
-│         │  ┌────────────────────────────────────────────┐      │
-│         └─→│ PREDICTION SYSTEM (마안)                    │      │
-│            │                                            │      │
-│            │  ┌──────────────────┐  ┌────────────────┐  │      │
-│            │  │PredictionEngine  │─→│PredictedAction │  │      │
-│            │  │(예측 엔진)       │  │(예측된 행동)   │  │      │
-│            │  └──────────────────┘  └────────────────┘  │      │
-│            │            │                                │      │
-│            │  ┌─────────┴────────┐                      │      │
-│            │  │TimelineManager   │                      │      │
-│            │  │(타임라인 관리)   │                      │      │
-│            │  └──────────────────┘                      │      │
-│            └────────────────────────────────────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    CARD & INTERVENTION SYSTEM                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────┐    ┌──────────────┐    ┌──────────────┐          │
-│  │  Deck    │◆──→│  Card (base) │    │ CardEffect   │          │
-│  │ (덱)    │    └──────┬───────┘───→│ (Strategy)   │          │
-│  └──────────┘          │             └──────────────┘          │
-│                  ┌─────┴──────┐                                │
-│                  │            │                                │
-│            ┌─────┴────┐┌─────┴─────┐                          │
-│            │AidCard   ││HinderCard │                          │
-│            │(조력카드)││(방해카드) │                          │
-│            └──────────┘└───────────┘                          │
-│                                                                │
-│  ┌──────────────────┐    ┌──────────────┐                     │
-│  │ SuspicionManager │◄───│ ManaManager  │                     │
-│  │ (의심 시스템)    │    │ (마력 관리)  │                     │
-│  └──────────────────┘    └──────────────┘                     │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                      EVENT SYSTEM                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │EventManager  │───→│ Event (base) │◆──→│ Choice       │      │
-│  └──────────────┘    └──────┬───────┘    └──────────────┘      │
-│                             │                                   │
-│                    (data-driven:                                │
-│                     events defined                              │
-│                     in data files)                              │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                        UI SYSTEM                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐                                              │
-│  │ UIElement    │ (base)                                       │
-│  │ (추상)      │                                               │
-│  └──────┬───────┘                                              │
-│         │                                                      │
-│  ┌──────┼──────────┬──────────┬──────────┐                    │
-│  │      │          │          │          │                    │
-│  │ ┌────┴───┐ ┌────┴───┐ ┌───┴────┐ ┌───┴─────┐            │
-│  │ │Button  │ │Panel   │ │Gauge   │ │Minimap  │            │
-│  │ └────────┘ └────────┘ └────────┘ └─────────┘            │
-│  │                                                           │
-│  │ ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ │EdgeSelector  │  │CardHand      │  │TimelineUI    │     │
-│  │ │(경로선택UI)  │  │(카드패 UI)   │  │(타임라인 UI) │     │
-│  │ └──────────────┘  └──────────────┘  └──────────────┘     │
-│  └───────────────────────────────────────────────────────────┘
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                     ANIMATION SYSTEM                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────┐                          │
-│  │ Camera       │    │ Tween (flux) │                          │
-│  │ (카메라/뷰포트)│    │ (보간 엔진)  │                          │
-│  └──────────────┘    └──────────────┘                          │
-│                                                                 │
-│  ┌──────────────┐                                              │
-│  │ Transition   │ (화면 전환 효과)                             │
-│  └──────────────┘                                              │
-└─────────────────────────────────────────────────────────────────┘
+  D --> O[RewardManager]
+  D --> P[EventManager]
+  D --> Q[SpellBook]
+  D --> R[SuspicionManager]
+  D --> S[ManaManager]
 ```
 
----
+## 2) Core / Scene 계층
 
-## 행동 패턴 시스템 클래스 설명
+```mermaid
+classDiagram
+  class Game {
+    +getInstance()
+    +init()
+    +update(dt)
+    +draw()
+  }
 
-| Class | Responsibility | Key Methods |
-|-------|---------------|-------------|
-| **ActionPattern** | 단일 행동 패턴 정의. 조건, 쿨타임, 우선순위 기반 행동 선택의 단위 | `can_use(context)`, `get_priority()`, `get_cooldown()`, `execute(actor, target)`, `get_preview(actor)` |
-| **PatternResolver** | 엔티티의 패턴 목록에서 현재 상태에 맞는 최적 행동을 결정하는 알고리즘 | `resolve(patterns, context)`, `resolve_sequence(patterns, context, count)` |
+  class SceneManager {
+    +push(scene)
+    +pop()
+    +switch(scene)
+    +peek()
+  }
 
-## 예측 시스템 (마안) 클래스 설명
+  class Scene {
+    +enter(params)
+    +exit()
+    +update(dt)
+    +draw()
+  }
 
-| Class | Responsibility | Key Methods |
-|-------|---------------|-------------|
-| **PredictionEngine** | PatternResolver를 활용하여 미래 전투 흐름을 시뮬레이션. 상태 스냅샷 기반 예측 | `generate_timeline(hero, enemies, max_turns)`, `recalculate_from(index, interventions)`, `get_timeline()` |
-| **PredictedAction** | 예측된 단일 행동을 나타내는 데이터 객체. 행동 주체, 패턴, 대상, 예상 수치, 시뮬레이션 시점의 상태 스냅샷 보관 | `get_actor()`, `get_pattern()`, `get_target()`, `get_value()`, `is_intervention()`, `get_state_snapshot()` |
-| **TimelineManager** | 타임라인에 대한 조작(삽입, 교환, 제거, 변화)을 관리. 조작 시 변경 지점부터 타임라인 재계산 트리거 | `insert_at(index, card)`, `swap(index_a, index_b)`, `remove_at(index)`, `modify_at(index, card)`, `get_actions()` |
-| **TimelineUI** | 타임라인을 네모 박스 배열로 화면에 렌더링. 카드 타입별 인터랙션 모드 지원 | `set_timeline(actions)`, `set_insert_mode(card)`, `set_manipulate_mode(card)`, `draw()`, `update(dt)` |
+  class GameScene {
+    -phase
+    -run_seed
+    -run_context
+  }
 
-## 설계 패턴
+  Game --> SceneManager
+  SceneManager --> Scene
+  GameScene --|> Scene
+```
 
-- **Singleton**: Game (전역 접근)
-- **State Machine**: SceneManager (화면 관리)
-- **Observer**: EventBus (이벤트 발행/구독)
-- **Factory**: MapGenerator (맵 생성)
-- **Strategy**: CardEffect (카드 효과 확장)
-- **Template Method**: Scene (화면 라이프사이클)
-- **Simulation**: PredictionEngine (전투 예측 시뮬레이션)
+## 3) 맵 시스템
 
----
+```mermaid
+classDiagram
+  class MapGenerator
+  class Map
+  class Floor
+  class Node
+  class CombatNode
+  class EventNode
+  class Edge
 
-## 관계 표기법
+  MapGenerator --> Map : generate_map
+  Map --> Floor
+  Floor --> Node
+  Floor --> Edge
+  CombatNode --|> Node
+  EventNode --|> Node
+  Edge --> Node : from/to
+```
 
-- `───→` : 의존 관계 (uses)
-- `◆───→` : 조합 관계 (has-a, composition)
-- `└───┘` : 상속 관계 (is-a, inheritance)
+## 4) 전투/예측/상태 시스템
 
----
+```mermaid
+classDiagram
+  class CombatHandler
+  class CombatManager
+  class TurnManager
+  class TimelineManager
+  class PredictionEngine
+  class PredictedAction
+  class ActionQueue
+  class Entity
+  class Hero
+  class Enemy
+  class ActionPattern
+  class StatusContainer
+  class StatusRegistry
 
-*상세 클래스 설명은 `.omc/plans/game-core-architecture.md` 참조*
+  CombatHandler --> CombatManager
+  CombatManager --> TurnManager
+  CombatManager --> TimelineManager
+  CombatManager --> PredictionEngine
+  CombatManager --> ActionQueue
+
+  TimelineManager --> PredictedAction
+  PredictionEngine --> PredictedAction
+
+  Hero --|> Entity
+  Enemy --|> Entity
+  Entity --> StatusContainer
+  StatusContainer --> StatusRegistry
+  Hero --> ActionPattern
+  Enemy --> ActionPattern
+```
+
+## 5) 주문/보상/이벤트 시스템
+
+```mermaid
+classDiagram
+  class Spell
+  class SpellBook
+  class SpellEffect
+  class ManaManager
+  class SuspicionManager
+
+  class RewardManager
+  class DemonAwakening
+  class LegendaryInventory
+  class RewardCatalog
+
+  class EventManager
+  class Event
+  class Choice
+
+  SpellBook --> Spell
+  Spell --> SpellEffect
+  RewardManager --> RewardCatalog
+  RewardManager --> DemonAwakening
+  RewardManager --> LegendaryInventory
+
+  EventManager --> Event
+  Event --> Choice
+
+  SpellBook --> ManaManager
+  Spell --> SuspicionManager
+```
+
+## 6) 핸들러 / UI 계층
+
+```mermaid
+classDiagram
+  class GameScene
+  class CombatHandler
+  class EventHandler
+  class EdgeSelectHandler
+  class RewardHandler
+
+  class UIElement
+  class Gauge
+  class Button
+  class Panel
+  class TimelineUI
+  class SpellBookOverlay
+  class EdgeSelector
+  class Minimap
+  class MapOverlay
+  class SettingsOverlay
+  class Camera
+
+  CombatHandler --> TimelineUI
+  CombatHandler --> SpellBookOverlay
+  EventHandler --> Button
+  RewardHandler --> Button
+  EdgeSelectHandler --> EdgeSelector
+
+  Gauge --|> UIElement
+  Button --|> UIElement
+  Panel --|> UIElement
+  TimelineUI --|> UIElement
+  SpellBookOverlay --|> UIElement
+  EdgeSelector --|> UIElement
+  Minimap --|> UIElement
+  MapOverlay --|> UIElement
+  SettingsOverlay --|> UIElement
+
+  GameScene --> CombatHandler
+  GameScene --> EventHandler
+  GameScene --> EdgeSelectHandler
+  GameScene --> RewardHandler
+  GameScene --> Minimap
+  GameScene --> MapOverlay
+  GameScene --> SettingsOverlay
+  GameScene --> Camera
+```
+
+## 7) 주요 변경 포인트(문서 동기화용)
+
+- 씬 구조: `MapScene/CombatScene` 분리형이 아니라 `GameScene` 통합형
+- 개입 구조: `Deck/Card`가 아니라 `SpellBook/Spell` 중심
+- RNG: 전역 `math.random` 의존이 아니라 `RunContext` 스트림 RNG
+- 정산: `RewardManager` + `DemonAwakening` + `LegendaryInventory` 큐 기반
+
+## 문서 메타
+
+- 문서 기준: `origin/main`
+- Last Updated: 2026-03-12

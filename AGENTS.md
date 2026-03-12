@@ -180,6 +180,15 @@ function ClassName:method(name, optional_param)
 - `src/`, `data/` 하위 Lua 로직 변경 시 `tests/*_test.lua`를 함께 추가/수정한다.
 - PR에서는 테스트 누락 시 CI(`scripts/check_test_required.sh`)에서 실패하도록 유지한다.
 
+### 문서 동기화 체크 (필수)
+
+- 코드 작업(PR) 마무리 전에 아래 문서의 최신화 필요 여부를 반드시 점검한다.
+  - `GAME_CONCEPT.md`
+  - `CLASS_DIAGRAM.md`
+  - `README.md`
+- 아키텍처/흐름/용어가 바뀌었다면 같은 PR에서 문서를 함께 갱신한다.
+- 문서 변경이 불필요한 경우, PR 설명에 불필요 판단 근거를 한 줄로 남긴다.
+
 ### 로컬 실행
 
 ```bash
@@ -188,7 +197,7 @@ love .
 
 ### 게임 시스템 우선순위
 
-1. **핵심 시스템** (맵, 전투, 카드)
+1. **핵심 시스템** (맵, 전투, 주문/개입)
 2. **의심 시스템** (게임 핵심 메커니즘)
 3. **UI/UX**
 4. **밸런싱**
