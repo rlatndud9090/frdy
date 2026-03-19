@@ -97,21 +97,12 @@ function SpellEffect.debuff_speed(amount)
   }
 end
 
---- Create a hinder effect (damage to hero)
+--- Legacy alias for targeted damage.
+--- Kept so older spell ids can stay stable while target rules remain side-agnostic.
 ---@param damage_amount number
 ---@return SpellEffectObject
 function SpellEffect.hinder(damage_amount)
-  return {
-    type = "hinder",
-    amount = damage_amount,
-    apply = function(self, target, context)
-      if context and context.apply_damage then
-        context.apply_damage(target, self.amount)
-      else
-        target:take_damage(self.amount)
-      end
-    end
-  }
+  return SpellEffect.damage(damage_amount)
 end
 
 --- Create a character status effect.

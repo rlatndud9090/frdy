@@ -74,6 +74,7 @@ return {
   ["spell.statuses"] = "Statuses",
   ["spell.keywords"] = "Keywords",
   ["spell.no_keyword"] = "No keywords",
+  ["spell.suspicion_targeted"] = "susp: hero -{value} / enemy +{value}",
   ["spell.suspicion_per_action"] = "susp: ±{value}/act",
 
   -- Spell tabs
@@ -88,9 +89,11 @@ return {
   ["spell.name.haste_sigil"] = "Haste Sigil",
   ["spell.name.crippling_hex"] = "Crippling Hex",
   ["spell.name.stumble"] = "Stumble",
-  ["spell.name.weaken_foe"] = "Weaken Foe",
+  ["spell.name.weaken_foe"] = "Sapping Chant",
   ["spell.name.dark_pact"] = "Dark Pact",
   ["spell.name.minor_heal"] = "Minor Heal",
+  ["spell.name.healing_rain"] = "Healing Rain",
+  ["spell.name.rain_of_ruin"] = "Rain of Ruin",
   ["spell.name.time_warp"] = "Time Warp",
   ["spell.name.nullify"] = "Nullify",
   ["spell.name.delay_strike"] = "Delay Strike",
@@ -108,6 +111,8 @@ return {
   ["spell.desc.weaken_foe"] = "Reduce a faction's attack by {amount}.",
   ["spell.desc.dark_pact"] = "Deal {amount} damage to target.",
   ["spell.desc.minor_heal"] = "Heal target for {amount} HP.",
+  ["spell.desc.healing_rain"] = "Heal all characters for {amount} HP.",
+  ["spell.desc.rain_of_ruin"] = "Deal {amount} damage to all characters.",
   ["spell.desc.time_warp"] = "Increase a faction's speed by {amount}.",
   ["spell.desc.nullify"] = "Block the next {count} action(s).",
   ["spell.desc.delay_strike"] = "Reduce a faction's speed by {amount}.",
@@ -118,7 +123,7 @@ return {
 
   -- Spell keywords
   ["spell.keyword.char_single.title"] = "Single",
-  ["spell.keyword.char_single.description"] = "Targets one character.",
+  ["spell.keyword.char_single.description"] = "Targets one character on either side.",
   ["spell.keyword.char_faction.title"] = "Faction",
   ["spell.keyword.char_faction.description"] = "Targets either the hero side or all enemies.",
   ["spell.keyword.char_all.title"] = "All",

@@ -6,6 +6,8 @@ local starter_spell_ids = {
   "haste_sigil",
   "stumble",
   "minor_heal",
+  "healing_rain",
+  "rain_of_ruin",
 }
 
 return starter_spell_ids

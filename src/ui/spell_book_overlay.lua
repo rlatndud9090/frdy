@@ -318,9 +318,9 @@ function SpellBookOverlay:_draw_spell_item(spell, index, y)
 
   local susp = spell.get_suspicion_abs and spell:get_suspicion_abs() or math.abs(spell:get_suspicion_delta())
   local target_mode = spell.get_target_mode and spell:get_target_mode() or "char_single"
-  if susp ~= 0 and (target_mode == "char_single" or target_mode == "char_faction" or target_mode == "char_all") then
+  if susp ~= 0 and (target_mode == "char_single" or target_mode == "char_faction") then
     love.graphics.setColor(1, 0.85, 0.35, text_alpha * 0.85)
-    love.graphics.print("susp: ±" .. math.abs(susp), SPELL_ITEM_X + 120, y + 25)
+    love.graphics.print(i18n.t("spell.suspicion_targeted", {value = math.abs(susp)}), SPELL_ITEM_X + 120, y + 25)
   elseif susp ~= 0 and (target_mode == "action_next_n" or target_mode == "action_next_all") then
     love.graphics.setColor(1, 0.85, 0.35, text_alpha * 0.85)
     love.graphics.print(i18n.t("spell.suspicion_per_action", {value = math.abs(susp)}), SPELL_ITEM_X + 120, y + 25)
