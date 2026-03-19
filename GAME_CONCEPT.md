@@ -69,8 +69,15 @@
   - `Spell`: 비용, 대상 모드, 의심치, 효과
   - `SpellEffect`: 실제 적용 로직
 - 대상 모드:
-  - `char_single`, `char_faction`, `char_all`
+  - `char_single`: 용사 또는 적 한 명
+  - `char_faction`: 용사 진영 전체 또는 적 진영 전체
+  - `char_all`: 용사와 모든 적 전체
   - `action_next_n`, `action_next_all`, `field`
+- 현재 전투용 타깃 스펠은 스펠별 진영 제한을 두지 않습니다.
+  - `char_single`, `char_faction` 스펠은 항상 용사/적 양쪽을 대상으로 선택 가능합니다.
+  - 의심치는 실제로 선택한 진영 기준으로 계산합니다.
+  - 용사 쪽을 고르면 의심이 감소하고, 적 쪽을 고르면 의심이 증가합니다.
+  - `char_all` 스펠은 진영 선택이 없고, 기본적으로 의심치를 발생시키지 않습니다.
 
 참고:
 

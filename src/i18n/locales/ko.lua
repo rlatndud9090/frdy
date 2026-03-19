@@ -74,6 +74,7 @@ return {
   ["spell.statuses"] = "부여 상태",
   ["spell.keywords"] = "키워드",
   ["spell.no_keyword"] = "키워드 없음",
+  ["spell.suspicion_targeted"] = "의심: 용사 -{value} / 적 +{value}",
   ["spell.suspicion_per_action"] = "의심: ±{value}/행동",
 
   -- Spell tabs
@@ -88,9 +89,11 @@ return {
   ["spell.name.haste_sigil"] = "헤이스트 시길",
   ["spell.name.crippling_hex"] = "크리플링 헥스",
   ["spell.name.stumble"] = "스텀블",
-  ["spell.name.weaken_foe"] = "위큰 포",
+  ["spell.name.weaken_foe"] = "쇠약의 진언",
   ["spell.name.dark_pact"] = "다크 팩트",
   ["spell.name.minor_heal"] = "마이너 힐",
+  ["spell.name.healing_rain"] = "치유의 비",
+  ["spell.name.rain_of_ruin"] = "파멸의 비",
   ["spell.name.time_warp"] = "타임 워프",
   ["spell.name.nullify"] = "널리파이",
   ["spell.name.delay_strike"] = "딜레이 스트라이크",
@@ -108,6 +111,8 @@ return {
   ["spell.desc.weaken_foe"] = "선택한 진영의 공격력을 {amount} 내립니다.",
   ["spell.desc.dark_pact"] = "대상에게 {amount} 피해를 줍니다.",
   ["spell.desc.minor_heal"] = "대상을 {amount} 회복합니다.",
+  ["spell.desc.healing_rain"] = "모든 캐릭터의 체력을 {amount} 회복합니다.",
+  ["spell.desc.rain_of_ruin"] = "모든 캐릭터에게 {amount} 피해를 줍니다.",
   ["spell.desc.time_warp"] = "선택한 진영의 속도를 {amount} 올립니다.",
   ["spell.desc.nullify"] = "다음 {count}번의 행동을 차단합니다.",
   ["spell.desc.delay_strike"] = "선택한 진영의 속도를 {amount} 내립니다.",
@@ -118,7 +123,7 @@ return {
 
   -- Spell keywords
   ["spell.keyword.char_single.title"] = "개별",
-  ["spell.keyword.char_single.description"] = "한 캐릭터를 대상으로 발동합니다.",
+  ["spell.keyword.char_single.description"] = "용사 또는 적 한 명을 대상으로 발동합니다.",
   ["spell.keyword.char_faction.title"] = "진영",
   ["spell.keyword.char_faction.description"] = "용사 진영 또는 적 진영 전체를 대상으로 발동합니다.",
   ["spell.keyword.char_all.title"] = "전체",

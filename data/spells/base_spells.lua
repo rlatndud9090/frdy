@@ -156,14 +156,14 @@ return {
     suspicion_abs = 6,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.hinder(5),
+    effect = SpellEffect.damage(5),
     upgrade = make_upgrade({
       patch_add("effect.amount", 1),
     })
   },
   {
     id = "weaken_foe",
-    name = "Weaken Foe",
+    name = "Sapping Chant",
     description = "Debuff a faction's attack by 2.",
     desc_key = "spell.desc.weaken_foe",
     cost = 11,
@@ -190,7 +190,7 @@ return {
     suspicion_abs = 12,
     timeline_type = "insert",
     target_mode = "char_single",
-    effect = SpellEffect.hinder(10),
+    effect = SpellEffect.damage(10),
     upgrade = make_upgrade({
       patch_add("cost", -1, 0),
       patch_add("effect.amount", 2),
@@ -208,6 +208,34 @@ return {
     effect = SpellEffect.heal(5),
     upgrade = make_upgrade({
       patch_add("effect.amount", 1),
+    })
+  },
+  {
+    id = "healing_rain",
+    name = "Healing Rain",
+    description = "Heal all characters for 10 HP.",
+    desc_key = "spell.desc.healing_rain",
+    cost = 24,
+    timeline_type = "insert",
+    target_mode = "char_all",
+    effect = SpellEffect.heal(10),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 2),
+    })
+  },
+  {
+    id = "rain_of_ruin",
+    name = "Rain of Ruin",
+    description = "Deal 10 damage to all characters.",
+    desc_key = "spell.desc.rain_of_ruin",
+    cost = 28,
+    timeline_type = "insert",
+    target_mode = "char_all",
+    effect = SpellEffect.damage(10),
+    upgrade = make_upgrade({
+      patch_add("cost", -1, 0),
+      patch_add("effect.amount", 2),
     })
   },
   -- Insert spells: action-target variants
