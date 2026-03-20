@@ -11,7 +11,7 @@ local PatternResolver = {}
 ---@return ActionPattern|nil
 function PatternResolver.resolve(patterns, context)
   local best = nil
-  local best_priority = -1
+  local best_priority = -math.huge
 
   for _, pattern in ipairs(patterns) do
     if pattern:can_use(context) then
