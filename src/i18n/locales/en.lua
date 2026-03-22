@@ -55,6 +55,7 @@ return {
   ["combat.no_valid_target"] = "No valid target: cancelled [{spell}] placement",
   ["combat.manipulate_applied"] = "[{spell}] manipulation applied!",
   ["combat.global_applied"] = "[{spell}] global effect applied!",
+  ["combat.defense_badge"] = "DEF {value}",
   ["combat.floor_cleared"] = "Floor cleared!",
   ["combat.defeat"] = "Defeat! Game Over",
 

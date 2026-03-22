@@ -18,7 +18,7 @@ local StatusContainer = require('src.combat.status_container')
 ---@field _suspicion_manager SuspicionManager|nil
 ---@field _demon_awakening DemonAwakening|nil
 ---@field field_status_container StatusContainer|nil
----@field _temp_defense_bonuses table<Entity, number>
+---@field _temp_defense_bonuses table<Entity, {amount: number, expires_after_turn: number}[]>
 local CombatManager = class('CombatManager')
 
 function CombatManager:initialize()
@@ -40,6 +40,7 @@ end
 ---@param hero Hero
 ---@param enemies Enemy[]
 function CombatManager:start_combat(hero, enemies)
+  self:_clear_temp_defense_bonuses()
   self.hero = hero
   self.enemies = enemies
   self._temp_defense_bonuses = {}
@@ -236,6 +237,14 @@ function CombatManager:_consume_action_statuses(action_ctx, source_entity)
   end
 end
 
+---@return number
+function CombatManager:_get_turn_count()
+  if self.turn_manager and self.turn_manager.get_turn_count then
+    return self.turn_manager:get_turn_count()
+  end
+  return 0
+end
+
 ---@param actor Entity|nil
 ---@param bonus number
 ---@return nil
@@ -248,14 +257,72 @@ function CombatManager:_apply_temp_defense_bonus(actor, bonus)
     return
   end
   actor.defense = (actor.defense or 0) + amount
-  self._temp_defense_bonuses[actor] = (self._temp_defense_bonuses[actor] or 0) + amount
+  local expires_after_turn = self:_get_turn_count() + 1
+  local entries = self._temp_defense_bonuses[actor]
+  if not entries then
+    entries = {}
+    self._temp_defense_bonuses[actor] = entries
+  end
+  entries[#entries + 1] = {
+    amount = amount,
+    expires_after_turn = expires_after_turn,
+  }
+end
+
+---@param actor Entity|nil
+---@return number
+function CombatManager:get_temp_defense_bonus(actor)
+  if not actor or type(actor) ~= "table" then
+    return 0
+  end
+  local total = 0
+  for _, entry in ipairs(self._temp_defense_bonuses[actor] or {}) do
+    total = total + math.max(0, math.floor(entry.amount or 0))
+  end
+  return total
+end
+
+---@param current_turn number
+---@return nil
+function CombatManager:_clear_expired_temp_defense_bonuses(current_turn)
+  local turn = math.max(0, math.floor(current_turn or 0))
+  for actor, entries in pairs(self._temp_defense_bonuses or {}) do
+    local expired_total = 0
+    local kept_entries = {}
+    for _, entry in ipairs(entries or {}) do
+      local amount = math.max(0, math.floor(entry.amount or 0))
+      local expires_after_turn = math.max(0, math.floor(entry.expires_after_turn or 0))
+      if amount > 0 and expires_after_turn <= turn then
+        expired_total = expired_total + amount
+      elseif amount > 0 then
+        kept_entries[#kept_entries + 1] = {
+          amount = amount,
+          expires_after_turn = expires_after_turn,
+        }
+      end
+    end
+
+    if expired_total > 0 and actor and type(actor) == "table" and type(actor.defense) == "number" then
+      actor.defense = math.max(0, actor.defense - expired_total)
+    end
+
+    if #kept_entries > 0 then
+      self._temp_defense_bonuses[actor] = kept_entries
+    else
+      self._temp_defense_bonuses[actor] = nil
+    end
+  end
 end
 
 ---@return nil
 function CombatManager:_clear_temp_defense_bonuses()
-  for actor, bonus in pairs(self._temp_defense_bonuses or {}) do
+  for actor, entries in pairs(self._temp_defense_bonuses or {}) do
+    local total = 0
+    for _, entry in ipairs(entries or {}) do
+      total = total + math.max(0, math.floor(entry.amount or 0))
+    end
     if actor and type(actor) == "table" and type(actor.defense) == "number" then
-      actor.defense = math.max(0, actor.defense - bonus)
+      actor.defense = math.max(0, actor.defense - total)
     end
   end
   self._temp_defense_bonuses = {}
@@ -408,7 +475,7 @@ end
 
 --- Start next planning phase
 function CombatManager:next_planning()
-  self:_clear_temp_defense_bonuses()
+  self:_clear_expired_temp_defense_bonuses(self:_get_turn_count())
   self:_tick_status_turns()
   self.turn_manager:next_planning()
   if self.hero and self.hero.set_current_turn then
