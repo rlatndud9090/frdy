@@ -55,6 +55,7 @@ return {
   ["combat.no_valid_target"] = "유효한 대상이 없어 [{spell}] 배치를 취소했습니다",
   ["combat.manipulate_applied"] = "[{spell}] 조작 적용!",
   ["combat.global_applied"] = "[{spell}] 전역 효과 적용!",
+  ["combat.defense_badge"] = "방어 {value}",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
 

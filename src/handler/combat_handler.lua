@@ -306,6 +306,54 @@ function CombatHandler:_draw_hero_world_gauge()
   self.hero_gauge.x = hx - self.hero_gauge.width * 0.5
   self.hero_gauge.y = hy - 54
   self.hero_gauge:draw()
+  self:_draw_defense_badge(self.hero_gauge, hero)
+end
+
+---@param gauge Gauge
+---@param entity Entity|nil
+---@return nil
+function CombatHandler:_draw_defense_badge(gauge, entity)
+  if not gauge or not entity or not entity.is_alive or not entity:is_alive() then
+    return
+  end
+
+  local defense = entity.get_defense and entity:get_defense() or 0
+  if defense <= 0 then
+    return
+  end
+
+  local bonus = 0
+  if self.combat_manager and self.combat_manager.get_temp_defense_bonus then
+    bonus = self.combat_manager:get_temp_defense_bonus(entity)
+  end
+
+  local label = i18n.t("combat.defense_badge", {
+    value = math.max(0, math.floor(defense)),
+  })
+  local font = love.graphics.getFont()
+  local badge_h = gauge.height
+  local padding_x = 10
+  local badge_w = math.max(62, font:getWidth(label) + padding_x * 2)
+  local badge_x = gauge.x + gauge.width + 8
+  local badge_y = gauge.y
+
+  if bonus > 0 then
+    love.graphics.setColor(0.18, 0.42, 0.9, 0.95)
+  else
+    love.graphics.setColor(0.16, 0.18, 0.26, 0.92)
+  end
+  love.graphics.rectangle("fill", badge_x, badge_y, badge_w, badge_h, 4, 4)
+
+  if bonus > 0 then
+    love.graphics.setColor(0.72, 0.88, 1, 1)
+  else
+    love.graphics.setColor(0.75, 0.8, 0.9, 1)
+  end
+  love.graphics.rectangle("line", badge_x, badge_y, badge_w, badge_h, 4, 4)
+
+  love.graphics.setColor(1, 1, 1, 1)
+  local text_y = badge_y + (badge_h - font:getHeight()) * 0.5 - 1
+  love.graphics.print(label, badge_x + padding_x, text_y)
 end
 
 function CombatHandler:draw_ui()
@@ -348,8 +396,10 @@ function CombatHandler:draw_ui()
   end
 
   -- Gauges
-  for _, g in ipairs(self.enemy_gauges) do
+  local enemies = self.combat_manager:get_enemies() or {}
+  for i, g in ipairs(self.enemy_gauges) do
     g:draw()
+    self:_draw_defense_badge(g, enemies[i])
   end
 
   love.graphics.pop()
