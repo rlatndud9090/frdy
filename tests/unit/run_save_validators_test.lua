@@ -75,6 +75,14 @@ function suite.test_save_payload_normalizes_legacy_shape_and_clamps_values()
           category = 'spell',
           source = 'combat',
         },
+        1,
+        {
+          category = 'hero_pattern',
+        },
+        {
+          category = 'hero_pattern',
+          source = 'combat_victory',
+        },
       },
       reward_control_bonus_stage = '4',
     },
@@ -93,6 +101,9 @@ function suite.test_save_payload_normalizes_legacy_shape_and_clamps_values()
   TestHelper.assert_equal(payload.systems.mana.current_mana, 100)
   TestHelper.assert_equal(payload.systems.mana.reserved_mana, 0)
   TestHelper.assert_equal(payload.systems.suspicion.level, 100)
+  TestHelper.assert_equal(#payload.systems.reward.offer_queue, 1)
+  TestHelper.assert_equal(payload.systems.reward.offer_queue[1].category, 'hero_pattern')
+  TestHelper.assert_equal(payload.systems.reward.offer_queue[1].source, 'combat_victory')
   TestHelper.assert_equal(payload.systems.reward.reward_control_bonus_stage, 4)
 end
 

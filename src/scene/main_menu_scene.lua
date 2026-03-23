@@ -102,11 +102,25 @@ function MainMenuScene:_start_new_game()
 end
 
 ---@return nil
+function MainMenuScene:_handle_continue_failure()
+  local invalidated, invalidate_err = RunSave:invalidate('load_failed')
+  if not invalidated and invalidate_err then
+    print(invalidate_err)
+  end
+
+  self.feedback_text = i18n.t('ui.save_load_failed')
+  self.suppress_continue = true
+  self:_rebuild_buttons()
+end
+
+---@return nil
 function MainMenuScene:_continue_run()
   local payload, err = RunSave:load()
   if not payload then
-    self.feedback_text = i18n.t('ui.save_load_failed')
-    self:_rebuild_buttons()
+    if err then
+      print(err)
+    end
+    self:_handle_continue_failure()
     return
   end
 
@@ -118,8 +132,7 @@ function MainMenuScene:_continue_run()
   end)
   if not ok then
     print(scene_or_err)
-    self.feedback_text = i18n.t('ui.save_load_failed')
-    self:_rebuild_buttons()
+    self:_handle_continue_failure()
     return
   end
 

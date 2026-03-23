@@ -7,6 +7,7 @@ local suite = {}
 local original_run_save_exists = RunSave.exists
 local original_run_save_load = RunSave.load
 local original_run_save_clear = RunSave.clear
+local original_run_save_invalidate = RunSave.invalidate
 local original_game_get_instance = Game.getInstance
 local original_game_static_get_instance = Game.static and Game.static.getInstance or nil
 
@@ -21,6 +22,7 @@ function suite.after_each()
   RunSave.exists = original_run_save_exists
   RunSave.load = original_run_save_load
   RunSave.clear = original_run_save_clear
+  RunSave.invalidate = original_run_save_invalidate
   Game.getInstance = original_game_get_instance
   if Game.static then
     Game.static.getInstance = original_game_static_get_instance
@@ -75,12 +77,17 @@ end
 
 function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()
   local cleared = false
+  local invalidated_reason = nil
 
   RunSave.exists = function()
     return true
   end
   RunSave.load = function()
     return nil, 'broken'
+  end
+  RunSave.invalidate = function(_, reason)
+    invalidated_reason = reason
+    return true, nil
   end
   RunSave.clear = function()
     cleared = true
@@ -94,6 +101,9 @@ function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()
 
   TestHelper.assert_false(cleared)
   TestHelper.assert_true(scene.feedback_text ~= nil)
+  TestHelper.assert_equal(invalidated_reason, 'load_failed')
+  TestHelper.assert_false(scene.has_continue)
+  TestHelper.assert_equal(scene.buttons[1].text, 'ui.new_game')
 end
 
 function suite.test_initialize_can_hide_continue_after_cleanup_failure()

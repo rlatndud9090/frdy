@@ -31,6 +31,12 @@ local ACTION_PATTERN_CONDITIONS = {
   fallback = true,
 }
 
+local REWARD_OFFER_CATEGORIES = {
+  demon_spell = true,
+  hero_pattern = true,
+  legendary_item = true,
+}
+
 ---@param value any
 ---@return number|nil
 local function sanitize_optional_rank(value)
@@ -201,13 +207,40 @@ end
 
 ---@param snapshot any
 ---@return table|nil
+function RunSaveValidators.reward_offer_request(snapshot)
+  if type(snapshot) ~= "table" then
+    return nil
+  end
+
+  local category = SaveSanitizer.enum(snapshot.category, REWARD_OFFER_CATEGORIES, "")
+  local source = SaveSanitizer.string(snapshot.source, "")
+  if category == "" or source == "" then
+    return nil
+  end
+
+  return {
+    category = category,
+    source = source,
+  }
+end
+
+---@param snapshot any
+---@return table|nil
 function RunSaveValidators.reward(snapshot)
   if type(snapshot) ~= "table" then
     return nil
   end
 
+  local offer_queue = {}
+  for _, item in ipairs(snapshot.offer_queue or {}) do
+    local sanitized = RunSaveValidators.reward_offer_request(item)
+    if sanitized then
+      offer_queue[#offer_queue + 1] = sanitized
+    end
+  end
+
   return {
-    offer_queue = SaveSanitizer.plain_data(snapshot.offer_queue) or {},
+    offer_queue = offer_queue,
     current_offer = SaveSanitizer.plain_data(snapshot.current_offer),
     demon_awakening = snapshot.demon_awakening and RunSaveValidators.demon_awakening(snapshot.demon_awakening) or nil,
     legendary_inventory = snapshot.legendary_inventory and RunSaveValidators.legendary_inventory(snapshot.legendary_inventory) or nil,
