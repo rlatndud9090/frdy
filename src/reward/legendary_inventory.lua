@@ -164,6 +164,8 @@ function LegendaryInventory:restore(snapshot)
     return
   end
 
+  -- 용사 스탯 보너스는 hero persistent snapshot에 이미 반영되어 저장된다.
+  -- 여기서는 소유 상태와 제거/제어 보너스 계산에 필요한 메타데이터만 재구성한다.
   for _, item_id in ipairs(snapshot.owned_ids or {}) do
     local item_def = RewardCatalog.get_legendary_data(item_id)
     if item_def then

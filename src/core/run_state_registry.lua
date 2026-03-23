@@ -28,7 +28,6 @@ function RunStateRegistry:list_keys()
   for index, participant in ipairs(self._entries) do
     keys[index] = participant.key
   end
-  table.sort(keys)
   return keys
 end
 

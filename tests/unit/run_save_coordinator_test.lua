@@ -7,7 +7,7 @@ local suite = {}
 function suite.test_save_checkpoint_uses_registry_and_store()
   local registry = RunStateRegistry:new()
   registry:register({
-    key = 'alpha',
+    key = 'reward',
     snapshot = function()
       return {
         value = 10,
@@ -21,7 +21,7 @@ function suite.test_save_checkpoint_uses_registry_and_store()
     end,
   })
   registry:register({
-    key = 'beta',
+    key = 'hero',
     snapshot = function()
       return {
         ready = true,
@@ -41,7 +41,7 @@ function suite.test_save_checkpoint_uses_registry_and_store()
     get_run_seed = function()
       return 777
     end,
-    expected_system_keys = {'alpha', 'beta'},
+    expected_system_keys = {'reward', 'hero'},
     save_store = {
       write = function(_, payload)
         written_payload = payload
@@ -56,8 +56,8 @@ function suite.test_save_checkpoint_uses_registry_and_store()
   TestHelper.assert_equal(written_payload.version, 2)
   TestHelper.assert_equal(written_payload.run_seed, 777)
   TestHelper.assert_equal(written_payload.checkpoint.kind, 'combat_start')
-  TestHelper.assert_equal(written_payload.systems.alpha.value, 10)
-  TestHelper.assert_true(written_payload.systems.beta.ready)
+  TestHelper.assert_equal(written_payload.systems.reward.value, 10)
+  TestHelper.assert_true(written_payload.systems.hero.ready)
 end
 
 function suite.test_save_checkpoint_fails_when_registry_manifest_is_incomplete()
