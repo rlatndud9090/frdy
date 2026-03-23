@@ -124,6 +124,45 @@ local function skip_whitespace(text, index)
 end
 
 ---@param text string
+---@param start_index integer
+---@return number|nil
+---@return integer|nil
+---@return string|nil
+local function decode_unicode_escape(text, start_index)
+  local hex = text:sub(start_index, start_index + 3)
+  if #hex ~= 4 or not hex:match("^[0-9a-fA-F]+$") then
+    return nil, nil, "Invalid unicode escape in JSON string."
+  end
+
+  local codepoint = tonumber(hex, 16)
+  if not codepoint then
+    return nil, nil, "Invalid unicode escape in JSON string."
+  end
+
+  if codepoint >= 0xD800 and codepoint <= 0xDBFF then
+    local next_prefix = text:sub(start_index + 4, start_index + 5)
+    local low_hex = text:sub(start_index + 6, start_index + 9)
+    if next_prefix ~= "\\u" or #low_hex ~= 4 or not low_hex:match("^[0-9a-fA-F]+$") then
+      return nil, nil, "Invalid unicode surrogate pair in JSON string."
+    end
+
+    local low_surrogate = tonumber(low_hex, 16)
+    if not low_surrogate or low_surrogate < 0xDC00 or low_surrogate > 0xDFFF then
+      return nil, nil, "Invalid unicode surrogate pair in JSON string."
+    end
+
+    codepoint = 0x10000 + ((codepoint - 0xD800) * 0x400) + (low_surrogate - 0xDC00)
+    return codepoint, start_index + 10, nil
+  end
+
+  if codepoint >= 0xDC00 and codepoint <= 0xDFFF then
+    return nil, nil, "Invalid unicode surrogate pair in JSON string."
+  end
+
+  return codepoint, start_index + 4, nil
+end
+
+---@param text string
 ---@param index integer
 ---@return string|nil
 ---@return integer|nil
@@ -159,12 +198,16 @@ local function parse_string(text, index)
         parts[#parts + 1] = "\t"
         cursor = cursor + 2
       elseif next_char == "u" then
-        local hex = text:sub(cursor + 2, cursor + 5)
-        if #hex ~= 4 or not hex:match("^[0-9a-fA-F]+$") then
+        local codepoint, next_cursor, unicode_err = decode_unicode_escape(text, cursor + 2)
+        if not next_cursor then
+          return nil, nil, unicode_err
+        end
+        local ok, decoded = pcall(utf8.char, codepoint)
+        if not ok then
           return nil, nil, "Invalid unicode escape in JSON string."
         end
-        parts[#parts + 1] = utf8.char(tonumber(hex, 16))
-        cursor = cursor + 6
+        parts[#parts + 1] = decoded
+        cursor = next_cursor
       else
         return nil, nil, "Invalid escape sequence in JSON string."
       end

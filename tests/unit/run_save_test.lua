@@ -200,6 +200,69 @@ function suite.test_write_preserves_backup_when_primary_is_missing_and_new_write
   TestHelper.assert_equal(storage['saves/active_run.bak'], preserved_backup)
 end
 
+function suite.test_load_falls_back_to_backup_on_invalid_unicode_escape()
+  local payload = {
+    version = 2,
+    checkpoint = {
+      kind = 'event_start',
+    },
+    systems = {
+      hero = {
+        level = 4,
+      },
+    },
+  }
+
+  local ok = RunSave:write(payload)
+  TestHelper.assert_true(ok)
+  storage['saves/active_run.bak'] = storage['saves/active_run.json']
+  storage['saves/active_run.json'] = '{"format_version":1,"checksum":"deadbeef","payload":{"broken":"\\uD800"}}'
+
+  local loaded, load_err = RunSave:load()
+  TestHelper.assert_equal(load_err, nil)
+  TestHelper.assert_equal(loaded.checkpoint.kind, 'event_start')
+  TestHelper.assert_equal(loaded.systems.hero.level, 4)
+end
+
+function suite.test_write_refreshes_backup_when_only_backup_exists()
+  local payload = {
+    version = 2,
+    checkpoint = {
+      kind = 'event_start',
+    },
+    systems = {
+      hero = {
+        level = 2,
+      },
+    },
+  }
+
+  local ok = RunSave:write(payload)
+  TestHelper.assert_true(ok)
+  storage['saves/active_run.bak'] = storage['saves/active_run.json']
+  storage['saves/active_run.json'] = nil
+
+  local wrote, write_err = RunSave:write({
+    version = 2,
+    checkpoint = {
+      kind = 'path_ready',
+    },
+    systems = {
+      hero = {
+        level = 5,
+      },
+    },
+  })
+
+  TestHelper.assert_true(wrote)
+  TestHelper.assert_equal(write_err, nil)
+
+  local backup_envelope, decode_err = JsonCodec.decode(storage['saves/active_run.bak'])
+  TestHelper.assert_equal(decode_err, nil)
+  TestHelper.assert_equal(backup_envelope.payload.checkpoint.kind, 'path_ready')
+  TestHelper.assert_equal(backup_envelope.payload.systems.hero.level, 5)
+end
+
 function suite.test_write_accepts_spell_book_snapshot_with_serialized_effects()
   local fixture = Fixtures.create_reward_fixture(404)
   local payload = {

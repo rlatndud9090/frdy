@@ -218,7 +218,12 @@ function RunSave:_load_json_at_path(path)
     return nil, read_err, nil
   end
 
-  local payload, decode_err = self:_decode_json_payload(content)
+  local ok, payload, decode_err = pcall(function()
+    return self:_decode_json_payload(content)
+  end)
+  if not ok then
+    return nil, '세이브 JSON 파싱 중 예외가 발생했습니다.', nil
+  end
   if not payload then
     return nil, decode_err, nil
   end
@@ -306,6 +311,13 @@ function RunSave:write(payload)
       filesystem:rename(BACKUP_PATH, SAVE_PATH)
     end
     return false, move_new_err
+  end
+
+  if not had_primary and filesystem:exists(BACKUP_PATH) then
+    local wrote_backup, backup_err = filesystem:write(BACKUP_PATH, content)
+    if not wrote_backup then
+      return false, backup_err or '백업 세이브를 갱신하지 못했습니다.'
+    end
   end
 
   filesystem:remove(LEGACY_SAVE_PATH)
