@@ -38,6 +38,7 @@ return {
   ["ui.run_death_reason"] = "용사가 쓰러졌습니다.",
   ["ui.run_victory_reason"] = "이번 런을 무사히 마무리했습니다.",
   ["ui.run_abandon_reason"] = "형님께서 이번 런을 포기하셨습니다.",
+  ["ui.run_cleanup_failed"] = "런 종료 저장 정리에 실패했습니다. 이어하기가 남아 있을 수 있습니다.",
   ["ui.run_summary"] = "도달 층: {floor}층 / 용사 레벨: {level}",
   ["ui.abandon_run"] = "런 포기",
   ["ui.continue_game"] = "계속하기",

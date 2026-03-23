@@ -223,9 +223,8 @@ function suite.test_resume_from_travel_checkpoint_enters_selected_target_node()
 end
 
 ---@return nil
-function suite.test_finish_run_keeps_current_scene_when_save_clear_fails()
+function suite.test_finish_run_passes_save_cleanup_failure_to_run_end_scene()
   local switched_scene = nil
-  local clear_calls = 0
   local fake_game = {
     switch_scene = function(_, scene)
       switched_scene = scene
@@ -250,7 +249,6 @@ function suite.test_finish_run_keeps_current_scene_when_save_clear_fails()
 
   local scene = {
     _clear_active_run = function()
-      clear_calls = clear_calls + 1
       return false
     end,
     _build_run_end_summary = function()
@@ -264,8 +262,12 @@ function suite.test_finish_run_keeps_current_scene_when_save_clear_fails()
 
   scene:_finish_run('victory')
 
-  TestHelper.assert_equal(clear_calls, 1)
-  TestHelper.assert_equal(switched_scene, nil)
+  TestHelper.assert_true(switched_scene ~= nil)
+  TestHelper.assert_equal(switched_scene.kind, 'run_end_scene')
+  TestHelper.assert_equal(switched_scene.options.reason, 'victory')
+  TestHelper.assert_true(switched_scene.options.save_cleanup_failed)
+  TestHelper.assert_equal(switched_scene.options.summary.floor, 1)
+  TestHelper.assert_equal(switched_scene.options.summary.level, 2)
 end
 
 return suite

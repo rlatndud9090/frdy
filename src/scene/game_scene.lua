@@ -690,14 +690,12 @@ end
 ---@param reason string
 ---@return nil
 function GameScene:_finish_run(reason)
-  if not self:_clear_active_run() then
-    return
-  end
-
   local RunEndScene = require('src.scene.run_end_scene')
+  local save_cleanup_failed = not self:_clear_active_run()
   Game:getInstance():switch_scene(RunEndScene:new({
     reason = reason,
     summary = self:_build_run_end_summary(),
+    save_cleanup_failed = save_cleanup_failed,
   }))
 end
 

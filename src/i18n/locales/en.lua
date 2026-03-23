@@ -38,6 +38,7 @@ return {
   ["ui.run_death_reason"] = "The hero has fallen.",
   ["ui.run_victory_reason"] = "This run has been completed successfully.",
   ["ui.run_abandon_reason"] = "You abandoned the current run.",
+  ["ui.run_cleanup_failed"] = "Failed to clean up the run save. Continue may still appear.",
   ["ui.run_summary"] = "Reached Floor {floor} / Hero Level {level}",
   ["ui.abandon_run"] = "Abandon Run",
   ["ui.continue_game"] = "Continue",

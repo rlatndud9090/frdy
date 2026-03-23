@@ -96,4 +96,20 @@ function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()
   TestHelper.assert_true(scene.feedback_text ~= nil)
 end
 
+function suite.test_initialize_can_hide_continue_after_cleanup_failure()
+  RunSave.exists = function()
+    return true
+  end
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new({
+    suppress_continue = true,
+    feedback_text = 'cleanup warning',
+  })
+
+  TestHelper.assert_false(scene.has_continue)
+  TestHelper.assert_equal(scene.buttons[1].text, 'ui.new_game')
+  TestHelper.assert_equal(scene.feedback_text, 'cleanup warning')
+end
+
 return suite

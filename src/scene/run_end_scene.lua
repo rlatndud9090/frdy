@@ -12,23 +12,28 @@ local i18n = require('src.i18n.init')
 ---@class RunEndScene : Scene
 ---@field reason string
 ---@field summary RunEndSummary
+---@field save_cleanup_failed boolean
 ---@field menu_button Button
 local RunEndScene = class('RunEndScene', Scene)
 
 local SCREEN_W = 1280
 local SCREEN_H = 720
 
----@param options? {reason?: string, summary?: RunEndSummary}
+---@param options? {reason?: string, summary?: RunEndSummary, save_cleanup_failed?: boolean}
 ---@return nil
 function RunEndScene:initialize(options)
   Scene.initialize(self)
   options = options or {}
   self.reason = options.reason or 'death'
   self.summary = options.summary or {floor = 1, level = 1}
+  self.save_cleanup_failed = options.save_cleanup_failed == true
   self.menu_button = Button:new(SCREEN_W * 0.5 - 130, 470, 260, 48, 'ui.back_to_main_menu')
   self.menu_button:set_on_click(function()
     local MainMenuScene = require('src.scene.main_menu_scene')
-    Game:getInstance():switch_scene(MainMenuScene:new())
+    Game:getInstance():switch_scene(MainMenuScene:new({
+      suppress_continue = self.save_cleanup_failed,
+      feedback_text = self.save_cleanup_failed and i18n.t('ui.run_cleanup_failed') or nil,
+    }))
   end)
 end
 
@@ -92,6 +97,11 @@ function RunEndScene:draw()
     760,
     'center'
   )
+
+  if self.save_cleanup_failed then
+    love.graphics.setColor(0.95, 0.62, 0.48, 1)
+    love.graphics.printf(i18n.t('ui.run_cleanup_failed'), 320, 382, 640, 'center')
+  end
 
   self.menu_button:draw()
   love.graphics.setFont(previous_font)

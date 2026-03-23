@@ -14,6 +14,7 @@ local i18n = require('src.i18n.init')
 ---@field settings_overlay SettingsOverlay
 ---@field feedback_text string|nil
 ---@field has_continue boolean
+---@field suppress_continue boolean
 local MainMenuScene = class('MainMenuScene', Scene)
 
 local SCREEN_W = 1280
@@ -28,21 +29,24 @@ function MainMenuScene:_create_button(label_key, callback)
   return button
 end
 
+---@param options? {suppress_continue?: boolean, feedback_text?: string}
 ---@return nil
-function MainMenuScene:initialize()
+function MainMenuScene:initialize(options)
   Scene.initialize(self)
+  options = options or {}
   self.buttons = {}
   self.confirmation_modal = ConfirmationModal:new()
   self.settings_overlay = SettingsOverlay:new()
-  self.feedback_text = nil
+  self.feedback_text = options.feedback_text
   self.has_continue = false
+  self.suppress_continue = options.suppress_continue == true
   self:_rebuild_buttons()
 end
 
 ---@return nil
 function MainMenuScene:_rebuild_buttons()
   self.buttons = {}
-  self.has_continue = RunSave:exists()
+  self.has_continue = (not self.suppress_continue) and RunSave:exists()
 
   if self.has_continue then
     self.buttons[#self.buttons + 1] = self:_create_button('ui.continue_run', function()
