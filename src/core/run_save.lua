@@ -18,6 +18,12 @@ local BACKUP_PATH = SAVE_DIR .. '/active_run.bak'
 local INVALIDATION_PATH = SAVE_DIR .. '/active_run.invalidated'
 local LEGACY_SAVE_PATH = SAVE_DIR .. '/active_run.lua'
 local FORMAT_VERSION = 1
+local SNAPSHOT_PATHS = {
+  SAVE_PATH,
+  BACKUP_PATH,
+  INVALIDATION_PATH,
+  LEGACY_SAVE_PATH,
+}
 
 ---@type RunSaveFilesystem|nil
 RunSave._filesystem = nil
@@ -164,6 +170,58 @@ end
 ---@return string
 function RunSave:get_path()
   return SAVE_PATH
+end
+
+---@return table|nil
+---@return string|nil
+function RunSave:capture_state()
+  local filesystem = self:_get_filesystem()
+  local snapshot = {
+    files = {},
+  }
+
+  for _, path in ipairs(SNAPSHOT_PATHS) do
+    if filesystem:exists(path) then
+      local content, read_err = filesystem:read(path)
+      if not content then
+        return nil, read_err
+      end
+      snapshot.files[path] = content
+    end
+  end
+
+  return snapshot, nil
+end
+
+---@param snapshot table|nil
+---@return boolean
+---@return string|nil
+function RunSave:restore_state(snapshot)
+  if type(snapshot) ~= 'table' or type(snapshot.files) ~= 'table' then
+    return false, '복원할 세이브 상태가 없습니다.'
+  end
+
+  local filesystem = self:_get_filesystem()
+  if not filesystem:ensure_directory(SAVE_DIR) then
+    return false, '세이브 디렉터리를 생성하지 못했습니다.'
+  end
+
+  local cleared, clear_err = self:clear()
+  if not cleared then
+    return false, clear_err
+  end
+
+  for _, path in ipairs(SNAPSHOT_PATHS) do
+    local content = snapshot.files[path]
+    if content ~= nil then
+      local wrote, write_err = filesystem:write(path, content)
+      if not wrote then
+        return false, write_err
+      end
+    end
+  end
+
+  return true, nil
 end
 
 ---@return boolean

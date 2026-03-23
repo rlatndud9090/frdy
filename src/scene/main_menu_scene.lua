@@ -81,6 +81,19 @@ end
 function MainMenuScene:_start_new_game()
   local function begin_new_run()
     local needs_existing_save_cleanup = self.has_continue or RunSave:is_invalidated()
+    local preserved_save_state = nil
+    if needs_existing_save_cleanup then
+      local preserve_err = nil
+      preserved_save_state, preserve_err = RunSave:capture_state()
+      if not preserved_save_state then
+        if preserve_err then
+          print(preserve_err)
+        end
+        self.feedback_text = i18n.t('ui.run_start_failed')
+        self:_rebuild_buttons()
+        return
+      end
+    end
     local GameScene = require('src.scene.game_scene')
     local ok, scene_or_err = pcall(function()
       return GameScene:new({
@@ -98,15 +111,27 @@ function MainMenuScene:_start_new_game()
       local cleared, clear_err = RunSave:clear()
       if not cleared then
         print(clear_err)
-        local invalidated, invalidate_err = RunSave:invalidate('new_game_start')
-        if not invalidated and invalidate_err then
-          print(invalidate_err)
+        local restored, restore_err = RunSave:restore_state(preserved_save_state)
+        if not restored and restore_err then
+          print(restore_err)
         end
+        self.feedback_text = i18n.t('ui.run_start_failed')
+        self:_rebuild_buttons()
+        return
       end
 
       local checkpoint_ok, checkpoint_err = scene_or_err:commit_initial_checkpoint()
-      if not checkpoint_ok and checkpoint_err then
-        print(checkpoint_err)
+      if not checkpoint_ok then
+        if checkpoint_err then
+          print(checkpoint_err)
+        end
+        local restored, restore_err = RunSave:restore_state(preserved_save_state)
+        if not restored and restore_err then
+          print(restore_err)
+        end
+        self.feedback_text = i18n.t('ui.run_start_failed')
+        self:_rebuild_buttons()
+        return
       end
     end
 

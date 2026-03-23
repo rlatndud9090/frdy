@@ -9,6 +9,8 @@ local original_run_save_load = RunSave.load
 local original_run_save_clear = RunSave.clear
 local original_run_save_invalidate = RunSave.invalidate
 local original_run_save_is_invalidated = RunSave.is_invalidated
+local original_run_save_capture_state = RunSave.capture_state
+local original_run_save_restore_state = RunSave.restore_state
 local original_game_get_instance = Game.getInstance
 local original_game_static_get_instance = Game.static and Game.static.getInstance or nil
 
@@ -20,6 +22,14 @@ function suite.before_each()
   RunSave.is_invalidated = function()
     return false
   end
+  RunSave.capture_state = function()
+    return {
+      files = {},
+    }, nil
+  end
+  RunSave.restore_state = function()
+    return true, nil
+  end
 end
 
 function suite.after_each()
@@ -28,6 +38,8 @@ function suite.after_each()
   RunSave.clear = original_run_save_clear
   RunSave.invalidate = original_run_save_invalidate
   RunSave.is_invalidated = original_run_save_is_invalidated
+  RunSave.capture_state = original_run_save_capture_state
+  RunSave.restore_state = original_run_save_restore_state
   Game.getInstance = original_game_get_instance
   if Game.static then
     Game.static.getInstance = original_game_static_get_instance
@@ -231,6 +243,67 @@ function suite.test_new_game_clears_invalidated_hidden_save_before_committing_ch
   TestHelper.assert_equal(steps[2], 'clear')
   TestHelper.assert_equal(steps[3], 'commit_checkpoint')
   TestHelper.assert_equal(steps[4], 'fake_game_scene')
+end
+
+function suite.test_new_game_checkpoint_failure_restores_existing_save_and_stays_in_menu()
+  local captured = {
+    files = {
+      ['saves/active_run.json'] = 'old-save',
+    },
+  }
+  local restored_snapshot = nil
+  local cleared = false
+  local switched_scene = nil
+
+  RunSave.exists = function()
+    return true
+  end
+  RunSave.capture_state = function()
+    return captured, nil
+  end
+  RunSave.clear = function()
+    cleared = true
+    return true, nil
+  end
+  RunSave.restore_state = function(_, snapshot)
+    restored_snapshot = snapshot
+    return true, nil
+  end
+  local fake_game = {
+    switch_scene = function(_, scene)
+      switched_scene = scene
+    end,
+  }
+  Game.getInstance = function()
+    return fake_game
+  end
+  if Game.static then
+    Game.static.getInstance = function()
+      return fake_game
+    end
+  end
+  package.loaded['src.scene.game_scene'] = {
+    new = function()
+      return {
+        kind = 'fake_game_scene',
+        commit_initial_checkpoint = function()
+          return false, 'disk full'
+        end,
+      }
+    end,
+  }
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_start_new_game()
+  scene.confirmation_modal:_confirm()
+
+  TestHelper.assert_true(cleared)
+  TestHelper.assert_equal(restored_snapshot, captured)
+  TestHelper.assert_equal(switched_scene, nil)
+  TestHelper.assert_true(scene.has_continue)
+  TestHelper.assert_true(scene.feedback_text ~= nil)
 end
 
 function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()

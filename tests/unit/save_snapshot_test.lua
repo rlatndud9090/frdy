@@ -78,4 +78,16 @@ function suite.test_mana_snapshot_restores_zero_current_mana()
   TestHelper.assert_equal(restored.mana_manager:get_max(), max_mana)
 end
 
+---@return nil
+function suite.test_hero_snapshot_restores_zero_hp_without_revive()
+  local fixture = Fixtures.create_reward_fixture(606)
+  fixture.hero.hp = 0
+
+  local hero_snapshot = fixture.hero:persistent_snapshot()
+  local restored = Fixtures.create_reward_fixture(606)
+  restored.hero:restore_persistent_snapshot(hero_snapshot)
+
+  TestHelper.assert_equal(restored.hero.hp, 0)
+end
+
 return suite
