@@ -1,7 +1,23 @@
 local TestHelper = require('tests.test_helper')
 local GameScene = require('src.scene.game_scene')
+local Game = require('src.core.game')
 
 local suite = {}
+local original_game_get_instance = Game.getInstance
+local original_game_static_get_instance = Game.static and Game.static.getInstance or nil
+local original_run_end_scene_module = nil
+
+function suite.before_each()
+  original_run_end_scene_module = package.loaded['src.scene.run_end_scene']
+end
+
+function suite.after_each()
+  Game.getInstance = original_game_get_instance
+  if Game.static then
+    Game.static.getInstance = original_game_static_get_instance
+  end
+  package.loaded['src.scene.run_end_scene'] = original_run_end_scene_module
+end
 
 local function build_fake_scene(edge_count, has_pending_offers)
   local finished_reason = nil
@@ -204,6 +220,52 @@ function suite.test_resume_from_travel_checkpoint_enters_selected_target_node()
   TestHelper.assert_equal(scene.current_node.id, 33)
   TestHelper.assert_true(entered)
   TestHelper.assert_equal(scene.pending_target_node_id, nil)
+end
+
+---@return nil
+function suite.test_finish_run_keeps_current_scene_when_save_clear_fails()
+  local switched_scene = nil
+  local clear_calls = 0
+  local fake_game = {
+    switch_scene = function(_, scene)
+      switched_scene = scene
+    end,
+  }
+  Game.getInstance = function()
+    return fake_game
+  end
+  if Game.static then
+    Game.static.getInstance = function()
+      return fake_game
+    end
+  end
+  package.loaded['src.scene.run_end_scene'] = {
+    new = function(_, options)
+      return {
+        kind = 'run_end_scene',
+        options = options,
+      }
+    end,
+  }
+
+  local scene = {
+    _clear_active_run = function()
+      clear_calls = clear_calls + 1
+      return false
+    end,
+    _build_run_end_summary = function()
+      return {
+        floor = 1,
+        level = 2,
+      }
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_finish_run('victory')
+
+  TestHelper.assert_equal(clear_calls, 1)
+  TestHelper.assert_equal(switched_scene, nil)
 end
 
 return suite

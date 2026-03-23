@@ -220,6 +220,37 @@ function RunSave:_load_json_at_path(path)
   return self:_decode_json_payload(content)
 end
 
+---@param content string
+---@return boolean
+---@return string|nil
+function RunSave:_promote_backup_to_primary(content)
+  local filesystem = self:_get_filesystem()
+  if not filesystem:ensure_directory(SAVE_DIR) then
+    return false, '세이브 디렉터리를 생성하지 못했습니다.'
+  end
+
+  filesystem:remove(TMP_PATH)
+  local wrote, write_err = filesystem:write(TMP_PATH, content)
+  if not wrote then
+    filesystem:remove(TMP_PATH)
+    return false, write_err
+  end
+
+  local removed, remove_err = filesystem:remove(SAVE_PATH)
+  if not removed then
+    filesystem:remove(TMP_PATH)
+    return false, remove_err
+  end
+
+  local moved, move_err = filesystem:rename(TMP_PATH, SAVE_PATH)
+  if not moved then
+    filesystem:remove(TMP_PATH)
+    return false, move_err
+  end
+
+  return true, nil
+end
+
 ---@param payload table
 ---@return boolean
 ---@return string|nil
@@ -280,24 +311,31 @@ end
 ---@return string|nil
 function RunSave:load()
   local filesystem = self:_get_filesystem()
-  local loaders = {
-    function()
-      return self:_load_json_at_path(SAVE_PATH)
-    end,
-    function()
-      return self:_load_json_at_path(BACKUP_PATH)
-    end,
-  }
-
   local errors = {}
-  for _, loader in ipairs(loaders) do
-    local payload, err = loader()
-    if payload then
-      return payload, nil
+  local primary_payload, primary_err = self:_load_json_at_path(SAVE_PATH)
+  if primary_payload then
+    return primary_payload, nil
+  end
+  if primary_err then
+    errors[#errors + 1] = primary_err
+  end
+
+  local backup_payload, backup_err = self:_load_json_at_path(BACKUP_PATH)
+  if backup_payload then
+    local backup_content, read_err = filesystem:read(BACKUP_PATH)
+    if not backup_content then
+      return nil, read_err
     end
-    if err then
-      errors[#errors + 1] = err
+
+    local promoted, promote_err = self:_promote_backup_to_primary(backup_content)
+    if not promoted then
+      return nil, promote_err or '백업 세이브를 primary로 복구하지 못했습니다.'
     end
+
+    return backup_payload, nil
+  end
+  if backup_err then
+    errors[#errors + 1] = backup_err
   end
 
   if filesystem:exists(LEGACY_SAVE_PATH) then

@@ -21,7 +21,6 @@ local RewardManager = require('src.reward.reward_manager')
 local RewardHandler = require('src.handler.reward_handler')
 local RewardCatalog = require('src.reward.reward_catalog')
 local RunContext = require('src.core.run_context')
-local RunSave = require('src.core.run_save')
 local RunSaveCoordinator = require('src.core.run_save_coordinator')
 local GameSceneSaveParticipants = require('src.core.game_scene_save_participants')
 local Game = require('src.core.game')
@@ -691,7 +690,10 @@ end
 ---@param reason string
 ---@return nil
 function GameScene:_finish_run(reason)
-  RunSave:clear()
+  if not self:_clear_active_run() then
+    return
+  end
+
   local RunEndScene = require('src.scene.run_end_scene')
   Game:getInstance():switch_scene(RunEndScene:new({
     reason = reason,

@@ -109,6 +109,7 @@ function suite.test_load_falls_back_to_backup_when_primary_is_corrupted()
   TestHelper.assert_equal(load_err, nil)
   TestHelper.assert_equal(loaded.checkpoint.kind, 'event_start')
   TestHelper.assert_equal(loaded.systems.mana.current_mana, 80)
+  TestHelper.assert_equal(storage['saves/active_run.json'], storage['saves/active_run.bak'])
 end
 
 function suite.test_write_accepts_spell_book_snapshot_with_serialized_effects()
