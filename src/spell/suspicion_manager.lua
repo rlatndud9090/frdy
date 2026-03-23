@@ -71,4 +71,22 @@ function SuspicionManager:is_max()
   return self.level >= self.max_level
 end
 
+---@return table
+function SuspicionManager:snapshot()
+  return {
+    level = self.level,
+    max_level = self.max_level,
+  }
+end
+
+---@param snapshot table|nil
+---@return nil
+function SuspicionManager:restore_snapshot(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+  self.level = snapshot.level or self.level
+  self.max_level = snapshot.max_level or self.max_level
+end
+
 return SuspicionManager

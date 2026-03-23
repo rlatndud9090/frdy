@@ -477,4 +477,49 @@ function Spell:play(target, context)
   return true
 end
 
+---@return table
+function Spell:snapshot()
+  return {
+    id = self.id,
+    name = self.name,
+    description = self.description,
+    desc_key = self.desc_key,
+    cost = self.cost,
+    suspicion_delta = self.suspicion_delta,
+    suspicion_abs = self.suspicion_abs,
+    reward_rank = self.reward_rank,
+    max_reward_rank = self.max_reward_rank,
+    upgrade = deep_copy(self.upgrade),
+    target_mode = self.target_mode,
+    target_n = self.target_n,
+    keywords = deep_copy(self.keywords),
+    effect = deep_copy(self.effect),
+    timeline_type = self.timeline_type,
+  }
+end
+
+---@param snapshot table
+---@return Spell
+function Spell.static.from_snapshot(snapshot)
+  local spell = Spell:new({
+    id = snapshot.id,
+    name = snapshot.name,
+    description = snapshot.description,
+    desc_key = snapshot.desc_key,
+    cost = snapshot.cost,
+    suspicion_delta = snapshot.suspicion_delta,
+    suspicion_abs = snapshot.suspicion_abs,
+    reward_rank = snapshot.reward_rank,
+    max_reward_rank = snapshot.max_reward_rank,
+    upgrade = deep_copy(snapshot.upgrade),
+    target_mode = snapshot.target_mode,
+    target_n = snapshot.target_n,
+    keywords = deep_copy(snapshot.keywords or {}),
+    effect = deep_copy(snapshot.effect),
+  })
+  spell.timeline_type = snapshot.timeline_type or spell.timeline_type
+  spell.suspicion_abs = snapshot.suspicion_abs or math.abs(spell.suspicion_delta or 0)
+  return spell
+end
+
 return Spell

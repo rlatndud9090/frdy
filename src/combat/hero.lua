@@ -309,7 +309,43 @@ function Hero:snapshot()
   snap.level = self.level
   snap.experience = self.experience
   snap.mental_load = self.mental_load
+  snap.current_turn = self.current_turn
+  snap.cooldown_tracker = {}
+  for pattern_id, turn in pairs(self.cooldown_tracker or {}) do
+    snap.cooldown_tracker[pattern_id] = turn
+  end
+  snap.action_patterns = {}
+  for index, pattern in ipairs(self.action_patterns or {}) do
+    snap.action_patterns[index] = pattern:snapshot()
+  end
   return snap
+end
+
+---@return table
+function Hero:persistent_snapshot()
+  local patterns = {}
+  for index, pattern in ipairs(self.action_patterns or {}) do
+    patterns[index] = pattern:snapshot()
+  end
+
+  local cooldown_tracker = {}
+  for pattern_id, turn in pairs(self.cooldown_tracker or {}) do
+    cooldown_tracker[pattern_id] = turn
+  end
+
+  return {
+    hp = self.hp,
+    max_hp = self.max_hp,
+    attack = self.attack,
+    defense = self.defense,
+    speed = self.speed,
+    level = self.level,
+    experience = self.experience,
+    mental_load = self.mental_load,
+    current_turn = self.current_turn,
+    cooldown_tracker = cooldown_tracker,
+    action_patterns = patterns,
+  }
 end
 
 ---@param snap table
@@ -318,6 +354,45 @@ function Hero:restore(snap)
   self.level = snap.level
   self.experience = snap.experience
   self.mental_load = snap.mental_load or 0
+  self.current_turn = snap.current_turn or 0
+  self.cooldown_tracker = {}
+  for pattern_id, turn in pairs(snap.cooldown_tracker or {}) do
+    self.cooldown_tracker[pattern_id] = turn
+  end
+  if type(snap.action_patterns) == 'table' then
+    self.action_patterns = {}
+    for index, pattern_snapshot in ipairs(snap.action_patterns) do
+      self.action_patterns[index] = ActionPattern.from_snapshot(pattern_snapshot)
+    end
+  end
+end
+
+---@param snapshot table|nil
+---@return nil
+function Hero:restore_persistent_snapshot(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+
+  self.hp = snapshot.hp or self.hp
+  self.max_hp = snapshot.max_hp or self.max_hp
+  self.attack = snapshot.attack or self.attack
+  self.defense = snapshot.defense or self.defense
+  self.speed = snapshot.speed or self.speed
+  self.level = snapshot.level or self.level
+  self.experience = snapshot.experience or self.experience
+  self.mental_load = snapshot.mental_load or 0
+  self.current_turn = snapshot.current_turn or 0
+
+  self.cooldown_tracker = {}
+  for pattern_id, turn in pairs(snapshot.cooldown_tracker or {}) do
+    self.cooldown_tracker[pattern_id] = turn
+  end
+
+  self.action_patterns = {}
+  for index, pattern_snapshot in ipairs(snapshot.action_patterns or {}) do
+    self.action_patterns[index] = ActionPattern.from_snapshot(pattern_snapshot)
+  end
 end
 
 return Hero

@@ -23,7 +23,9 @@
 - Love2D 엔트리: `main.lua`
 - 게임 싱글턴: `src/core/game.lua`
 - 씬 관리: `src/core/scene_manager.lua`
-- 현재 기본 씬: **GameScene 단일 통합 구조** (`src/scene/game_scene.lua`)
+- 진입 씬: `MainMenuScene`
+- 런타임 핵심 씬: **GameScene 단일 통합 구조** (`src/scene/game_scene.lua`)
+- 런 종료 씬: `RunEndScene`
 
 ### 3.2 GameScene 페이즈
 
@@ -36,6 +38,21 @@
 - `ENTERING_EVENT` / `EVENT` / `EXITING_EVENT`
 - `SETTLEMENT`
 - `EDGE_SELECT`
+
+### 3.3 런 저장 / 이어하기
+
+- 진행 중 런은 active save 1개만 유지합니다.
+- 세이브는 전투/이벤트/보상/경로 결정을 기준으로 한 **안전 체크포인트**에서만 갱신합니다.
+- 저장 포맷은 실행 가능한 코드가 아니라 data-only 포맷을 사용하며, checksum/backup fallback으로 손상 복구 가능성을 높입니다.
+- 저장 대상은 개별 시스템을 수동으로 나열하기보다 participant registry를 통해 수집/복원합니다.
+- 현재 체크포인트:
+  - `start_node_select`
+  - `combat_start`
+  - `event_start`
+  - `reward_offer_presented`
+  - `path_ready`
+- `메인 화면`의 `이어하기`는 active save가 있을 때만 표시됩니다.
+- 용사 사망 또는 명시적 포기 시 active save를 삭제하고 `RunEndScene`으로 전환합니다.
 
 ## 4. 핵심 시스템
 
@@ -114,6 +131,7 @@
 - 핵심 HUD: 의심/마나/용사 상태/미니맵
 - 전투 시 `SpellBookOverlay` + `TimelineUI`로 개입/확정
 - 맵은 `Minimap` + `MapOverlay` 조합
+- 메인 메뉴는 중앙 타이틀 + `이어하기/새 게임/설정/컬렉션/통계/게임 종료` 기본 구성을 사용합니다.
 - 절대 원칙:
   - 경로/이벤트/개입 선택 자동 확정 금지
   - 시간 압박 UX(카운트다운/강제 진행) 금지
@@ -137,7 +155,7 @@ src/
 ├── handler/   # GameScene 내부 서브플로우 핸들러
 ├── map/       # 맵 그래프/생성
 ├── reward/    # 보상/각성/전설
-├── scene/     # GameScene
+├── scene/     # MainMenuScene / GameScene / RunEndScene
 ├── spell/     # Spell/SpellBook/마나/의심
 └── ui/        # 공통 UI + 오버레이
 
@@ -145,11 +163,6 @@ data/          # 게임 밸런스/콘텐츠 데이터
 scripts/       # 테스트/러브 실행/검사 스크립트
 tests/         # unit/integration 테스트
 ```
-
-## 8. 현재 확인된 보완 과제
-
-- 패배 후 UX는 아직 보강 여지가 있습니다.
-  - `GameScene:_on_combat_ended(result == "defeat")` 경로는 게임오버 화면 TODO가 남아 있습니다.
 
 ## 문서 메타
 

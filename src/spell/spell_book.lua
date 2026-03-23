@@ -1,3 +1,4 @@
+local Spell = require('src.spell.spell')
 local class = require('lib.middleclass')
 
 ---@class SpellBook
@@ -7,6 +8,19 @@ local class = require('lib.middleclass')
 ---@field reserved_stack Spell[]
 ---@field new fun(self: SpellBook, spells: Spell[]): SpellBook
 local SpellBook = class('SpellBook')
+
+---@param value any
+---@return any
+local function deep_copy(value)
+  if type(value) ~= 'table' then
+    return value
+  end
+  local copied = {}
+  for key, item in pairs(value) do
+    copied[key] = deep_copy(item)
+  end
+  return copied
+end
 
 ---@param spells Spell[]
 function SpellBook:initialize(spells)
@@ -175,6 +189,53 @@ function SpellBook:remove_spell(spell)
     end
   end
   return false
+end
+
+---@return table
+function SpellBook:snapshot()
+  local snapshot = {
+    spells = {},
+    used_this_turn = deep_copy(self.used_this_turn),
+    reserved = deep_copy(self.reserved),
+    reserved_stack = {},
+  }
+
+  for index, spell in ipairs(self.spells or {}) do
+    snapshot.spells[index] = spell:snapshot()
+  end
+
+  for index, spell in ipairs(self.reserved_stack or {}) do
+    snapshot.reserved_stack[index] = spell:get_id()
+  end
+
+  return snapshot
+end
+
+---@param snapshot table|nil
+---@return nil
+function SpellBook:restore(snapshot)
+  self.spells = {}
+  self.used_this_turn = {}
+  self.reserved = {}
+  self.reserved_stack = {}
+
+  if type(snapshot) ~= 'table' then
+    return
+  end
+
+  for index, spell_snapshot in ipairs(snapshot.spells or {}) do
+    self.spells[index] = Spell.from_snapshot(spell_snapshot)
+  end
+
+  self.used_this_turn = deep_copy(snapshot.used_this_turn or {})
+  self.reserved = deep_copy(snapshot.reserved or {})
+
+  for _, spell_id in ipairs(snapshot.reserved_stack or {}) do
+    local spell = self:get_spell_by_id(spell_id)
+    if spell then
+      self.reserved_stack[#self.reserved_stack + 1] = spell
+    end
+  end
 end
 
 return SpellBook

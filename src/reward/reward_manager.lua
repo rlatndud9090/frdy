@@ -39,6 +39,19 @@ local config = require('data.rewards.config')
 ---@field rng RNG
 local RewardManager = class('RewardManager')
 
+---@param value any
+---@return any
+local function deep_copy_table(value)
+  if type(value) ~= 'table' then
+    return value
+  end
+  local copied = {}
+  for key, item in pairs(value) do
+    copied[key] = deep_copy_table(item)
+  end
+  return copied
+end
+
 ---@param hero Hero
 ---@param spell_book SpellBook
 ---@param mana_manager ManaManager
@@ -819,6 +832,37 @@ function RewardManager:_build_legendary_item_options()
   end
 
   return options
+end
+
+---@return table
+function RewardManager:snapshot()
+  return {
+    offer_queue = deep_copy_table(self.offer_queue),
+    current_offer = deep_copy_table(self.current_offer),
+    demon_awakening = self.demon_awakening and self.demon_awakening:snapshot() or nil,
+    legendary_inventory = self.legendary_inventory and self.legendary_inventory:snapshot() or nil,
+    reward_control_bonus_stage = self.reward_control_bonus_stage,
+  }
+end
+
+---@param snapshot table|nil
+---@return nil
+function RewardManager:restore(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+
+  self.offer_queue = deep_copy_table(snapshot.offer_queue or {})
+  self.current_offer = deep_copy_table(snapshot.current_offer)
+  if self.demon_awakening and snapshot.demon_awakening then
+    self.demon_awakening:restore(snapshot.demon_awakening)
+  end
+  if self.legendary_inventory and snapshot.legendary_inventory then
+    self.legendary_inventory:restore(snapshot.legendary_inventory)
+  end
+  self.reward_control_bonus_stage = snapshot.reward_control_bonus_stage
+    or (self.legendary_inventory and self.legendary_inventory:get_reward_control_bonus())
+    or 0
 end
 
 return RewardManager
