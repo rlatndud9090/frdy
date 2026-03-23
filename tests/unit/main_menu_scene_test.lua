@@ -75,6 +75,54 @@ function suite.test_new_game_with_existing_save_opens_confirmation_before_cleari
   TestHelper.assert_equal(switched_scene.kind, 'fake_game_scene')
 end
 
+function suite.test_new_game_failure_keeps_existing_continue_save()
+  local cleared = false
+  local invalidated_reason = nil
+  local switched_scene = nil
+
+  RunSave.exists = function()
+    return true
+  end
+  RunSave.clear = function()
+    cleared = true
+    return true, nil
+  end
+  RunSave.invalidate = function(_, reason)
+    invalidated_reason = reason
+    return true, nil
+  end
+  local fake_game = {
+    switch_scene = function(_, scene)
+      switched_scene = scene
+    end,
+  }
+  Game.getInstance = function()
+    return fake_game
+  end
+  if Game.static then
+    Game.static.getInstance = function()
+      return fake_game
+    end
+  end
+  package.loaded['src.scene.game_scene'] = {
+    new = function()
+      error('init failed')
+    end,
+  }
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_start_new_game()
+  scene.confirmation_modal:_confirm()
+
+  TestHelper.assert_false(cleared)
+  TestHelper.assert_equal(invalidated_reason, nil)
+  TestHelper.assert_equal(switched_scene, nil)
+  TestHelper.assert_true(scene.has_continue)
+  TestHelper.assert_true(scene.feedback_text ~= nil)
+end
+
 function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()
   local cleared = false
   local invalidated_reason = nil
@@ -104,6 +152,40 @@ function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()
   TestHelper.assert_equal(invalidated_reason, 'load_failed')
   TestHelper.assert_false(scene.has_continue)
   TestHelper.assert_equal(scene.buttons[1].text, 'ui.new_game')
+end
+
+function suite.test_continue_run_scene_init_failure_does_not_invalidate_valid_save()
+  local invalidated_reason = nil
+
+  RunSave.exists = function()
+    return true
+  end
+  RunSave.load = function()
+    return {
+      checkpoint = {
+        kind = 'start_node_select',
+      },
+    }, nil
+  end
+  RunSave.invalidate = function(_, reason)
+    invalidated_reason = reason
+    return true, nil
+  end
+  package.loaded['src.scene.game_scene'] = {
+    new = function()
+      error('transient init failure')
+    end,
+  }
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_continue_run()
+
+  TestHelper.assert_equal(invalidated_reason, nil)
+  TestHelper.assert_true(scene.has_continue)
+  TestHelper.assert_equal(scene.buttons[1].text, 'ui.continue_run')
+  TestHelper.assert_true(scene.feedback_text ~= nil)
 end
 
 function suite.test_initialize_can_hide_continue_after_cleanup_failure()

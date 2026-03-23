@@ -80,9 +80,29 @@ end
 ---@return nil
 function MainMenuScene:_start_new_game()
   local function begin_new_run()
-    RunSave:clear()
     local GameScene = require('src.scene.game_scene')
-    Game:getInstance():switch_scene(GameScene:new())
+    local ok, scene_or_err = pcall(function()
+      return GameScene:new()
+    end)
+    if not ok then
+      print(scene_or_err)
+      self.feedback_text = i18n.t('ui.run_start_failed')
+      self:_rebuild_buttons()
+      return
+    end
+
+    if self.has_continue then
+      local cleared, clear_err = RunSave:clear()
+      if not cleared then
+        print(clear_err)
+        local invalidated, invalidate_err = RunSave:invalidate('new_game_start')
+        if not invalidated and invalidate_err then
+          print(invalidate_err)
+        end
+      end
+    end
+
+    Game:getInstance():switch_scene(scene_or_err)
   end
 
   if self.has_continue then
@@ -101,15 +121,18 @@ function MainMenuScene:_start_new_game()
   begin_new_run()
 end
 
+---@param invalidate_save boolean
 ---@return nil
-function MainMenuScene:_handle_continue_failure()
-  local invalidated, invalidate_err = RunSave:invalidate('load_failed')
-  if not invalidated and invalidate_err then
-    print(invalidate_err)
+function MainMenuScene:_handle_continue_failure(invalidate_save)
+  if invalidate_save then
+    local invalidated, invalidate_err = RunSave:invalidate('load_failed')
+    if not invalidated and invalidate_err then
+      print(invalidate_err)
+    end
+    self.suppress_continue = true
   end
 
   self.feedback_text = i18n.t('ui.save_load_failed')
-  self.suppress_continue = true
   self:_rebuild_buttons()
 end
 
@@ -120,7 +143,7 @@ function MainMenuScene:_continue_run()
     if err then
       print(err)
     end
-    self:_handle_continue_failure()
+    self:_handle_continue_failure(true)
     return
   end
 
@@ -132,7 +155,7 @@ function MainMenuScene:_continue_run()
   end)
   if not ok then
     print(scene_or_err)
-    self:_handle_continue_failure()
+    self:_handle_continue_failure(false)
     return
   end
 

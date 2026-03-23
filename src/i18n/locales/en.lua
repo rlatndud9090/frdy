@@ -29,6 +29,7 @@ return {
   ["ui.menu_hint"] = "Press ESC / Tab to open settings",
   ["ui.coming_soon"] = "This feature is coming soon.",
   ["ui.save_load_failed"] = "Failed to load the save. Please start a new run.",
+  ["ui.run_start_failed"] = "Failed to start a new run. Please try again shortly.",
   ["ui.save_write_failed"] = "Failed to save run progress. Your current session can continue, but Continue may be out of date.",
   ["ui.confirm_overwrite_save"] = "A run is already in progress. Starting a new game will overwrite the current Continue data.",
   ["ui.back_to_main_menu"] = "Back to Main Menu",

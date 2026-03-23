@@ -29,6 +29,7 @@ return {
   ["ui.menu_hint"] = "ESC / Tab 으로 설정을 열 수 있습니다",
   ["ui.coming_soon"] = "준비 중인 기능입니다.",
   ["ui.save_load_failed"] = "세이브를 불러오지 못했습니다. 새 게임으로 다시 시작해 주세요.",
+  ["ui.run_start_failed"] = "새 런을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.",
   ["ui.save_write_failed"] = "런 진행 상황 저장에 실패했습니다. 현재 진행은 유지되지만 이어하기가 갱신되지 않을 수 있습니다.",
   ["ui.confirm_overwrite_save"] = "진행 중인 런이 있습니다. 새 게임을 시작하면 현재 이어하기 데이터가 덮어써집니다.",
   ["ui.back_to_main_menu"] = "메인 화면으로",
