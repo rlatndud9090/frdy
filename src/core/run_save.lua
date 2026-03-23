@@ -287,12 +287,11 @@ function RunSave:write(payload)
     return false, write_err
   end
 
-  if filesystem:exists(BACKUP_PATH) then
-    filesystem:remove(BACKUP_PATH)
-  end
-
   local had_primary = filesystem:exists(SAVE_PATH)
   if had_primary then
+    if filesystem:exists(BACKUP_PATH) then
+      filesystem:remove(BACKUP_PATH)
+    end
     local moved_old, move_old_err = filesystem:rename(SAVE_PATH, BACKUP_PATH)
     if not moved_old then
       filesystem:remove(TMP_PATH)
