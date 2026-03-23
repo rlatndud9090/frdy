@@ -72,6 +72,7 @@ function suite.test_write_load_and_clear_roundtrip()
   TestHelper.assert_equal(decode_err, nil)
   TestHelper.assert_equal(envelope.format_version, 1)
   TestHelper.assert_equal(envelope.payload.checkpoint.kind, 'combat_start')
+  TestHelper.assert_true(storage['saves/active_run.bak'] ~= nil, '첫 세이브에서도 백업 파일이 생성되어야 합니다.')
 
   local loaded, load_err = RunSave:load()
   TestHelper.assert_equal(load_err, nil)
@@ -261,6 +262,46 @@ function suite.test_write_refreshes_backup_when_only_backup_exists()
   TestHelper.assert_equal(decode_err, nil)
   TestHelper.assert_equal(backup_envelope.payload.checkpoint.kind, 'path_ready')
   TestHelper.assert_equal(backup_envelope.payload.systems.hero.level, 5)
+end
+
+function suite.test_invalidate_hides_continue_and_blocks_load_until_next_write()
+  local ok = RunSave:write({
+    version = 2,
+    checkpoint = {
+      kind = 'event_start',
+    },
+    systems = {
+      hero = {
+        level = 2,
+      },
+    },
+  })
+  TestHelper.assert_true(ok)
+  TestHelper.assert_true(RunSave:exists())
+
+  local invalidated, invalidate_err = RunSave:invalidate('ended')
+  TestHelper.assert_true(invalidated)
+  TestHelper.assert_equal(invalidate_err, nil)
+  TestHelper.assert_false(RunSave:exists(), '무효화된 런은 Continue에 노출되면 안 됩니다.')
+
+  local loaded, load_err = RunSave:load()
+  TestHelper.assert_equal(loaded, nil)
+  TestHelper.assert_true(string.find(load_err, '이어하기할 수 없습니다', 1, true) ~= nil)
+
+  local rewrote, rewrite_err = RunSave:write({
+    version = 2,
+    checkpoint = {
+      kind = 'start_node_select',
+    },
+    systems = {
+      hero = {
+        level = 1,
+      },
+    },
+  })
+  TestHelper.assert_true(rewrote)
+  TestHelper.assert_equal(rewrite_err, nil)
+  TestHelper.assert_true(RunSave:exists(), '새 세이브 작성 후에는 무효화 마커가 해제되어야 합니다.')
 end
 
 function suite.test_write_accepts_spell_book_snapshot_with_serialized_effects()

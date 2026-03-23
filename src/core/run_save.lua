@@ -15,6 +15,7 @@ local SAVE_DIR = 'saves'
 local SAVE_PATH = SAVE_DIR .. '/active_run.json'
 local TMP_PATH = SAVE_DIR .. '/active_run.tmp'
 local BACKUP_PATH = SAVE_DIR .. '/active_run.bak'
+local INVALIDATION_PATH = SAVE_DIR .. '/active_run.invalidated'
 local LEGACY_SAVE_PATH = SAVE_DIR .. '/active_run.lua'
 local FORMAT_VERSION = 1
 
@@ -166,7 +167,17 @@ function RunSave:get_path()
 end
 
 ---@return boolean
+function RunSave:is_invalidated()
+  local filesystem = self:_get_filesystem()
+  return filesystem:exists(INVALIDATION_PATH)
+end
+
+---@return boolean
 function RunSave:exists()
+  if self:is_invalidated() then
+    return false
+  end
+
   local filesystem = self:_get_filesystem()
   return filesystem:exists(SAVE_PATH)
     or filesystem:exists(BACKUP_PATH)
@@ -313,11 +324,16 @@ function RunSave:write(payload)
     return false, move_new_err
   end
 
-  if not had_primary and filesystem:exists(BACKUP_PATH) then
+  if not had_primary then
     local wrote_backup, backup_err = filesystem:write(BACKUP_PATH, content)
     if not wrote_backup then
       return false, backup_err or '백업 세이브를 갱신하지 못했습니다.'
     end
+  end
+
+  local cleared_invalidated, invalidate_err = filesystem:remove(INVALIDATION_PATH)
+  if not cleared_invalidated then
+    return false, invalidate_err or '세이브 무효화 마커를 삭제하지 못했습니다.'
   end
 
   filesystem:remove(LEGACY_SAVE_PATH)
@@ -329,6 +345,10 @@ end
 function RunSave:load()
   local filesystem = self:_get_filesystem()
   local errors = {}
+  if self:is_invalidated() then
+    return nil, '종료된 런 세이브는 이어하기할 수 없습니다.'
+  end
+
   local primary_payload, primary_err = self:_load_json_at_path(SAVE_PATH)
   if primary_payload then
     return primary_payload, nil
@@ -359,6 +379,18 @@ function RunSave:load()
   return nil, table.concat(errors, ' / ')
 end
 
+---@param reason? string
+---@return boolean
+---@return string|nil
+function RunSave:invalidate(reason)
+  local filesystem = self:_get_filesystem()
+  if not filesystem:ensure_directory(SAVE_DIR) then
+    return false, '세이브 디렉터리를 생성하지 못했습니다.'
+  end
+
+  return filesystem:write(INVALIDATION_PATH, reason or 'ended')
+end
+
 ---@return boolean
 ---@return string|nil
 function RunSave:clear()
@@ -367,6 +399,7 @@ function RunSave:clear()
     SAVE_PATH,
     TMP_PATH,
     BACKUP_PATH,
+    INVALIDATION_PATH,
     LEGACY_SAVE_PATH,
   }
 

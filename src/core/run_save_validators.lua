@@ -31,6 +31,16 @@ local ACTION_PATTERN_CONDITIONS = {
   fallback = true,
 }
 
+---@param value any
+---@return number|nil
+local function sanitize_optional_rank(value)
+  if value == nil then
+    return nil
+  end
+
+  return SaveSanitizer.integer(value, 1, 1, 99)
+end
+
 ---@param snapshot any
 ---@return table|nil
 function RunSaveValidators.action_pattern(snapshot)
@@ -47,8 +57,8 @@ function RunSaveValidators.action_pattern(snapshot)
     condition_params = SaveSanitizer.plain_data(snapshot.condition_params) or {},
     cooldown = SaveSanitizer.integer(snapshot.cooldown, 0, 0, 999),
     params = SaveSanitizer.plain_data(snapshot.params) or {},
-    reward_rank = SaveSanitizer.integer(snapshot.reward_rank, 0, 0, 99),
-    max_reward_rank = SaveSanitizer.integer(snapshot.max_reward_rank, 0, 0, 99),
+    reward_rank = sanitize_optional_rank(snapshot.reward_rank),
+    max_reward_rank = sanitize_optional_rank(snapshot.max_reward_rank),
   }
 end
 
@@ -93,8 +103,8 @@ function RunSaveValidators.spell(snapshot)
     cost = SaveSanitizer.integer(snapshot.cost, 0, 0, 999999),
     suspicion_delta = SaveSanitizer.number(snapshot.suspicion_delta, 0, -999999, 999999),
     suspicion_abs = SaveSanitizer.number(snapshot.suspicion_abs, 0, 0, 999999),
-    reward_rank = SaveSanitizer.integer(snapshot.reward_rank, 0, 0, 99),
-    max_reward_rank = SaveSanitizer.integer(snapshot.max_reward_rank, 0, 0, 99),
+    reward_rank = sanitize_optional_rank(snapshot.reward_rank),
+    max_reward_rank = sanitize_optional_rank(snapshot.max_reward_rank),
     upgrade = SaveSanitizer.plain_data(snapshot.upgrade),
     target_mode = SaveSanitizer.string(snapshot.target_mode, "char_single"),
     target_n = snapshot.target_n ~= nil and SaveSanitizer.integer(snapshot.target_n, 1, 1, 999) or nil,

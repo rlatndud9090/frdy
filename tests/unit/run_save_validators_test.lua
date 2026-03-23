@@ -88,6 +88,8 @@ function suite.test_save_payload_normalizes_legacy_shape_and_clamps_values()
   TestHelper.assert_equal(payload.systems.map_progress.completed_node_ids[1], 0)
   TestHelper.assert_equal(payload.systems.hero.hp, 44)
   TestHelper.assert_equal(payload.systems.hero.action_patterns[1].cooldown, 1)
+  TestHelper.assert_equal(payload.systems.hero.action_patterns[1].reward_rank, nil)
+  TestHelper.assert_equal(payload.systems.hero.action_patterns[1].max_reward_rank, nil)
   TestHelper.assert_equal(payload.systems.mana.current_mana, 100)
   TestHelper.assert_equal(payload.systems.mana.reserved_mana, 0)
   TestHelper.assert_equal(payload.systems.suspicion.level, 100)
@@ -150,6 +152,20 @@ function suite.test_save_payload_accepts_travel_start_and_pending_target_node()
   TestHelper.assert_equal(err, nil)
   TestHelper.assert_equal(payload.checkpoint.kind, 'travel_start')
   TestHelper.assert_equal(payload.systems.map_progress.pending_target_node_id, 22)
+end
+
+---@return nil
+function suite.test_action_pattern_rank_clamps_invalid_zero_to_one()
+  local pattern = RunSaveValidators.action_pattern({
+    id = 'slash',
+    name = 'Slash',
+    type = 'attack',
+    reward_rank = 0,
+    max_reward_rank = 0,
+  })
+
+  TestHelper.assert_equal(pattern.reward_rank, 1)
+  TestHelper.assert_equal(pattern.max_reward_rank, 1)
 end
 
 return suite

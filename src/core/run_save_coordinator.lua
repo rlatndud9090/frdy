@@ -107,4 +107,15 @@ function RunSaveCoordinator:clear_active_run()
   return self.save_store:clear()
 end
 
+---@param reason? string
+---@return boolean
+---@return string|nil
+function RunSaveCoordinator:invalidate_active_run(reason)
+  if type(self.save_store.invalidate) ~= 'function' then
+    return false, '세이브 저장소가 무효화 마커를 지원하지 않습니다.'
+  end
+
+  return self.save_store:invalidate(reason)
+end
+
 return RunSaveCoordinator

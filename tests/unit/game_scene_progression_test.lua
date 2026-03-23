@@ -308,4 +308,32 @@ function suite.test_finish_run_passes_save_cleanup_failure_to_run_end_scene()
   TestHelper.assert_equal(switched_scene.options.summary.level, 2)
 end
 
+---@return nil
+function suite.test_clear_active_run_invalidates_save_when_cleanup_fails()
+  local invalidated_reason = nil
+  local feedback_text = nil
+  local scene = {
+    restoring = false,
+    save_coordinator = {
+      clear_active_run = function()
+        return false, 'remove failed'
+      end,
+      invalidate_active_run = function(_, reason)
+        invalidated_reason = reason
+        return true, nil
+      end,
+    },
+    _set_save_feedback = function(_, text)
+      feedback_text = text
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  local ok = scene:_clear_active_run()
+
+  TestHelper.assert_false(ok)
+  TestHelper.assert_equal(invalidated_reason, 'ended')
+  TestHelper.assert_true(feedback_text ~= nil)
+end
+
 return suite

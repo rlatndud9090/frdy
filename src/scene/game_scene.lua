@@ -406,6 +406,10 @@ function GameScene:_clear_active_run()
 
   local ok, err = self.save_coordinator:clear_active_run()
   if not ok then
+    local invalidated, invalidate_err = self.save_coordinator:invalidate_active_run('ended')
+    if not invalidated and invalidate_err then
+      print(invalidate_err)
+    end
     self:_set_save_feedback(i18n.t('ui.save_write_failed'))
     print(err)
     return false
