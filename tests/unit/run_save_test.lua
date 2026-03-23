@@ -113,6 +113,40 @@ function suite.test_load_falls_back_to_backup_when_primary_is_corrupted()
   TestHelper.assert_equal(storage['saves/active_run.json'], storage['saves/active_run.bak'])
 end
 
+function suite.test_load_fails_when_backup_promotion_fails_after_primary_corruption()
+  local payload = {
+    version = 2,
+    checkpoint = {
+      kind = 'event_start',
+    },
+    systems = {
+      hero = {
+        level = 4,
+      },
+    },
+  }
+
+  local ok = RunSave:write(payload)
+  TestHelper.assert_true(ok)
+  storage['saves/active_run.bak'] = storage['saves/active_run.json']
+  storage['saves/active_run.json'] = '{"format_version":1,"checksum":"deadbeef","payload":{"version":2}}'
+
+  local original_rename = filesystem.rename
+  filesystem.rename = function(_, from_path, to_path)
+    if from_path == 'saves/active_run.tmp' and to_path == 'saves/active_run.json' then
+      return false, 'promote failed'
+    end
+    return original_rename(filesystem, from_path, to_path)
+  end
+
+  local loaded, load_err = RunSave:load()
+
+  TestHelper.assert_equal(loaded, nil)
+  TestHelper.assert_true(load_err ~= nil)
+  TestHelper.assert_true(string.find(load_err, 'promote failed', 1, true) ~= nil)
+  TestHelper.assert_true(storage['saves/active_run.bak'] ~= nil)
+end
+
 function suite.test_backup_fallback_promotes_primary_before_next_write()
   local original_payload = {
     version = 2,

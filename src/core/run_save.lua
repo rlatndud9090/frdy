@@ -361,8 +361,9 @@ function RunSave:load()
   if backup_payload then
     if backup_content and (primary_err or not filesystem:exists(SAVE_PATH)) then
       local promoted, promote_err = self:_promote_backup_to_primary(backup_content)
-      if not promoted and promote_err then
-        print(promote_err)
+      if not promoted then
+        errors[#errors + 1] = promote_err or '백업 세이브를 주 세이브로 승격하지 못했습니다.'
+        return nil, table.concat(errors, ' / ')
       end
     end
 
