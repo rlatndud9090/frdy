@@ -206,18 +206,24 @@ end
 ---@param path string
 ---@return table|nil
 ---@return string|nil
+---@return string|nil
 function RunSave:_load_json_at_path(path)
   local filesystem = self:_get_filesystem()
   if not filesystem:exists(path) then
-    return nil, '세이브 파일이 없습니다.'
+    return nil, '세이브 파일이 없습니다.', nil
   end
 
   local content, read_err = filesystem:read(path)
   if not content then
-    return nil, read_err
+    return nil, read_err, nil
   end
 
-  return self:_decode_json_payload(content)
+  local payload, decode_err = self:_decode_json_payload(content)
+  if not payload then
+    return nil, decode_err, nil
+  end
+
+  return payload, nil, content
 end
 
 ---@param content string
@@ -320,16 +326,13 @@ function RunSave:load()
     errors[#errors + 1] = primary_err
   end
 
-  local backup_payload, backup_err = self:_load_json_at_path(BACKUP_PATH)
+  local backup_payload, backup_err, backup_content = self:_load_json_at_path(BACKUP_PATH)
   if backup_payload then
-    local backup_content, read_err = filesystem:read(BACKUP_PATH)
-    if not backup_content then
-      return nil, read_err
-    end
-
-    local promoted, promote_err = self:_promote_backup_to_primary(backup_content)
-    if not promoted then
-      return nil, promote_err or '백업 세이브를 primary로 복구하지 못했습니다.'
+    if backup_content and (primary_err or not filesystem:exists(SAVE_PATH)) then
+      local promoted, promote_err = self:_promote_backup_to_primary(backup_content)
+      if not promoted and promote_err then
+        print(promote_err)
+      end
     end
 
     return backup_payload, nil

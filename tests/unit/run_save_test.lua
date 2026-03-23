@@ -112,6 +112,49 @@ function suite.test_load_falls_back_to_backup_when_primary_is_corrupted()
   TestHelper.assert_equal(storage['saves/active_run.json'], storage['saves/active_run.bak'])
 end
 
+function suite.test_backup_fallback_promotes_primary_before_next_write()
+  local original_payload = {
+    version = 2,
+    checkpoint = {
+      kind = 'event_start',
+    },
+    systems = {
+      hero = {
+        level = 2,
+      },
+    },
+  }
+
+  local ok = RunSave:write(original_payload)
+  TestHelper.assert_true(ok)
+  storage['saves/active_run.bak'] = storage['saves/active_run.json']
+  storage['saves/active_run.json'] = '{"format_version":1,"checksum":"deadbeef","payload":{"version":2}}'
+
+  local loaded, load_err = RunSave:load()
+  TestHelper.assert_equal(load_err, nil)
+  TestHelper.assert_equal(loaded.checkpoint.kind, 'event_start')
+
+  local next_payload = {
+    version = 2,
+    checkpoint = {
+      kind = 'path_ready',
+    },
+    systems = {
+      hero = {
+        level = 3,
+      },
+    },
+  }
+
+  local wrote, write_err = RunSave:write(next_payload)
+  TestHelper.assert_true(wrote)
+  TestHelper.assert_equal(write_err, nil)
+
+  local backup_envelope, decode_err = JsonCodec.decode(storage['saves/active_run.bak'])
+  TestHelper.assert_equal(decode_err, nil)
+  TestHelper.assert_equal(backup_envelope.payload.checkpoint.kind, 'event_start')
+end
+
 function suite.test_write_accepts_spell_book_snapshot_with_serialized_effects()
   local fixture = Fixtures.create_reward_fixture(404)
   local payload = {
