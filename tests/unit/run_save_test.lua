@@ -1,6 +1,7 @@
 local TestHelper = require('tests.test_helper')
 local JsonCodec = require('src.core.json_codec')
 local RunSave = require('src.core.run_save')
+local Fixtures = require('tests.helpers.fixtures')
 
 local suite = {}
 
@@ -108,6 +109,28 @@ function suite.test_load_falls_back_to_backup_when_primary_is_corrupted()
   TestHelper.assert_equal(load_err, nil)
   TestHelper.assert_equal(loaded.checkpoint.kind, 'event_start')
   TestHelper.assert_equal(loaded.systems.mana.current_mana, 80)
+end
+
+function suite.test_write_accepts_spell_book_snapshot_with_serialized_effects()
+  local fixture = Fixtures.create_reward_fixture(404)
+  local payload = {
+    version = 2,
+    checkpoint = {
+      kind = 'start_node_select',
+    },
+    systems = {
+      spell_book = fixture.spell_book:snapshot(),
+    },
+  }
+
+  local ok, err = RunSave:write(payload)
+  TestHelper.assert_true(ok, '주문 effect가 JSON 직렬화 가능한 형태여야 합니다.')
+  TestHelper.assert_equal(err, nil)
+
+  local envelope, decode_err = JsonCodec.decode(storage['saves/active_run.json'])
+  TestHelper.assert_equal(decode_err, nil)
+  TestHelper.assert_equal(type(envelope.payload.systems.spell_book.spells[1].effect.apply), 'nil')
+  TestHelper.assert_true(type(envelope.payload.systems.spell_book.spells[1].effect.type) == 'string')
 end
 
 return suite

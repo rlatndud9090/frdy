@@ -1,6 +1,7 @@
 local class = require('lib.middleclass')
 local i18n = require('src.i18n.init')
 local StatusRegistry = require('src.combat.status_registry')
+local SpellEffect = require('src.spell.spell_effect')
 
 ---@class Spell
 ---@field id string
@@ -493,7 +494,7 @@ function Spell:snapshot()
     target_mode = self.target_mode,
     target_n = self.target_n,
     keywords = deep_copy(self.keywords),
-    effect = deep_copy(self.effect),
+    effect = SpellEffect.snapshot(self.effect),
     timeline_type = self.timeline_type,
   }
 end
@@ -501,6 +502,15 @@ end
 ---@param snapshot table
 ---@return Spell
 function Spell.static.from_snapshot(snapshot)
+  local effect = SpellEffect.from_snapshot(snapshot.effect)
+  if not effect then
+    effect = {
+      type = "damage",
+      amount = 0,
+      apply = function()
+      end,
+    }
+  end
   local spell = Spell:new({
     id = snapshot.id,
     name = snapshot.name,
@@ -515,7 +525,7 @@ function Spell.static.from_snapshot(snapshot)
     target_mode = snapshot.target_mode,
     target_n = snapshot.target_n,
     keywords = deep_copy(snapshot.keywords or {}),
-    effect = deep_copy(snapshot.effect),
+    effect = effect,
   })
   spell.timeline_type = snapshot.timeline_type or spell.timeline_type
   spell.suspicion_abs = snapshot.suspicion_abs or math.abs(spell.suspicion_delta or 0)
