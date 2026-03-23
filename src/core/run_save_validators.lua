@@ -11,6 +11,7 @@ local CHECKPOINT_KINDS = {
   event_start = true,
   reward_offer_presented = true,
   path_ready = true,
+  travel_start = true,
 }
 
 local ACTION_PATTERN_TYPES = {
@@ -250,6 +251,9 @@ function RunSaveValidators.map_progress(snapshot)
     current_floor_index = SaveSanitizer.integer(snapshot.current_floor_index, 1, 1, 999),
     current_node_id = snapshot.current_node_id ~= nil
       and SaveSanitizer.integer(snapshot.current_node_id, 0, 0, 999999999)
+      or nil,
+    pending_target_node_id = snapshot.pending_target_node_id ~= nil
+      and SaveSanitizer.integer(snapshot.pending_target_node_id, 0, 0, 999999999)
       or nil,
     completed_node_ids = completed_node_ids,
   }

@@ -101,4 +101,10 @@ function RunSaveCoordinator:restore_payload(save_data)
   return normalized, nil
 end
 
+---@return boolean
+---@return string|nil
+function RunSaveCoordinator:clear_active_run()
+  return self.save_store:clear()
+end
+
 return RunSaveCoordinator

@@ -50,6 +50,7 @@ local START_NODE_SELECT = "START_NODE_SELECT"
 ---@field map Map
 ---@field current_node Node|nil
 ---@field target_node Node|nil
+---@field pending_target_node_id number|nil
 ---@field hero_world_x number
 ---@field hero_world_y number
 ---@field camera Camera
@@ -107,6 +108,7 @@ function GameScene:_reset_world_position_for_current_floor()
   local start_nodes = floor and floor:get_start_nodes() or {}
   self.current_node = nil
   self.target_node = nil
+  self.pending_target_node_id = nil
   self.hero_world_x = start_nodes[1] and start_nodes[1]:get_position().x or 0
   self.hero_world_y = 360
   self.camera:set_target(self.hero_world_x, self.hero_world_y)
@@ -296,6 +298,7 @@ function GameScene:_snapshot_map_progress()
   return {
     current_floor_index = self.map.current_floor_index,
     current_node_id = self.current_node and self.current_node.id or nil,
+    pending_target_node_id = self.pending_target_node_id,
     completed_node_ids = completed_node_ids,
   }
 end
@@ -327,6 +330,7 @@ function GameScene:_restore_map_progress(snapshot)
   end
 
   self.map.current_floor_index = snapshot.current_floor_index or self.map.current_floor_index
+  self.pending_target_node_id = snapshot.pending_target_node_id
   local completed_lookup = {}
   for _, node_id in ipairs(snapshot.completed_node_ids or {}) do
     completed_lookup[node_id] = true
@@ -387,8 +391,58 @@ function GameScene:_resume_from_checkpoint(checkpoint_kind)
     self:_check_next_move()
     return
   end
+  if checkpoint_kind == 'travel_start' then
+    self:_resume_travel_start()
+    return
+  end
 
   self:_show_start_node_select(floor and floor:get_start_nodes() or {})
+end
+
+---@return boolean
+function GameScene:_clear_active_run()
+  if self.restoring then
+    return true
+  end
+
+  local ok, err = self.save_coordinator:clear_active_run()
+  if not ok then
+    self:_set_save_feedback(i18n.t('ui.save_write_failed'))
+    print(err)
+    return false
+  end
+
+  self:_set_save_feedback(nil)
+  return true
+end
+
+---@return nil
+function GameScene:_checkpoint_post_resolution()
+  if self.reward_manager:has_pending_offers() then
+    self:_write_checkpoint('reward_offer_presented')
+    return
+  end
+
+  if #self:_get_outgoing_edges() == 0 then
+    self:_clear_active_run()
+    return
+  end
+
+  self:_write_checkpoint('path_ready')
+end
+
+---@return nil
+function GameScene:_resume_travel_start()
+  local target_node = self:_find_node_by_id(self.pending_target_node_id)
+  self.pending_target_node_id = nil
+  if not target_node then
+    self:_check_next_move()
+    return
+  end
+
+  self.target_node = nil
+  self:_set_current_node(target_node)
+  self:_enter_current_node()
 end
 
 ---@param save_data table
@@ -705,6 +759,7 @@ function GameScene:_on_arrived()
   self.phase = ARRIVING
   local arrived_node = self.target_node
   self.target_node = nil
+  self.pending_target_node_id = nil
   if not arrived_node then
     return
   end
@@ -840,6 +895,12 @@ function GameScene:_on_combat_ended(result)
     print(i18n.t("combat.defeat"))
   end
 
+  if result == "victory" then
+    self:_checkpoint_post_resolution()
+  elseif result == "defeat" then
+    self:_clear_active_run()
+  end
+
   flux.to(self.combat_handler, 0.4, {enemy_world_x = self.hero_world_x + 800})
     :ease("quadin")
   flux.to(self.combat_handler, 0.3, {ui_offset_y = 200})
@@ -892,6 +953,7 @@ end
 
 --- 이벤트 종료 처리
 function GameScene:_on_event_ended()
+  self:_checkpoint_post_resolution()
   self.phase = EXITING_EVENT
   self.event_handler:deactivate()
 
@@ -985,7 +1047,10 @@ end
 --- 경로 선택 완료 처리
 ---@param edge Edge
 function GameScene:_on_edge_selected(edge)
-  self:_start_traveling(edge:get_to_node())
+  local target_node = edge:get_to_node()
+  self.pending_target_node_id = target_node and target_node.id or nil
+  self:_write_checkpoint('travel_start')
+  self:_start_traveling(target_node)
 end
 
 ---@param x number
