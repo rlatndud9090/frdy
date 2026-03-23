@@ -64,4 +64,18 @@ function suite.test_run_model_snapshots_restore_expected_progress()
   TestHelper.assert_equal(restored.hero.speed, fixture.hero.speed)
 end
 
+---@return nil
+function suite.test_mana_snapshot_restores_zero_current_mana()
+  local fixture = Fixtures.create_reward_fixture(505)
+  local max_mana = fixture.mana_manager:get_max()
+  fixture.mana_manager:spend(max_mana)
+
+  local mana_snapshot = fixture.mana_manager:snapshot()
+  local restored = Fixtures.create_reward_fixture(505)
+  restored.mana_manager:restore_snapshot(mana_snapshot)
+
+  TestHelper.assert_equal(restored.mana_manager:get_current(), 0)
+  TestHelper.assert_equal(restored.mana_manager:get_max(), max_mana)
+end
+
 return suite

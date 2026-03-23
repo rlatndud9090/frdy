@@ -80,10 +80,11 @@ end
 ---@return nil
 function MainMenuScene:_start_new_game()
   local function begin_new_run()
+    local needs_existing_save_cleanup = self.has_continue or RunSave:is_invalidated()
     local GameScene = require('src.scene.game_scene')
     local ok, scene_or_err = pcall(function()
       return GameScene:new({
-        defer_initial_checkpoint = self.has_continue,
+        defer_initial_checkpoint = needs_existing_save_cleanup,
       })
     end)
     if not ok then
@@ -93,7 +94,7 @@ function MainMenuScene:_start_new_game()
       return
     end
 
-    if self.has_continue then
+    if needs_existing_save_cleanup then
       local cleared, clear_err = RunSave:clear()
       if not cleared then
         print(clear_err)

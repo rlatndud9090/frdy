@@ -8,6 +8,7 @@ local original_run_save_exists = RunSave.exists
 local original_run_save_load = RunSave.load
 local original_run_save_clear = RunSave.clear
 local original_run_save_invalidate = RunSave.invalidate
+local original_run_save_is_invalidated = RunSave.is_invalidated
 local original_game_get_instance = Game.getInstance
 local original_game_static_get_instance = Game.static and Game.static.getInstance or nil
 
@@ -16,6 +17,9 @@ local original_game_scene_module = nil
 function suite.before_each()
   package.loaded['src.scene.main_menu_scene'] = nil
   original_game_scene_module = package.loaded['src.scene.game_scene']
+  RunSave.is_invalidated = function()
+    return false
+  end
 end
 
 function suite.after_each()
@@ -23,6 +27,7 @@ function suite.after_each()
   RunSave.load = original_run_save_load
   RunSave.clear = original_run_save_clear
   RunSave.invalidate = original_run_save_invalidate
+  RunSave.is_invalidated = original_run_save_is_invalidated
   Game.getInstance = original_game_get_instance
   if Game.static then
     Game.static.getInstance = original_game_static_get_instance
@@ -171,6 +176,57 @@ function suite.test_new_game_clears_old_save_before_committing_new_checkpoint()
   scene:_start_new_game()
   scene.confirmation_modal:_confirm()
 
+  TestHelper.assert_equal(steps[1], 'deferred_new')
+  TestHelper.assert_equal(steps[2], 'clear')
+  TestHelper.assert_equal(steps[3], 'commit_checkpoint')
+  TestHelper.assert_equal(steps[4], 'fake_game_scene')
+end
+
+function suite.test_new_game_clears_invalidated_hidden_save_before_committing_checkpoint()
+  local steps = {}
+
+  RunSave.exists = function()
+    return false
+  end
+  RunSave.is_invalidated = function()
+    return true
+  end
+  RunSave.clear = function()
+    steps[#steps + 1] = 'clear'
+    return true, nil
+  end
+  local fake_game = {
+    switch_scene = function(_, scene)
+      steps[#steps + 1] = scene.kind
+    end,
+  }
+  Game.getInstance = function()
+    return fake_game
+  end
+  if Game.static then
+    Game.static.getInstance = function()
+      return fake_game
+    end
+  end
+  package.loaded['src.scene.game_scene'] = {
+    new = function(_, options)
+      steps[#steps + 1] = options.defer_initial_checkpoint and 'deferred_new' or 'new'
+      return {
+        kind = 'fake_game_scene',
+        commit_initial_checkpoint = function()
+          steps[#steps + 1] = 'commit_checkpoint'
+          return true, nil
+        end,
+      }
+    end,
+  }
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_start_new_game()
+
+  TestHelper.assert_false(scene.confirmation_modal:is_open())
   TestHelper.assert_equal(steps[1], 'deferred_new')
   TestHelper.assert_equal(steps[2], 'clear')
   TestHelper.assert_equal(steps[3], 'commit_checkpoint')
