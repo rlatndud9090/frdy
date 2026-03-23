@@ -186,6 +186,44 @@ function suite.test_on_edge_selected_writes_travel_checkpoint_before_traveling()
 end
 
 ---@return nil
+function suite.test_check_next_move_single_edge_uses_travel_checkpoint_flow()
+  local call_order = {}
+  local target_node = { id = 27 }
+  local scene = {
+    current_node = { id = 10 },
+    map = {
+      get_current_floor = function()
+        return {
+          get_edges_from = function()
+            return {
+              {
+                get_to_node = function()
+                  return target_node
+                end,
+              },
+            }
+          end,
+        }
+      end,
+    },
+    _write_checkpoint = function(_, checkpoint_kind)
+      call_order[#call_order + 1] = checkpoint_kind
+      return true
+    end,
+    _start_traveling = function(_, target)
+      call_order[#call_order + 1] = target.id
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_check_next_move()
+
+  TestHelper.assert_equal(scene.pending_target_node_id, 27)
+  TestHelper.assert_equal(call_order[1], 'travel_start')
+  TestHelper.assert_equal(call_order[2], 27)
+end
+
+---@return nil
 function suite.test_resume_from_travel_checkpoint_enters_selected_target_node()
   local entered = false
   local scene
