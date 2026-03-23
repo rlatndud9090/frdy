@@ -170,7 +170,6 @@ function RunSave:exists()
   local filesystem = self:_get_filesystem()
   return filesystem:exists(SAVE_PATH)
     or filesystem:exists(BACKUP_PATH)
-    or filesystem:exists(LEGACY_SAVE_PATH)
 end
 
 ---@param content string
@@ -219,37 +218,6 @@ function RunSave:_load_json_at_path(path)
   end
 
   return self:_decode_json_payload(content)
-end
-
----@param path string
----@return table|nil
----@return string|nil
-function RunSave:_load_legacy_lua_at_path(path)
-  local filesystem = self:_get_filesystem()
-  if not filesystem:exists(path) then
-    return nil, '레거시 세이브 파일이 없습니다.'
-  end
-
-  local content, read_err = filesystem:read(path)
-  if not content then
-    return nil, read_err
-  end
-
-  local chunk, load_err = load(content, '@active_run.lua', 't', {})
-  if not chunk then
-    return nil, load_err
-  end
-
-  local ok, result = pcall(chunk)
-  if not ok then
-    return nil, tostring(result)
-  end
-
-  if type(result) ~= 'table' then
-    return nil, '레거시 세이브 파일 형식이 올바르지 않습니다.'
-  end
-
-  return result, nil
 end
 
 ---@param payload table
@@ -311,15 +279,13 @@ end
 ---@return table|nil
 ---@return string|nil
 function RunSave:load()
+  local filesystem = self:_get_filesystem()
   local loaders = {
     function()
       return self:_load_json_at_path(SAVE_PATH)
     end,
     function()
       return self:_load_json_at_path(BACKUP_PATH)
-    end,
-    function()
-      return self:_load_legacy_lua_at_path(LEGACY_SAVE_PATH)
     end,
   }
 
@@ -332,6 +298,10 @@ function RunSave:load()
     if err then
       errors[#errors + 1] = err
     end
+  end
+
+  if filesystem:exists(LEGACY_SAVE_PATH) then
+    errors[#errors + 1] = '레거시 Lua 세이브는 안전상 자동 로드하지 않습니다.'
   end
 
   return nil, table.concat(errors, ' / ')

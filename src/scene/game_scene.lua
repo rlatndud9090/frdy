@@ -656,17 +656,31 @@ function GameScene:_check_next_move()
     return
   end
 
-  local floor = self.map:get_current_floor()
-  local edges = floor:get_edges_from(self.current_node)
+  local edges = self:_get_outgoing_edges()
 
   if #edges == 0 then
     print(i18n.t("combat.floor_cleared"))
+    self:_finish_run('victory')
     return
   elseif #edges == 1 then
     self:_start_traveling(edges[1]:get_to_node())
   else
     self:_show_edge_select(edges)
   end
+end
+
+---@return Edge[]
+function GameScene:_get_outgoing_edges()
+  if not self.current_node then
+    return {}
+  end
+
+  local floor = self.map and self.map:get_current_floor() or nil
+  if not floor or not floor.get_edges_from then
+    return {}
+  end
+
+  return floor:get_edges_from(self.current_node) or {}
 end
 
 --- 이동 시작
@@ -895,6 +909,17 @@ function GameScene:_enter_settlement_or_continue()
     self:_show_next_reward_offer()
     return
   end
+  self.phase = ARRIVING
+  self:_continue_after_settlement()
+end
+
+---@return nil
+function GameScene:_continue_after_settlement()
+  if #self:_get_outgoing_edges() == 0 then
+    self:_finish_run('victory')
+    return
+  end
+
   self:_write_checkpoint('path_ready')
   self:_check_next_move()
 end
@@ -904,8 +929,7 @@ function GameScene:_show_next_reward_offer()
   local offer = self.reward_manager:peek_offer()
   if not offer then
     self.phase = ARRIVING
-    self:_write_checkpoint('path_ready')
-    self:_check_next_move()
+    self:_continue_after_settlement()
     return
   end
 

@@ -34,6 +34,9 @@ end
 
 ---@return string
 function RunEndScene:_resolve_title_key()
+  if self.reason == 'victory' then
+    return 'ui.run_cleared'
+  end
   if self.reason == 'abandon' then
     return 'ui.run_abandoned'
   end
@@ -42,6 +45,9 @@ end
 
 ---@return string
 function RunEndScene:_resolve_reason_key()
+  if self.reason == 'victory' then
+    return 'ui.run_victory_reason'
+  end
   if self.reason == 'abandon' then
     return 'ui.run_abandon_reason'
   end

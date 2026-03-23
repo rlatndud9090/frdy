@@ -133,4 +133,19 @@ function suite.test_write_accepts_spell_book_snapshot_with_serialized_effects()
   TestHelper.assert_true(type(envelope.payload.systems.spell_book.spells[1].effect.type) == 'string')
 end
 
+function suite.test_exists_ignores_legacy_lua_save_only()
+  storage['saves/active_run.lua'] = 'return { version = 1 }'
+
+  TestHelper.assert_false(RunSave:exists(), '레거시 Lua 세이브만으로 Continue가 노출되면 안 됩니다.')
+end
+
+function suite.test_load_rejects_legacy_lua_save_without_evaluating()
+  storage['saves/active_run.lua'] = 'while true do end'
+
+  local loaded, load_err = RunSave:load()
+  TestHelper.assert_equal(loaded, nil)
+  TestHelper.assert_true(load_err ~= nil)
+  TestHelper.assert_true(string.find(load_err, '레거시 Lua 세이브', 1, true) ~= nil)
+end
+
 return suite
