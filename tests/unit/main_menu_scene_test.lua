@@ -33,6 +33,7 @@ end
 
 function suite.test_new_game_with_existing_save_opens_confirmation_before_clearing()
   local cleared = false
+  local committed = false
   local switched_scene = nil
 
   RunSave.exists = function()
@@ -59,6 +60,10 @@ function suite.test_new_game_with_existing_save_opens_confirmation_before_cleari
     new = function()
       return {
         kind = 'fake_game_scene',
+        commit_initial_checkpoint = function()
+          committed = true
+          return true, nil
+        end,
       }
     end,
   }
@@ -72,6 +77,7 @@ function suite.test_new_game_with_existing_save_opens_confirmation_before_cleari
 
   scene.confirmation_modal:_confirm()
   TestHelper.assert_true(cleared)
+  TestHelper.assert_true(committed)
   TestHelper.assert_equal(switched_scene.kind, 'fake_game_scene')
 end
 
@@ -121,6 +127,54 @@ function suite.test_new_game_failure_keeps_existing_continue_save()
   TestHelper.assert_equal(switched_scene, nil)
   TestHelper.assert_true(scene.has_continue)
   TestHelper.assert_true(scene.feedback_text ~= nil)
+end
+
+function suite.test_new_game_clears_old_save_before_committing_new_checkpoint()
+  local steps = {}
+
+  RunSave.exists = function()
+    return true
+  end
+  RunSave.clear = function()
+    steps[#steps + 1] = 'clear'
+    return true, nil
+  end
+  local fake_game = {
+    switch_scene = function(_, scene)
+      steps[#steps + 1] = scene.kind
+    end,
+  }
+  Game.getInstance = function()
+    return fake_game
+  end
+  if Game.static then
+    Game.static.getInstance = function()
+      return fake_game
+    end
+  end
+  package.loaded['src.scene.game_scene'] = {
+    new = function(_, options)
+      steps[#steps + 1] = options.defer_initial_checkpoint and 'deferred_new' or 'new'
+      return {
+        kind = 'fake_game_scene',
+        commit_initial_checkpoint = function()
+          steps[#steps + 1] = 'commit_checkpoint'
+          return true, nil
+        end,
+      }
+    end,
+  }
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_start_new_game()
+  scene.confirmation_modal:_confirm()
+
+  TestHelper.assert_equal(steps[1], 'deferred_new')
+  TestHelper.assert_equal(steps[2], 'clear')
+  TestHelper.assert_equal(steps[3], 'commit_checkpoint')
+  TestHelper.assert_equal(steps[4], 'fake_game_scene')
 end
 
 function suite.test_continue_run_load_failure_keeps_save_and_shows_feedback()

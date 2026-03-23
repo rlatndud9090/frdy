@@ -74,6 +74,7 @@ local START_NODE_SELECT = "START_NODE_SELECT"
 ---@field save_coordinator RunSaveCoordinator
 ---@field save_feedback_text string|nil
 ---@field save_feedback_timer number
+---@field initial_checkpoint_committed boolean
 local GameScene = class('GameScene', Scene)
 
 ---@return number
@@ -238,11 +239,12 @@ function GameScene:_set_save_feedback(message)
   self.save_feedback_timer = message and 4 or 0
 end
 
----@param options? {save_data?: table, run_seed?: number}
+---@param options? {save_data?: table, run_seed?: number, defer_initial_checkpoint?: boolean}
 function GameScene:initialize(options)
   Scene.initialize(self)
   options = options or {}
   self.restoring = false
+  self.initial_checkpoint_committed = false
 
   local save_data = options.save_data
   local initial_seed = options.run_seed
@@ -262,8 +264,24 @@ function GameScene:initialize(options)
 
   local floor = self.map:get_current_floor()
   local start_nodes = floor and floor:get_start_nodes() or {}
-  self:_write_checkpoint('start_node_select')
+  if not options.defer_initial_checkpoint then
+    self:commit_initial_checkpoint()
+  end
   self:_show_start_node_select(start_nodes)
+end
+
+---@return boolean
+---@return string|nil
+function GameScene:commit_initial_checkpoint()
+  if self.initial_checkpoint_committed then
+    return true, nil
+  end
+
+  local ok, err = self:_write_checkpoint('start_node_select')
+  if ok then
+    self.initial_checkpoint_committed = true
+  end
+  return ok, err
 end
 
 ---@return number

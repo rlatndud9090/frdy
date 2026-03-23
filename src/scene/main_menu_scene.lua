@@ -82,7 +82,9 @@ function MainMenuScene:_start_new_game()
   local function begin_new_run()
     local GameScene = require('src.scene.game_scene')
     local ok, scene_or_err = pcall(function()
-      return GameScene:new()
+      return GameScene:new({
+        defer_initial_checkpoint = self.has_continue,
+      })
     end)
     if not ok then
       print(scene_or_err)
@@ -99,6 +101,11 @@ function MainMenuScene:_start_new_game()
         if not invalidated and invalidate_err then
           print(invalidate_err)
         end
+      end
+
+      local checkpoint_ok, checkpoint_err = scene_or_err:commit_initial_checkpoint()
+      if not checkpoint_ok and checkpoint_err then
+        print(checkpoint_err)
       end
     end
 
