@@ -1,5 +1,6 @@
 local class = require('lib.middleclass')
 local RNG = require('src.core.rng')
+local RewardCatalog = require('src.reward.reward_catalog')
 
 ---@class LegendaryItemDefinition
 ---@field id string
@@ -142,6 +143,42 @@ function LegendaryInventory:remove_random(context)
   local index = self._rng:next_int(1, #self._owned_ids)
   local item_id = self._owned_ids[index]
   return self:remove_by_id(item_id, context)
+end
+
+---@return table
+function LegendaryInventory:snapshot()
+  return {
+    owned_ids = self:get_owned_ids(),
+    reward_control_bonus = self._reward_control_bonus,
+  }
+end
+
+---@param snapshot table|nil
+---@return nil
+function LegendaryInventory:restore(snapshot)
+  self._owned_ids = {}
+  self._owned_lookup = {}
+  self._reward_control_bonus = 0
+
+  if type(snapshot) ~= 'table' then
+    return
+  end
+
+  -- 용사 스탯 보너스는 hero persistent snapshot에 이미 반영되어 저장된다.
+  -- 여기서는 소유 상태와 제거/제어 보너스 계산에 필요한 메타데이터만 재구성한다.
+  for _, item_id in ipairs(snapshot.owned_ids or {}) do
+    local item_def = RewardCatalog.get_legendary_data(item_id)
+    if item_def then
+      self._owned_ids[#self._owned_ids + 1] = item_id
+      self._owned_lookup[item_id] = item_def
+      self._reward_control_bonus = self._reward_control_bonus
+        + ((item_def.modifiers and item_def.modifiers.reward_control_max_stage_bonus) or 0)
+    end
+  end
+
+  if type(snapshot.reward_control_bonus) == 'number' then
+    self._reward_control_bonus = snapshot.reward_control_bonus
+  end
 end
 
 return LegendaryInventory

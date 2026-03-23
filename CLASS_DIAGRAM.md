@@ -9,25 +9,27 @@
 flowchart LR
   A[main.lua] --> B[Game Singleton]
   B --> C[SceneManager]
-  C --> D[GameScene]
+  C --> D[MainMenuScene]
+  C --> E[GameScene]
+  C --> F[RunEndScene]
 
-  D --> E[Map System]
-  D --> F[Combat Handler]
-  D --> G[Event Handler]
-  D --> H[Reward Handler]
-  D --> I[UI Widgets]
-  D --> J[RunContext/RNG]
+  E --> G[Map System]
+  E --> H[Combat Handler]
+  E --> I[Event Handler]
+  E --> J[Reward Handler]
+  E --> K[UI Widgets]
+  E --> L[RunContext/RNG]
 
-  F --> K[CombatManager]
-  K --> L[TurnManager]
-  K --> M[TimelineManager]
-  K --> N[PredictionEngine]
+  H --> M[CombatManager]
+  M --> N[TurnManager]
+  M --> O[TimelineManager]
+  M --> P[PredictionEngine]
 
-  D --> O[RewardManager]
-  D --> P[EventManager]
-  D --> Q[SpellBook]
-  D --> R[SuspicionManager]
-  D --> S[ManaManager]
+  E --> Q[RewardManager]
+  E --> R[EventManager]
+  E --> S[SpellBook]
+  E --> T[SuspicionManager]
+  E --> U[ManaManager]
 ```
 
 ## 2) Core / Scene 계층
@@ -55,15 +57,19 @@ classDiagram
     +draw()
   }
 
+  class MainMenuScene
   class GameScene {
     -phase
     -run_seed
     -run_context
   }
+  class RunEndScene
 
   Game --> SceneManager
   SceneManager --> Scene
+  MainMenuScene --|> Scene
   GameScene --|> Scene
+  RunEndScene --|> Scene
 ```
 
 ## 3) 맵 시스템
@@ -158,7 +164,9 @@ classDiagram
 
 ```mermaid
 classDiagram
+  class MainMenuScene
   class GameScene
+  class RunEndScene
   class CombatHandler
   class EventHandler
   class EdgeSelectHandler
@@ -192,6 +200,7 @@ classDiagram
   MapOverlay --|> UIElement
   SettingsOverlay --|> UIElement
 
+  MainMenuScene --> SettingsOverlay
   GameScene --> CombatHandler
   GameScene --> EventHandler
   GameScene --> EdgeSelectHandler
@@ -200,11 +209,14 @@ classDiagram
   GameScene --> MapOverlay
   GameScene --> SettingsOverlay
   GameScene --> Camera
+  RunEndScene --> Button
 ```
 
 ## 7) 주요 변경 포인트(문서 동기화용)
 
-- 씬 구조: `MapScene/CombatScene` 분리형이 아니라 `GameScene` 통합형
+- 씬 구조: `MainMenuScene` / `GameScene` / `RunEndScene`
+- 런 복귀: active save 1개 + 체크포인트 복원 방식
+- 저장 아키텍처: data-only save + participant registry + backup fallback
 - 개입 구조: `Deck/Card`가 아니라 `SpellBook/Spell` 중심
 - RNG: 전역 `math.random` 의존이 아니라 `RunContext` 스트림 RNG
 - 정산: `RewardManager` + `DemonAwakening` + `LegendaryInventory` 큐 기반

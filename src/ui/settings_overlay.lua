@@ -10,17 +10,19 @@ local i18n = require("src.i18n.init")
 ---@field alpha number
 ---@field close_button Button
 ---@field language_dropdown Dropdown
+---@field action_buttons Button[]
 local SettingsOverlay = class("SettingsOverlay")
 
 local SCREEN_W = 1280
 local SCREEN_H = 720
 local PANEL_W = 500
-local PANEL_H = 300
+local PANEL_H = 380
 
 function SettingsOverlay:initialize()
   self.visible = false
   self.is_closing = false
   self.alpha = 0
+  self.action_buttons = {}
 
   self.close_button = Button:new(SCREEN_W / 2 + PANEL_W / 2 - 70, SCREEN_H / 2 - PANEL_H / 2 + 10, 60, 30, "ui.close")
   self.close_button:set_visible(false)
@@ -42,12 +44,32 @@ function SettingsOverlay:initialize()
   end)
 end
 
+---@param actions {label_key: string, callback: fun(): nil}[]
+---@return nil
+function SettingsOverlay:set_actions(actions)
+  self.action_buttons = {}
+  local start_y = SCREEN_H / 2 + 48
+  for index, action in ipairs(actions or {}) do
+    local button = Button:new(SCREEN_W / 2 - 110, start_y + (index - 1) * 54, 220, 40, action.label_key)
+    button:set_visible(false)
+    button:set_on_click(function()
+      if action.callback then
+        action.callback()
+      end
+    end)
+    self.action_buttons[#self.action_buttons + 1] = button
+  end
+end
+
 function SettingsOverlay:open()
   if self.visible then return end
   self.visible = true
   self.alpha = 0
   self.close_button:set_visible(true)
   self.language_dropdown:set_visible(true)
+  for _, button in ipairs(self.action_buttons) do
+    button:set_visible(true)
+  end
 
   -- Refresh dropdown options
   local locales = i18n.get_available_locales()
@@ -67,6 +89,9 @@ function SettingsOverlay:close()
       self.is_closing = false
       self.close_button:set_visible(false)
       self.language_dropdown:set_visible(false)
+      for _, button in ipairs(self.action_buttons) do
+        button:set_visible(false)
+      end
     end)
 end
 
@@ -80,6 +105,9 @@ function SettingsOverlay:update(dt)
   if not self.visible then return end
   self.close_button:update(dt)
   self.language_dropdown:update(dt)
+  for _, button in ipairs(self.action_buttons) do
+    button:update(dt)
+  end
 end
 
 function SettingsOverlay:draw()
@@ -117,6 +145,15 @@ function SettingsOverlay:draw()
   self.language_dropdown:draw()
   self.close_button:draw()
 
+  if #self.action_buttons > 0 then
+    love.graphics.setColor(0.4, 0.4, 0.5, self.alpha)
+    love.graphics.line(px + 20, py + 170, px + PANEL_W - 20, py + 170)
+
+    for _, button in ipairs(self.action_buttons) do
+      button:draw()
+    end
+  end
+
   -- Hint
   love.graphics.setColor(0.6, 0.6, 0.6, self.alpha)
   love.graphics.printf("Tab / ESC", px, py + PANEL_H - 30, PANEL_W, "center")
@@ -137,6 +174,9 @@ function SettingsOverlay:mousepressed(mx, my, button)
   if not self.visible then return end
   self.language_dropdown:mousepressed(mx, my, button)
   self.close_button:mousepressed(mx, my, button)
+  for _, action_button in ipairs(self.action_buttons) do
+    action_button:mousepressed(mx, my, button)
+  end
 end
 
 return SettingsOverlay

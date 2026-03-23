@@ -1,6 +1,7 @@
 local TestHelper = require('tests.test_helper')
 local Hero = require('src.combat.hero')
 local LegendaryInventory = require('src.reward.legendary_inventory')
+local RewardCatalog = require('src.reward.reward_catalog')
 
 local suite = {}
 
@@ -58,6 +59,38 @@ function suite.test_get_owned_ids_returns_defensive_copy()
   TestHelper.assert_equal(#fresh_ids, 2)
   TestHelper.assert_true(inventory:has_item("a"))
   TestHelper.assert_true(inventory:has_item("b"))
+end
+
+---@return nil
+function suite.test_restore_keeps_hero_snapshot_stats_and_allows_clean_removal()
+  local hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
+  local inventory = LegendaryInventory:new()
+  local first_item = RewardCatalog.get_legendary_data("titan_heart")
+  local second_item = RewardCatalog.get_legendary_data("gale_boots")
+
+  TestHelper.assert_true(inventory:add_item(first_item, {hero = hero}))
+  TestHelper.assert_true(inventory:add_item(second_item, {hero = hero}))
+
+  local hero_snapshot = hero:persistent_snapshot()
+  local inventory_snapshot = inventory:snapshot()
+
+  local restored_hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
+  restored_hero:restore_persistent_snapshot(hero_snapshot)
+
+  local restored_inventory = LegendaryInventory:new()
+  restored_inventory:restore(inventory_snapshot)
+
+  TestHelper.assert_equal(restored_hero:get_max_hp(), 68)
+  TestHelper.assert_equal(restored_hero:get_hp(), 68)
+  TestHelper.assert_equal(restored_hero.speed, 9.5)
+
+  local removed_hp = restored_inventory:remove_by_id("titan_heart", {hero = restored_hero})
+  local removed_speed = restored_inventory:remove_by_id("gale_boots", {hero = restored_hero})
+  TestHelper.assert_true(removed_hp ~= nil)
+  TestHelper.assert_true(removed_speed ~= nil)
+  TestHelper.assert_equal(restored_hero:get_max_hp(), 50)
+  TestHelper.assert_equal(restored_hero:get_hp(), 50)
+  TestHelper.assert_equal(restored_hero.speed, 8)
 end
 
 return suite

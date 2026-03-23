@@ -6,11 +6,14 @@ Love2D 기반의 턴 기반 개입형 로그라이트 프로젝트입니다.
 
 ## 핵심 특징
 
+- `MainMenuScene` → `GameScene` → `RunEndScene` 흐름
 - `GameScene` 단일 통합 흐름 기반 진행
 - 전투 Planning/Execution + 예측 타임라인
 - `SpellBook/Spell` 기반 개입 시스템
 - `RewardManager` 기반 정산/각성/전설 아이템 루프
 - `RunContext` 기반 결정론 RNG 스트림
+- 진행 중 런 자동 저장 + 메인 메뉴 `이어하기`
+- data-only active save + backup fallback 기반 런 복귀
 
 ## 개발 환경
 
@@ -39,7 +42,7 @@ love .
 ```text
 src/
 ├── core/      # Game/SceneManager/EventBus/RNG
-├── scene/     # GameScene
+├── scene/     # MainMenu/GameScene/RunEndScene
 ├── combat/    # 전투/예측/상태 시스템
 ├── spell/     # 주문/마나/의심
 ├── reward/    # 정산/각성/전설
