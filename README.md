@@ -32,7 +32,7 @@ love .
 ```
 
 - `run_tests.sh`: 단위/통합 테스트 실행
-- `check_love.sh`: `FRDY_CI_CHECK=1` 기반 무팝업 실행 검증
+- `check_love.sh`: 기본적으로 `FRDY_CI_CHECK=1` 기반 Love2D 무팝업 실행 검증을 수행하고, 디스플레이가 없는 자동화 환경에서는 Lua headless bootstrap smoke check로 자동 전환
 
 ## 프로젝트 구조
 
