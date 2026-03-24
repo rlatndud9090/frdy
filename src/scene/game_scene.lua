@@ -40,6 +40,7 @@ local EXITING_EVENT = "EXITING_EVENT"
 local SETTLEMENT = "SETTLEMENT"
 local EDGE_SELECT = "EDGE_SELECT"
 local START_NODE_SELECT = "START_NODE_SELECT"
+local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 
 ---@class GameScene : Scene
 ---@field phase string
@@ -257,7 +258,7 @@ function GameScene:initialize(options)
   if save_data then
     local restored, restore_err = self:_restore_from_save(save_data)
     if not restored then
-      error(restore_err or '세이브를 복원하지 못했습니다.')
+      error(SAVE_RESTORE_ERROR_PREFIX .. (restore_err or '세이브를 복원하지 못했습니다.'))
     end
     return
   end
@@ -1071,7 +1072,11 @@ end
 function GameScene:_on_edge_selected(edge)
   local target_node = edge:get_to_node()
   self.pending_target_node_id = target_node and target_node.id or nil
-  self:_write_checkpoint('travel_start')
+  local wrote_checkpoint = self:_write_checkpoint('travel_start')
+  if not wrote_checkpoint then
+    self.pending_target_node_id = nil
+    return
+  end
   self:_start_traveling(target_node)
 end
 

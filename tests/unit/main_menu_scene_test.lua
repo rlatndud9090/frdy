@@ -371,6 +371,65 @@ function suite.test_continue_run_scene_init_failure_does_not_invalidate_valid_sa
   TestHelper.assert_true(scene.feedback_text ~= nil)
 end
 
+function suite.test_continue_run_recoverable_load_failure_keeps_continue_visible()
+  local invalidated_reason = nil
+
+  RunSave.exists = function()
+    return true
+  end
+  RunSave.load = function()
+    return nil, 'promote failed', 'recoverable'
+  end
+  RunSave.invalidate = function(_, reason)
+    invalidated_reason = reason
+    return true, nil
+  end
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_continue_run()
+
+  TestHelper.assert_equal(invalidated_reason, nil)
+  TestHelper.assert_true(scene.has_continue)
+  TestHelper.assert_equal(scene.buttons[1].text, 'ui.continue_run')
+  TestHelper.assert_true(scene.feedback_text ~= nil)
+end
+
+function suite.test_continue_run_restore_failure_invalidates_corrupted_save()
+  local invalidated_reason = nil
+
+  RunSave.exists = function()
+    return true
+  end
+  RunSave.load = function()
+    return {
+      checkpoint = {
+        kind = 'start_node_select',
+      },
+    }, nil, nil
+  end
+  RunSave.invalidate = function(_, reason)
+    invalidated_reason = reason
+    return true, nil
+  end
+  package.loaded['src.scene.game_scene'] = {
+    new = function()
+      error('save_restore_failed:participant restore failed')
+    end,
+  }
+
+  local MainMenuScene = require('src.scene.main_menu_scene')
+  local scene = MainMenuScene:new()
+
+  scene:_continue_run()
+
+  TestHelper.assert_equal(invalidated_reason, 'load_failed')
+  TestHelper.assert_false(scene.has_continue)
+  TestHelper.assert_equal(scene.buttons[1].text, 'ui.new_game')
+  TestHelper.assert_true(scene.feedback_text ~= nil)
+end
+
 function suite.test_initialize_can_hide_continue_after_cleanup_failure()
   RunSave.exists = function()
     return true

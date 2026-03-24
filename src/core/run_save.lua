@@ -400,16 +400,17 @@ end
 
 ---@return table|nil
 ---@return string|nil
+---@return string|nil
 function RunSave:load()
   local filesystem = self:_get_filesystem()
   local errors = {}
   if self:is_invalidated() then
-    return nil, '종료된 런 세이브는 이어하기할 수 없습니다.'
+    return nil, '종료된 런 세이브는 이어하기할 수 없습니다.', 'invalidated'
   end
 
   local primary_payload, primary_err = self:_load_json_at_path(SAVE_PATH)
   if primary_payload then
-    return primary_payload, nil
+    return primary_payload, nil, nil
   end
   if primary_err then
     errors[#errors + 1] = primary_err
@@ -421,11 +422,11 @@ function RunSave:load()
       local promoted, promote_err = self:_promote_backup_to_primary(backup_content)
       if not promoted then
         errors[#errors + 1] = promote_err or '백업 세이브를 주 세이브로 승격하지 못했습니다.'
-        return nil, table.concat(errors, ' / ')
+        return nil, table.concat(errors, ' / '), 'recoverable'
       end
     end
 
-    return backup_payload, nil
+    return backup_payload, nil, nil
   end
   if backup_err then
     errors[#errors + 1] = backup_err
@@ -435,7 +436,7 @@ function RunSave:load()
     errors[#errors + 1] = '레거시 Lua 세이브는 안전상 자동 로드하지 않습니다.'
   end
 
-  return nil, table.concat(errors, ' / ')
+  return nil, table.concat(errors, ' / '), 'invalid'
 end
 
 ---@param reason? string

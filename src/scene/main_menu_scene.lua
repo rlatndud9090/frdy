@@ -171,12 +171,12 @@ end
 
 ---@return nil
 function MainMenuScene:_continue_run()
-  local payload, err = RunSave:load()
+  local payload, err, failure_kind = RunSave:load()
   if not payload then
     if err then
       print(err)
     end
-    self:_handle_continue_failure(true)
+    self:_handle_continue_failure(failure_kind ~= 'recoverable')
     return
   end
 
@@ -188,7 +188,8 @@ function MainMenuScene:_continue_run()
   end)
   if not ok then
     print(scene_or_err)
-    self:_handle_continue_failure(false)
+    local invalidate_save = string.find(tostring(scene_or_err), 'save_restore_failed:', 1, true) ~= nil
+    self:_handle_continue_failure(invalidate_save)
     return
   end
 
