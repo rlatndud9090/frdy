@@ -752,7 +752,10 @@ function GameScene:_check_next_move()
     self:_finish_run('victory')
     return
   elseif #edges == 1 then
-    self:_on_edge_selected(edges[1])
+    local started = self:_on_edge_selected(edges[1])
+    if started == false then
+      self:_show_edge_select(edges)
+    end
   else
     self:_show_edge_select(edges)
   end

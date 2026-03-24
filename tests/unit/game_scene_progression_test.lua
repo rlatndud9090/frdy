@@ -251,6 +251,41 @@ function suite.test_check_next_move_single_edge_uses_travel_checkpoint_flow()
 end
 
 ---@return nil
+function suite.test_check_next_move_single_edge_falls_back_to_selector_when_travel_commit_fails()
+  local showed_selector = false
+  local target_node = { id = 27 }
+  local scene = {
+    current_node = { id = 10 },
+    map = {
+      get_current_floor = function()
+        return {
+          get_edges_from = function()
+            return {
+              {
+                get_to_node = function()
+                  return target_node
+                end,
+              },
+            }
+          end,
+        }
+      end,
+    },
+    _on_edge_selected = function()
+      return false
+    end,
+    _show_edge_select = function(_, edges)
+      showed_selector = edges[1] ~= nil
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_check_next_move()
+
+  TestHelper.assert_true(showed_selector)
+end
+
+---@return nil
 function suite.test_resume_from_travel_checkpoint_enters_selected_target_node()
   local entered = false
   local scene
