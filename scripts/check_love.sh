@@ -35,7 +35,7 @@ resolve_lua_bin() {
 
 is_headless_display_failure() {
   local log_file="$1"
-  local pattern="Could not initialize SDL video subsystem|The video driver did not add any displays"
+  local pattern="The video driver did not add any displays|No available video device"
   grep -Eq "$pattern" "$log_file"
 }
 
