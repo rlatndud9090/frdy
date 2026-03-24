@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CHECK_TIMEOUT_SECONDS=5
 
 if command -v timeout >/dev/null 2>&1; then
   TIMEOUT_BIN="timeout"
@@ -41,11 +42,11 @@ is_headless_display_failure() {
 run_headless_smoke_check() {
   local lua_bin
   lua_bin="$(resolve_lua_bin)" || return $?
-  FRDY_CI_CHECK=1 "$lua_bin" "$ROOT_DIR/scripts/check_love_headless.lua"
+  FRDY_CI_CHECK=1 "$TIMEOUT_BIN" "$CHECK_TIMEOUT_SECONDS" "$lua_bin" "$ROOT_DIR/scripts/check_love_headless.lua"
 }
 
 set +e
-FRDY_CI_CHECK=1 "$TIMEOUT_BIN" 5 love "$ROOT_DIR" >"$TMP_LOG" 2>&1
+FRDY_CI_CHECK=1 "$TIMEOUT_BIN" "$CHECK_TIMEOUT_SECONDS" love "$ROOT_DIR" >"$TMP_LOG" 2>&1
 status=$?
 set -e
 
