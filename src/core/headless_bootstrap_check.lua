@@ -63,6 +63,7 @@ local function install_love_stub()
     getHeight = function()
       return DEFAULT_SCREEN_HEIGHT
     end,
+    clear = function(...) end,
     setColor = function(...) end,
     rectangle = function(...) end,
     circle = function(...) end,
