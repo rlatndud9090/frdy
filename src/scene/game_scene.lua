@@ -473,15 +473,27 @@ end
 function GameScene:_restore_from_save(save_data)
   self.restoring = true
 
-  local normalized_save_data, restore_err = self.save_coordinator:restore_payload(save_data)
-  if not normalized_save_data then
-    self.restoring = false
+  local ok, normalized_save_data_or_err, restore_err = pcall(function()
+    local normalized_save_data, normalize_err = self.save_coordinator:restore_payload(save_data)
+    if not normalized_save_data then
+      return nil, normalize_err
+    end
+
+    local checkpoint_kind = normalized_save_data.checkpoint and normalized_save_data.checkpoint.kind or 'start_node_select'
+    self:_resume_from_checkpoint(checkpoint_kind)
+    return normalized_save_data, nil
+  end)
+
+  self.restoring = false
+
+  if not ok then
+    return false, tostring(normalized_save_data_or_err)
+  end
+
+  if not normalized_save_data_or_err then
     return false, restore_err
   end
 
-  local checkpoint_kind = normalized_save_data.checkpoint and normalized_save_data.checkpoint.kind or 'start_node_select'
-  self:_resume_from_checkpoint(checkpoint_kind)
-  self.restoring = false
   return true, nil
 end
 

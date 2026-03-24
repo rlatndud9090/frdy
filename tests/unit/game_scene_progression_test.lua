@@ -288,6 +288,36 @@ function suite.test_resume_from_travel_checkpoint_enters_selected_target_node()
 end
 
 ---@return nil
+function suite.test_restore_from_save_returns_error_when_checkpoint_resume_raises()
+  local scene = {
+    restoring = false,
+    save_coordinator = {
+      restore_payload = function()
+        return {
+          checkpoint = {
+            kind = 'path_ready',
+          },
+        }, nil
+      end,
+    },
+    _resume_from_checkpoint = function()
+      error('resume crashed')
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  local ok, err = scene:_restore_from_save({
+    checkpoint = {
+      kind = 'path_ready',
+    },
+  })
+
+  TestHelper.assert_false(ok)
+  TestHelper.assert_true(string.find(err, 'resume crashed', 1, true) ~= nil)
+  TestHelper.assert_false(scene.restoring)
+end
+
+---@return nil
 function suite.test_finish_run_passes_save_cleanup_failure_to_run_end_scene()
   local switched_scene = nil
   local fake_game = {
