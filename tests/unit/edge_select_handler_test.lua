@@ -76,9 +76,10 @@ function suite.after_each()
   package.loaded['src.core.rng'] = original_rng_module
 end
 
-function suite.test_confirm_selection_keeps_handler_active_when_callback_rejects()
+function suite.test_confirm_selection_rolls_back_intervention_when_callback_rejects()
   local EdgeSelectHandler = require('src.handler.edge_select_handler')
   local mental_load_increase_count = 0
+  local mental_load_during_callback = nil
   local callback_count = 0
   local hero = {
     can_be_controlled = function()
@@ -86,6 +87,9 @@ function suite.test_confirm_selection_keeps_handler_active_when_callback_rejects
     end,
     increase_mental_load = function(_, amount)
       mental_load_increase_count = mental_load_increase_count + amount
+      return mental_load_increase_count
+    end,
+    get_mental_load = function()
       return mental_load_increase_count
     end,
     get_mental_stage = function()
@@ -106,6 +110,7 @@ function suite.test_confirm_selection_keeps_handler_active_when_callback_rejects
   }
   local handler = EdgeSelectHandler:new(edges, function()
     callback_count = callback_count + 1
+    mental_load_during_callback = hero:get_mental_load()
     return false
   end, {
     hero = hero,
@@ -119,12 +124,14 @@ function suite.test_confirm_selection_keeps_handler_active_when_callback_rejects
 
   TestHelper.assert_equal(callback_count, 1)
   TestHelper.assert_true(handler.active)
+  TestHelper.assert_equal(mental_load_during_callback, 2)
   TestHelper.assert_equal(mental_load_increase_count, 0)
 end
 
-function suite.test_confirm_selection_applies_intervention_only_after_callback_accepts()
+function suite.test_confirm_selection_applies_intervention_before_callback_accepts()
   local EdgeSelectHandler = require('src.handler.edge_select_handler')
   local mental_load_increase_count = 0
+  local mental_load_during_callback = nil
   local callback_count = 0
   local hero = {
     can_be_controlled = function()
@@ -132,6 +139,9 @@ function suite.test_confirm_selection_applies_intervention_only_after_callback_a
     end,
     increase_mental_load = function(_, amount)
       mental_load_increase_count = mental_load_increase_count + amount
+      return mental_load_increase_count
+    end,
+    get_mental_load = function()
       return mental_load_increase_count
     end,
     get_mental_stage = function()
@@ -152,6 +162,7 @@ function suite.test_confirm_selection_applies_intervention_only_after_callback_a
   }
   local handler = EdgeSelectHandler:new(edges, function()
     callback_count = callback_count + 1
+    mental_load_during_callback = hero:get_mental_load()
     return true
   end, {
     hero = hero,
@@ -165,6 +176,7 @@ function suite.test_confirm_selection_applies_intervention_only_after_callback_a
 
   TestHelper.assert_equal(callback_count, 1)
   TestHelper.assert_false(handler.active)
+  TestHelper.assert_equal(mental_load_during_callback, 2)
   TestHelper.assert_equal(mental_load_increase_count, 2)
 end
 

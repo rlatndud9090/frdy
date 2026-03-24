@@ -141,8 +141,24 @@ function EdgeSelectHandler:_edge_label(edge)
   return node_type
 end
 
----@return nil
+---@return boolean
 function EdgeSelectHandler:_apply_intervention()
+  if not self.hero_choice_index or not self.selected_index then
+    return false
+  end
+  if self.hero_choice_index == self.selected_index then
+    return false
+  end
+  if not self.hero then
+    return false
+  end
+
+  self.hero:increase_mental_load(self.path_control.mental_increase or 0)
+  return true
+end
+
+---@return nil
+function EdgeSelectHandler:_rollback_intervention()
   if not self.hero_choice_index or not self.selected_index then
     return
   end
@@ -153,7 +169,7 @@ function EdgeSelectHandler:_apply_intervention()
     return
   end
 
-  self.hero:increase_mental_load(self.path_control.mental_increase or 0)
+  self.hero:increase_mental_load(-(self.path_control.mental_increase or 0))
 end
 
 ---Reinitialize with new edges
@@ -267,20 +283,35 @@ function EdgeSelectHandler:_confirm_selection()
   end
 
   local selected_edge = self.edges[self.selected_index]
+  local intervention_applied = false
+  if selected_edge then
+    intervention_applied = self:_apply_intervention()
+  end
+
   local accepted = true
   if selected_edge and self.on_select_callback then
-    accepted = self.on_select_callback(selected_edge)
+    local ok, callback_result = pcall(self.on_select_callback, selected_edge)
+    if not ok then
+      if intervention_applied then
+        self:_rollback_intervention()
+      end
+      error(callback_result)
+    end
+
+    accepted = callback_result
     if accepted == nil then
       accepted = true
     end
   end
 
   if accepted == false then
+    if intervention_applied then
+      self:_rollback_intervention()
+    end
     self.active = true
     return
   end
 
-  self:_apply_intervention()
   self.active = false
 end
 
