@@ -179,4 +179,22 @@ function suite.test_action_pattern_rank_clamps_invalid_zero_to_one()
   TestHelper.assert_equal(pattern.max_reward_rank, 1)
 end
 
+---@return nil
+function suite.test_hero_validator_preserves_missing_action_patterns_for_legacy_snapshots()
+  local hero = RunSaveValidators.hero({
+    hp = 50,
+    max_hp = 50,
+    attack = 8,
+    defense = 2,
+    speed = 8,
+    level = 1,
+    experience = 0,
+    mental_load = 0,
+    current_turn = 0,
+    cooldown_tracker = {},
+  })
+
+  TestHelper.assert_equal(hero.action_patterns, nil)
+end
+
 return suite

@@ -90,4 +90,18 @@ function suite.test_hero_snapshot_restores_zero_hp_without_revive()
   TestHelper.assert_equal(restored.hero.hp, 0)
 end
 
+---@return nil
+function suite.test_legacy_hero_snapshot_without_action_patterns_keeps_default_patterns()
+  local fixture = Fixtures.create_reward_fixture(707)
+  local hero_snapshot = fixture.hero:persistent_snapshot()
+  hero_snapshot.action_patterns = nil
+
+  local restored = Fixtures.create_reward_fixture(707)
+  restored.hero:restore_persistent_snapshot(hero_snapshot)
+
+  TestHelper.assert_equal(restored.hero:get_action_pattern_count(), fixture.hero:get_action_pattern_count())
+  TestHelper.assert_true(restored.hero:has_action_pattern('hero_attack'))
+  TestHelper.assert_true(restored.hero:has_action_pattern('hero_guard'))
+end
+
 return suite

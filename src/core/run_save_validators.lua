@@ -88,9 +88,11 @@ function RunSaveValidators.hero(snapshot)
     cooldown_tracker = SaveSanitizer.string_key_map(snapshot.cooldown_tracker, function(value)
       return SaveSanitizer.integer(value, 0, 0, 999999)
     end),
-    action_patterns = SaveSanitizer.array(snapshot.action_patterns, function(item)
-      return RunSaveValidators.action_pattern(item)
-    end),
+    action_patterns = snapshot.action_patterns ~= nil
+      and SaveSanitizer.array(snapshot.action_patterns, function(item)
+        return RunSaveValidators.action_pattern(item)
+      end)
+      or nil,
   }
 end
 

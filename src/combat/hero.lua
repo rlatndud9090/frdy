@@ -389,9 +389,11 @@ function Hero:restore_persistent_snapshot(snapshot)
     self.cooldown_tracker[pattern_id] = turn
   end
 
-  self.action_patterns = {}
-  for index, pattern_snapshot in ipairs(snapshot.action_patterns or {}) do
-    self.action_patterns[index] = ActionPattern.from_snapshot(pattern_snapshot)
+  if type(snapshot.action_patterns) == 'table' then
+    self.action_patterns = {}
+    for index, pattern_snapshot in ipairs(snapshot.action_patterns) do
+      self.action_patterns[index] = ActionPattern.from_snapshot(pattern_snapshot)
+    end
   end
 end
 
