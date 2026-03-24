@@ -119,8 +119,18 @@ local function create_native_filesystem()
       if not handle then
         return false, err or '세이브 파일을 쓰지 못했습니다.'
       end
-      handle:write(content)
-      handle:close()
+
+      local wrote, write_err = handle:write(content)
+      if not wrote then
+        handle:close()
+        return false, write_err or '세이브 파일을 쓰지 못했습니다.'
+      end
+
+      local closed, close_err = handle:close()
+      if not closed then
+        return false, close_err or '세이브 파일을 닫지 못했습니다.'
+      end
+
       return true, nil
     end,
     remove = function(_, path)

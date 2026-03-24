@@ -48,6 +48,74 @@ function suite.after_each()
   RunSave:set_filesystem(nil)
 end
 
+function suite.test_native_filesystem_write_returns_error_when_handle_write_fails()
+  local original_love = _G.love
+  local original_io_open = io.open
+  local opened_path = nil
+  local opened_mode = nil
+  _G.love = nil
+  RunSave:set_filesystem(nil)
+
+  io.open = function(path, mode)
+    opened_path = path
+    opened_mode = mode
+    return {
+      write = function()
+        return nil, 'disk full'
+      end,
+      close = function()
+        return true
+      end,
+    }
+  end
+
+  local filesystem = RunSave:_get_filesystem()
+  local ok, err = filesystem:write('saves/active_run.tmp', '{}')
+
+  io.open = original_io_open
+  _G.love = original_love
+  RunSave:set_filesystem(nil)
+
+  TestHelper.assert_false(ok)
+  TestHelper.assert_equal(err, 'disk full')
+  TestHelper.assert_equal(opened_path, 'saves/active_run.tmp')
+  TestHelper.assert_equal(opened_mode, 'w')
+end
+
+function suite.test_native_filesystem_write_returns_error_when_handle_close_fails()
+  local original_love = _G.love
+  local original_io_open = io.open
+  local opened_path = nil
+  local opened_mode = nil
+  _G.love = nil
+  RunSave:set_filesystem(nil)
+
+  io.open = function(path, mode)
+    opened_path = path
+    opened_mode = mode
+    return {
+      write = function()
+        return true
+      end,
+      close = function()
+        return nil, 'flush failed'
+      end,
+    }
+  end
+
+  local filesystem = RunSave:_get_filesystem()
+  local ok, err = filesystem:write('saves/active_run.tmp', '{}')
+
+  io.open = original_io_open
+  _G.love = original_love
+  RunSave:set_filesystem(nil)
+
+  TestHelper.assert_false(ok)
+  TestHelper.assert_equal(err, 'flush failed')
+  TestHelper.assert_equal(opened_path, 'saves/active_run.tmp')
+  TestHelper.assert_equal(opened_mode, 'w')
+end
+
 function suite.test_write_load_and_clear_roundtrip()
   local payload = {
     version = 2,
