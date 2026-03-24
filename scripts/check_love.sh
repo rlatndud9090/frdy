@@ -35,7 +35,7 @@ resolve_lua_bin() {
 
 is_headless_display_failure() {
   local log_file="$1"
-  local pattern="Could not initialize SDL video subsystem|Could not set window mode|The video driver did not add any displays|Unable to create OpenGL window"
+  local pattern="Could not initialize SDL video subsystem|The video driver did not add any displays"
   grep -Eq "$pattern" "$log_file"
 }
 
