@@ -42,7 +42,7 @@ local BLINK_INTERVAL = 0.45
 
 ---Constructor
 ---@param edges Edge[]
----@param on_select_callback function|nil
+---@param on_select_callback fun(edge: Edge): boolean|nil
 ---@param context? EdgeSelectContext
 ---@param rng? RNG
 function EdgeSelectHandler:initialize(edges, on_select_callback, context, rng)
@@ -158,7 +158,7 @@ end
 
 ---Reinitialize with new edges
 ---@param edges Edge[]
----@param on_select_callback function
+---@param on_select_callback fun(edge: Edge): boolean|nil
 ---@param context? EdgeSelectContext
 ---@return nil
 function EdgeSelectHandler:setup(edges, on_select_callback, context)
@@ -266,12 +266,21 @@ function EdgeSelectHandler:_confirm_selection()
     return
   end
 
-  self:_apply_intervention()
-
   local selected_edge = self.edges[self.selected_index]
+  local accepted = true
   if selected_edge and self.on_select_callback then
-    self.on_select_callback(selected_edge)
+    accepted = self.on_select_callback(selected_edge)
+    if accepted == nil then
+      accepted = true
+    end
   end
+
+  if accepted == false then
+    self.active = true
+    return
+  end
+
+  self:_apply_intervention()
   self.active = false
 end
 

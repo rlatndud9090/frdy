@@ -1052,13 +1052,13 @@ function GameScene:_show_edge_select(edges)
 
   if not self.edge_select_handler then
     self.edge_select_handler = EdgeSelectHandler:new(edges, function(edge)
-      self:_on_edge_selected(edge)
+      return self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
     }, self.run_context:get_stream('gameplay.path_choice'))
   else
     self.edge_select_handler:setup(edges, function(edge)
-      self:_on_edge_selected(edge)
+      return self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
     })
@@ -1069,15 +1069,17 @@ end
 
 --- 경로 선택 완료 처리
 ---@param edge Edge
+---@return boolean
 function GameScene:_on_edge_selected(edge)
   local target_node = edge:get_to_node()
   self.pending_target_node_id = target_node and target_node.id or nil
   local wrote_checkpoint = self:_write_checkpoint('travel_start')
   if not wrote_checkpoint then
     self.pending_target_node_id = nil
-    return
+    return false
   end
   self:_start_traveling(target_node)
+  return true
 end
 
 ---@param x number
