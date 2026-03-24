@@ -39,6 +39,132 @@ local config = require('data.rewards.config')
 ---@field rng RNG
 local RewardManager = class('RewardManager')
 
+---@param value any
+---@return any
+local function deep_copy_table(value)
+  if type(value) ~= 'table' then
+    return value
+  end
+  local copied = {}
+  for key, item in pairs(value) do
+    copied[key] = deep_copy_table(item)
+  end
+  return copied
+end
+
+---@param spell_data table|nil
+---@param spell_id string
+---@return string
+local function resolve_spell_name(spell_data, spell_id)
+  local name_key = 'spell.name.' .. spell_id
+  local localized_name = i18n.t(name_key)
+  if localized_name == name_key then
+    localized_name = spell_data and spell_data.name or spell_id
+  end
+  return localized_name
+end
+
+---@param offer_category string
+---@param option RewardOption|nil
+---@return RewardOption|nil
+function RewardManager:_serialize_offer_option(offer_category, option)
+  if type(option) ~= 'table' then
+    return nil
+  end
+
+  return {
+    category = option.category or offer_category,
+    id = option.id,
+    action = option.action,
+  }
+end
+
+---@param offer RewardOffer|nil
+---@return RewardOffer|nil
+function RewardManager:_serialize_offer(offer)
+  if type(offer) ~= 'table' then
+    return nil
+  end
+
+  local serialized_options = {}
+  for _, option in ipairs(offer.options or {}) do
+    local serialized = self:_serialize_offer_option(offer.category, option)
+    if serialized then
+      serialized_options[#serialized_options + 1] = serialized
+    end
+  end
+
+  return {
+    category = offer.category,
+    source = offer.source,
+    title_key = offer.title_key,
+    options = serialized_options,
+    control = deep_copy_table(offer.control),
+  }
+end
+
+---@param option RewardOption|nil
+---@param offer_category string
+---@return RewardOption|nil
+function RewardManager:_hydrate_offer_option(option, offer_category)
+  if type(option) ~= 'table' then
+    return nil
+  end
+
+  local hydrated = deep_copy_table(option)
+  hydrated.category = hydrated.category or offer_category
+
+  if hydrated.category == 'demon_spell' then
+    local spell = self:_find_spell(hydrated.id)
+    local spell_data = RewardCatalog.get_spell_data(hydrated.id)
+    local spell_name = spell and spell:get_name() or resolve_spell_name(spell_data, hydrated.id)
+    local label_key = hydrated.action == 'upgrade' and 'reward.option.upgrade' or 'reward.option.obtain'
+    hydrated.display_text = i18n.t(label_key, {name = spell_name})
+    hydrated.description = nil
+    return hydrated
+  end
+
+  if hydrated.category == 'hero_pattern' then
+    local pattern_data = RewardCatalog.get_pattern_data(hydrated.id)
+    local pattern_name = pattern_data and i18n.t(pattern_data.name) or hydrated.id
+    local label_key = hydrated.action == 'upgrade' and 'reward.option.upgrade' or 'reward.option.obtain'
+    hydrated.display_text = i18n.t(label_key, {name = pattern_name})
+    hydrated.description = nil
+    return hydrated
+  end
+
+  if hydrated.category == 'legendary_item' then
+    local item_data = RewardCatalog.get_legendary_data(hydrated.id)
+    if item_data then
+      hydrated.display_text = i18n.t('reward.option.obtain', {name = i18n.t(item_data.name_key)})
+      hydrated.description = i18n.t(item_data.desc_key)
+    end
+    return hydrated
+  end
+
+  return hydrated
+end
+
+---@param offer RewardOffer|nil
+---@return RewardOffer|nil
+function RewardManager:_hydrate_offer(offer)
+  if type(offer) ~= 'table' then
+    return nil
+  end
+
+  local hydrated = deep_copy_table(offer)
+  local hydrated_options = {}
+  for _, option in ipairs(offer.options or {}) do
+    local hydrated_option = self:_hydrate_offer_option(option, offer.category)
+    if hydrated_option then
+      hydrated_options[#hydrated_options + 1] = hydrated_option
+    end
+  end
+  hydrated.options = hydrated_options
+  hydrated.control = self:get_reward_control_rule()
+  return hydrated
+end
+
 ---@param hero Hero
 ---@param spell_book SpellBook
 ---@param mana_manager ManaManager
@@ -116,7 +242,7 @@ end
 ---@return RewardOffer|nil
 function RewardManager:peek_offer()
   if self.current_offer then
-    self.current_offer.control = self:get_reward_control_rule()
+    self.current_offer = self:_hydrate_offer(self.current_offer)
     return self.current_offer
   end
 
@@ -733,11 +859,7 @@ function RewardManager:_build_demon_spell_options()
     else
       local spell_data = RewardCatalog.get_spell_data(spell_id)
       if spell_data then
-        local name_key = 'spell.name.' .. spell_id
-        local localized_name = i18n.t(name_key)
-        if localized_name == name_key then
-          localized_name = spell_data.name
-        end
+        local localized_name = resolve_spell_name(spell_data, spell_id)
         options[#options + 1] = {
           category = 'demon_spell',
           id = spell_id,
@@ -819,6 +941,37 @@ function RewardManager:_build_legendary_item_options()
   end
 
   return options
+end
+
+---@return table
+function RewardManager:snapshot()
+  return {
+    offer_queue = deep_copy_table(self.offer_queue),
+    current_offer = self:_serialize_offer(self.current_offer),
+    demon_awakening = self.demon_awakening and self.demon_awakening:snapshot() or nil,
+    legendary_inventory = self.legendary_inventory and self.legendary_inventory:snapshot() or nil,
+    reward_control_bonus_stage = self.reward_control_bonus_stage,
+  }
+end
+
+---@param snapshot table|nil
+---@return nil
+function RewardManager:restore(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+
+  self.offer_queue = deep_copy_table(snapshot.offer_queue or {})
+  self.current_offer = self:_hydrate_offer(snapshot.current_offer)
+  if self.demon_awakening and snapshot.demon_awakening then
+    self.demon_awakening:restore(snapshot.demon_awakening)
+  end
+  if self.legendary_inventory and snapshot.legendary_inventory then
+    self.legendary_inventory:restore(snapshot.legendary_inventory)
+  end
+  self.reward_control_bonus_stage = snapshot.reward_control_bonus_stage
+    or (self.legendary_inventory and self.legendary_inventory:get_reward_control_bonus())
+    or 0
 end
 
 return RewardManager

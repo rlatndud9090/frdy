@@ -83,4 +83,24 @@ function ManaManager:recover_after_combat(amount)
   self.current_mana = math.min(self.max_mana, self.current_mana + amount)
 end
 
+---@return table
+function ManaManager:snapshot()
+  return {
+    current_mana = self.current_mana,
+    max_mana = self.max_mana,
+    reserved_mana = self.reserved_mana,
+  }
+end
+
+---@param snapshot table|nil
+---@return nil
+function ManaManager:restore_snapshot(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+  self.current_mana = snapshot.current_mana or self.current_mana
+  self.max_mana = snapshot.max_mana or self.max_mana
+  self.reserved_mana = snapshot.reserved_mana or 0
+end
+
 return ManaManager
