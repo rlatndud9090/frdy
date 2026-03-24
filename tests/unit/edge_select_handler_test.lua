@@ -180,4 +180,77 @@ function suite.test_confirm_selection_applies_intervention_before_callback_accep
   TestHelper.assert_equal(mental_load_increase_count, 2)
 end
 
+function suite.test_setup_rolls_deterministic_hero_choice_from_rng()
+  local EdgeSelectHandler = require('src.handler.edge_select_handler')
+  local rng_calls = {}
+  local hero = {
+    can_be_controlled = function()
+      return true
+    end,
+    increase_mental_load = function()
+      error('increase_mental_load should not be called')
+    end,
+    get_mental_stage = function()
+      return 0
+    end,
+    get_max_mental_stage = function()
+      return 5
+    end,
+  }
+  local edges = {
+    {get_to_node = function() return {get_type = function() return 'combat' end} end},
+    {get_to_node = function() return {get_type = function() return 'event' end} end},
+    {get_to_node = function() return {get_type = function() return 'event' end} end},
+  }
+  local handler = EdgeSelectHandler:new(edges, function() end, {
+    hero = hero,
+  }, {
+    next_int = function(_, min_value, max_value)
+      rng_calls[#rng_calls + 1] = {min_value = min_value, max_value = max_value}
+      return 3
+    end,
+  })
+
+  TestHelper.assert_equal(#rng_calls, 1)
+  TestHelper.assert_equal(rng_calls[1].min_value, 1)
+  TestHelper.assert_equal(rng_calls[1].max_value, 3)
+  TestHelper.assert_equal(handler.hero_choice_index, 3)
+  TestHelper.assert_equal(handler.selected_index, 3)
+end
+
+function suite.test_on_edge_clicked_blocks_intervention_when_mental_limit_exceeded()
+  local EdgeSelectHandler = require('src.handler.edge_select_handler')
+  local hero = {
+    can_be_controlled = function()
+      return false
+    end,
+    increase_mental_load = function()
+      error('increase_mental_load should not be called')
+    end,
+    get_mental_stage = function()
+      return 4
+    end,
+    get_max_mental_stage = function()
+      return 5
+    end,
+  }
+  local edges = {
+    {get_to_node = function() return {get_type = function() return 'combat' end} end},
+    {get_to_node = function() return {get_type = function() return 'event' end} end},
+  }
+  local handler = EdgeSelectHandler:new(edges, function() end, {
+    hero = hero,
+  }, {
+    next_int = function()
+      return 1
+    end,
+  })
+
+  handler:_on_edge_clicked(edges[2], 2)
+
+  TestHelper.assert_equal(handler.selected_index, 1)
+  TestHelper.assert_equal(handler.feedback_text, 'control.blocked_by_mental')
+  TestHelper.assert_true(handler.locked_indices[2])
+end
+
 return suite
