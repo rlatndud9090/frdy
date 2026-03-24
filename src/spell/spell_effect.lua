@@ -11,6 +11,22 @@
 
 local SpellEffect = {}
 
+---@param value any
+---@return any
+local function deep_copy(value)
+  if type(value) ~= "table" then
+    return value
+  end
+
+  local copied = {}
+  for key, item in pairs(value) do
+    if type(item) ~= "function" then
+      copied[key] = deep_copy(item)
+    end
+  end
+  return copied
+end
+
 --- Create a healing effect
 ---@param amount number
 ---@return SpellEffectObject
@@ -237,6 +253,82 @@ function SpellEffect.global_buff(attack_delta)
       -- Handled by TimelineManager:apply_global(spell)
     end
   }
+end
+
+---@param effect SpellEffectObject|table|nil
+---@return table|nil
+function SpellEffect.snapshot(effect)
+  if type(effect) ~= "table" then
+    return nil
+  end
+
+  local snapshot = {}
+  for key, value in pairs(effect) do
+    if key ~= "apply" and type(value) ~= "function" then
+      snapshot[key] = deep_copy(value)
+    end
+  end
+  return snapshot
+end
+
+---@param effect SpellEffectObject
+---@param snapshot table
+---@return SpellEffectObject
+local function copy_serialized_fields(effect, snapshot)
+  for key, value in pairs(snapshot) do
+    if key ~= "apply" and type(value) ~= "function" then
+      effect[key] = deep_copy(value)
+    end
+  end
+  return effect
+end
+
+---@param snapshot table|nil
+---@return SpellEffectObject|nil
+function SpellEffect.from_snapshot(snapshot)
+  if type(snapshot) ~= "table" or type(snapshot.type) ~= "string" then
+    return nil
+  end
+
+  local effect = nil
+  local amount = type(snapshot.amount) == "number" and snapshot.amount or 0
+  if snapshot.type == "heal" then
+    effect = SpellEffect.heal(amount)
+  elseif snapshot.type == "damage" then
+    effect = SpellEffect.damage(amount)
+  elseif snapshot.type == "buff_attack" then
+    effect = SpellEffect.buff_attack(amount)
+  elseif snapshot.type == "debuff_attack" then
+    effect = SpellEffect.debuff_attack(amount)
+  elseif snapshot.type == "buff_speed" then
+    effect = SpellEffect.buff_speed(amount)
+  elseif snapshot.type == "debuff_speed" then
+    effect = SpellEffect.debuff_speed(amount)
+  elseif snapshot.type == "apply_status" then
+    effect = SpellEffect.apply_status(snapshot.status_id or "", deep_copy(snapshot.status_spec or {}))
+  elseif snapshot.type == "apply_field_status" then
+    effect = SpellEffect.apply_field_status(snapshot.status_id or "", deep_copy(snapshot.status_spec or {}))
+  elseif snapshot.type == "action_delta" then
+    effect = SpellEffect.action_delta(amount)
+  elseif snapshot.type == "action_block" then
+    effect = SpellEffect.action_block(amount)
+  elseif snapshot.type == "manipulate_swap" then
+    effect = SpellEffect.swap()
+  elseif snapshot.type == "manipulate_remove" then
+    effect = SpellEffect.nullify()
+  elseif snapshot.type == "manipulate_delay" then
+    effect = SpellEffect.delay(amount)
+  elseif snapshot.type == "manipulate_modify" then
+    effect = SpellEffect.modify(amount)
+  elseif snapshot.type == "global" then
+    effect = SpellEffect.global_buff(amount)
+  end
+
+  if not effect then
+    return nil
+  end
+
+  return copy_serialized_fields(effect, snapshot)
 end
 
 return SpellEffect

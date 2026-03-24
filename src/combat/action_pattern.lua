@@ -12,6 +12,20 @@ local i18n = require('src.i18n.init')
 ---@field params table
 local ActionPattern = class('ActionPattern')
 
+---@param value any
+---@return any
+local function deep_copy(value)
+  if type(value) ~= 'table' then
+    return value
+  end
+
+  local copied = {}
+  for key, item in pairs(value) do
+    copied[key] = deep_copy(item)
+  end
+  return copied
+end
+
 ---@param data table
 function ActionPattern:initialize(data)
   self.id = data.id or "auto"
@@ -22,6 +36,40 @@ function ActionPattern:initialize(data)
   self.condition_params = data.condition_params or {}
   self.cooldown = data.cooldown or 0
   self.params = data.params or {}
+end
+
+---@return table
+function ActionPattern:snapshot()
+  return {
+    id = self.id,
+    name = self.name,
+    type = self.type,
+    priority = self.priority,
+    condition = self.condition,
+    condition_params = deep_copy(self.condition_params),
+    cooldown = self.cooldown,
+    params = deep_copy(self.params),
+    reward_rank = self.reward_rank,
+    max_reward_rank = self.max_reward_rank,
+  }
+end
+
+---@param snapshot table
+---@return ActionPattern
+function ActionPattern.static.from_snapshot(snapshot)
+  local pattern = ActionPattern:new({
+    id = snapshot.id,
+    name = snapshot.name,
+    type = snapshot.type,
+    priority = snapshot.priority,
+    condition = snapshot.condition,
+    condition_params = deep_copy(snapshot.condition_params or {}),
+    cooldown = snapshot.cooldown,
+    params = deep_copy(snapshot.params or {}),
+  })
+  pattern.reward_rank = snapshot.reward_rank
+  pattern.max_reward_rank = snapshot.max_reward_rank
+  return pattern
 end
 
 --- Check if this pattern can be used in given context

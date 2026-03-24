@@ -59,4 +59,26 @@ function DemonAwakening:get_total_spent()
   return self.total_spent
 end
 
+---@return table
+function DemonAwakening:snapshot()
+  return {
+    threshold = self.threshold,
+    progress = self.progress,
+    pending_rewards = self.pending_rewards,
+    total_spent = self.total_spent,
+  }
+end
+
+---@param snapshot table|nil
+---@return nil
+function DemonAwakening:restore(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+  self.threshold = snapshot.threshold or self.threshold
+  self.progress = snapshot.progress or 0
+  self.pending_rewards = snapshot.pending_rewards or 0
+  self.total_spent = snapshot.total_spent or 0
+end
+
 return DemonAwakening
