@@ -34,8 +34,8 @@ love .
 ./scripts/check_love.sh
 ```
 
-- `run_tests.sh`: 단위/통합 테스트 실행
-- `check_love.sh`: 기본적으로 `FRDY_CI_CHECK=1` 기반 Love2D 무팝업 실행 검증을 수행하고, 디스플레이가 없는 자동화 환경에서는 Lua headless bootstrap smoke check로 자동 전환
+- `run_tests.sh`: 단위/통합 테스트를 실행하고, `FRDY_RUN_SEED`가 unset/empty면 고정 기본 seed를 주입합니다. non-empty 값은 그대로 전달되며 결정론 보장은 런타임이 숫자로 해석하는 경우에 한합니다.
+- `check_love.sh`: 기본적으로 `FRDY_CI_CHECK=1` 기반 Love2D 무팝업 실행 검증을 수행하고, 디스플레이가 없는 자동화 환경에서는 Lua headless bootstrap smoke check로 자동 전환합니다. `FRDY_RUN_SEED` semantics는 기본 Love 실행과 headless fallback 경로에서 동일합니다.
 
 ## 프로젝트 구조
 
