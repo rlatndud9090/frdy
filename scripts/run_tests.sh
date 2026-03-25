@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/automation_run_seed.sh"
 
 if command -v lua >/dev/null 2>&1; then
   LUA_BIN="lua"
@@ -13,4 +14,5 @@ else
 fi
 
 "$ROOT_DIR/scripts/check_rng_usage.sh"
-"$LUA_BIN" "$ROOT_DIR/tests/run.lua"
+bash "$ROOT_DIR/tests/scripts/automation_run_seed_test.sh"
+frdy_run_with_automation_run_seed "$LUA_BIN" "$ROOT_DIR/tests/run.lua"
