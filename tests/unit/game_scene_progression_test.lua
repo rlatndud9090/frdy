@@ -191,6 +191,10 @@ function suite.test_checkpoint_post_resolution_clears_active_run_when_node_flow_
     },
     current_node = { id = 1 },
     map = {
+      current_floor_index = 1,
+      get_total_floors = function()
+        return 1
+      end,
       get_current_floor = function()
         return {
           get_edges_from = function()
