@@ -446,7 +446,11 @@ function GameScene:_checkpoint_post_resolution()
   end
 
   if #self:_get_outgoing_edges() == 0 then
-    self:_clear_active_run()
+    if self:_has_next_floor() then
+      self:_write_checkpoint('start_node_select')
+    else
+      self:_clear_active_run()
+    end
     return
   end
 
@@ -740,6 +744,27 @@ function GameScene:_abandon_run()
   self:_finish_run('abandon')
 end
 
+---@return boolean
+function GameScene:_has_next_floor()
+  return self.map.current_floor_index < self.map:get_total_floors()
+end
+
+---@return nil
+function GameScene:_advance_to_next_floor()
+  if not self:_has_next_floor() then
+    self:_finish_run('victory')
+    return
+  end
+
+  self.map:advance_floor()
+  self.phase = START_NODE_SELECT
+  print(i18n.t("combat.floor_cleared"))
+  self:_reset_world_position_for_current_floor()
+  self:_write_checkpoint('start_node_select')
+  local floor = self.map:get_current_floor()
+  self:_show_start_node_select(floor and floor:get_start_nodes() or {})
+end
+
 function GameScene:_check_next_move()
   if not self.current_node then
     return
@@ -748,8 +773,7 @@ function GameScene:_check_next_move()
   local edges = self:_get_outgoing_edges()
 
   if #edges == 0 then
-    print(i18n.t("combat.floor_cleared"))
-    self:_finish_run('victory')
+    self:_advance_to_next_floor()
     return
   elseif #edges == 1 then
     local started = self:_on_edge_selected(edges[1])
@@ -1016,7 +1040,7 @@ end
 ---@return nil
 function GameScene:_continue_after_settlement()
   if #self:_get_outgoing_edges() == 0 then
-    self:_finish_run('victory')
+    self:_advance_to_next_floor()
     return
   end
 
