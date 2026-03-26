@@ -413,6 +413,10 @@ function GameScene:_resume_from_checkpoint(checkpoint_kind)
     self:_resume_travel_start()
     return
   end
+  if checkpoint_kind == 'floor_transition_pending' then
+    self:_advance_to_next_floor()
+    return
+  end
 
   self:_show_start_node_select(floor and floor:get_start_nodes() or {})
 end
@@ -447,7 +451,7 @@ function GameScene:_checkpoint_post_resolution()
 
   if #self:_get_outgoing_edges() == 0 then
     if self:_has_next_floor() then
-      self:_write_checkpoint('start_node_select')
+      self:_write_checkpoint('floor_transition_pending')
     else
       self:_clear_active_run()
     end
