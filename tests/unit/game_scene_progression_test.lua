@@ -19,10 +19,15 @@ function suite.after_each()
   package.loaded['src.scene.run_end_scene'] = original_run_end_scene_module
 end
 
-local function build_fake_scene(edge_count, has_pending_offers)
+local function build_fake_scene(edge_count, has_pending_offers, current_floor_index, total_floors)
   local finished_reason = nil
   local wrote_checkpoint = false
   local checked_next_move = false
+  local checkpoint_kind = nil
+  local start_select_shown = false
+  local advanced_floor = false
+  local reset_world = false
+  local call_order = {}
 
   local floor = {
     get_edges_from = function()
@@ -38,6 +43,16 @@ local function build_fake_scene(edge_count, has_pending_offers)
       end
       return edges
     end,
+    get_start_nodes = function()
+      return {
+        {
+          id = 101,
+          get_position = function()
+            return {x = 0, y = 0}
+          end,
+        },
+      }
+    end,
   }
 
   local scene = {
@@ -45,8 +60,17 @@ local function build_fake_scene(edge_count, has_pending_offers)
       id = 10,
     },
     map = {
+      current_floor_index = current_floor_index or 1,
       get_current_floor = function()
         return floor
+      end,
+      get_total_floors = function()
+        return total_floors or 1
+      end,
+      advance_floor = function(map)
+        call_order[#call_order + 1] = 'advance_floor'
+        map.current_floor_index = map.current_floor_index + 1
+        advanced_floor = true
       end,
     },
     reward_manager = {
@@ -60,43 +84,82 @@ local function build_fake_scene(edge_count, has_pending_offers)
     _finish_run = function(_, reason)
       finished_reason = reason
     end,
-    _write_checkpoint = function()
+    _write_checkpoint = function(_, kind)
+      call_order[#call_order + 1] = kind
       wrote_checkpoint = true
+      checkpoint_kind = kind
       return true
     end,
     _check_next_move = function()
       checked_next_move = true
     end,
+    _reset_world_position_for_current_floor = function()
+      reset_world = true
+    end,
+    _show_start_node_select = function()
+      call_order[#call_order + 1] = 'show_start_node_select'
+      start_select_shown = true
+    end,
   }
   setmetatable(scene, {__index = GameScene})
 
   return scene, function()
-    return finished_reason, wrote_checkpoint, checked_next_move
+    return {
+      finished_reason = finished_reason,
+      wrote_checkpoint = wrote_checkpoint,
+      checkpoint_kind = checkpoint_kind,
+      checked_next_move = checked_next_move,
+      start_select_shown = start_select_shown,
+      advanced_floor = advanced_floor,
+      reset_world = reset_world,
+      current_floor_index = scene.map.current_floor_index,
+      call_order = call_order,
+    }
   end
 end
 
 ---@return nil
 function suite.test_continue_after_settlement_finishes_run_without_path_checkpoint_on_last_node()
-  local scene, result = build_fake_scene(0, false)
+  local scene, result = build_fake_scene(0, false, 3, 3)
 
   scene:_enter_settlement_or_continue()
 
-  local finished_reason, wrote_checkpoint, checked_next_move = result()
-  TestHelper.assert_equal(finished_reason, 'victory')
-  TestHelper.assert_false(wrote_checkpoint)
-  TestHelper.assert_false(checked_next_move)
+  local state = result()
+  TestHelper.assert_equal(state.finished_reason, 'victory')
+  TestHelper.assert_false(state.wrote_checkpoint)
+  TestHelper.assert_false(state.checked_next_move)
+  TestHelper.assert_false(state.advanced_floor)
 end
 
 ---@return nil
 function suite.test_continue_after_settlement_writes_path_checkpoint_when_next_edge_exists()
-  local scene, result = build_fake_scene(1, false)
+  local scene, result = build_fake_scene(1, false, 1, 3)
 
   scene:_enter_settlement_or_continue()
 
-  local finished_reason, wrote_checkpoint, checked_next_move = result()
-  TestHelper.assert_equal(finished_reason, nil)
-  TestHelper.assert_true(wrote_checkpoint)
-  TestHelper.assert_true(checked_next_move)
+  local state = result()
+  TestHelper.assert_equal(state.finished_reason, nil)
+  TestHelper.assert_true(state.wrote_checkpoint)
+  TestHelper.assert_equal(state.checkpoint_kind, 'path_ready')
+  TestHelper.assert_true(state.checked_next_move)
+end
+
+---@return nil
+function suite.test_continue_after_settlement_advances_to_next_floor_when_current_floor_is_not_final()
+  local scene, result = build_fake_scene(0, false, 1, 3)
+
+  scene:_enter_settlement_or_continue()
+
+  local state = result()
+  TestHelper.assert_equal(state.finished_reason, nil)
+  TestHelper.assert_true(state.wrote_checkpoint)
+  TestHelper.assert_equal(state.checkpoint_kind, 'start_node_select')
+  TestHelper.assert_true(state.advanced_floor)
+  TestHelper.assert_true(state.reset_world)
+  TestHelper.assert_true(state.start_select_shown)
+  TestHelper.assert_equal(state.current_floor_index, 2)
+  TestHelper.assert_equal(state.call_order[1], 'advance_floor')
+  TestHelper.assert_equal(state.call_order[2], 'start_node_select')
 end
 
 ---@return nil
@@ -135,6 +198,10 @@ function suite.test_checkpoint_post_resolution_clears_active_run_when_node_flow_
     },
     current_node = { id = 1 },
     map = {
+      current_floor_index = 1,
+      get_total_floors = function()
+        return 1
+      end,
       get_current_floor = function()
         return {
           get_edges_from = function()
@@ -156,6 +223,72 @@ function suite.test_checkpoint_post_resolution_clears_active_run_when_node_flow_
   scene:_checkpoint_post_resolution()
 
   TestHelper.assert_true(cleared)
+end
+
+---@return nil
+function suite.test_checkpoint_post_resolution_writes_floor_transition_checkpoint_for_next_floor_start()
+  local checkpoints = {}
+  local cleared = false
+  local scene = {
+    reward_manager = {
+      has_pending_offers = function()
+        return false
+      end,
+    },
+    current_node = { id = 1 },
+    map = {
+      current_floor_index = 1,
+      get_total_floors = function()
+        return 3
+      end,
+      get_current_floor = function()
+        return {
+          get_edges_from = function()
+            return {}
+          end,
+        }
+      end,
+    },
+    _write_checkpoint = function(_, checkpoint_kind)
+      checkpoints[#checkpoints + 1] = checkpoint_kind
+      return true
+    end,
+    _clear_active_run = function()
+      cleared = true
+      return true
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_checkpoint_post_resolution()
+
+  TestHelper.assert_false(cleared)
+  TestHelper.assert_equal(#checkpoints, 1)
+  TestHelper.assert_equal(checkpoints[1], 'floor_transition_pending')
+end
+
+---@return nil
+function suite.test_resume_from_floor_transition_pending_advances_to_next_floor()
+  local advanced = false
+  local scene = {
+    _advance_to_next_floor = function()
+      advanced = true
+    end,
+    map = {
+      get_current_floor = function()
+        return {
+          get_start_nodes = function()
+            return {}
+          end,
+        }
+      end,
+    },
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_resume_from_checkpoint('floor_transition_pending')
+
+  TestHelper.assert_true(advanced)
 end
 
 ---@return nil
