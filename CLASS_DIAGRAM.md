@@ -108,7 +108,15 @@ classDiagram
   class Hero
   class Enemy
   class ActionPattern
-  class StatusContainer
+  class StatusContainer {
+    -statuses
+    -_status_by_uid
+    -_alive_instances
+    -_next_uid
+    +emit(hook_name, ctx)
+    +remove(uid)
+    +restore(snap)
+  }
   class StatusRegistry
 
   CombatHandler --> CombatManager
@@ -127,6 +135,12 @@ classDiagram
   Hero --> ActionPattern
   Enemy --> ActionPattern
 ```
+
+상태 컨테이너 메모:
+
+- `StatusContainer`는 상태 목록 외에 UID 인덱스와 생존 인덱스를 함께 유지합니다.
+- `emit()`은 snapshot 순회 + `_alive_instances` 확인으로, 순회 도중 제거된 상태 hook를 다시 호출하지 않는 것을 보장합니다.
+- `remove()`와 `restore()`는 UID 변경/복원 이후에도 `_status_by_uid`가 stale alias를 남기지 않도록 재매핑 책임을 집니다.
 
 ## 5) 주문/보상/이벤트 시스템
 

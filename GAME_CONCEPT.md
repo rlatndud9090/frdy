@@ -71,6 +71,15 @@
 - 전투 엔티티: `Hero`, `Enemy`, `ActionPattern`
 - 상태효과: `StatusContainer`, `StatusRegistry`
 
+`StatusContainer` 유지보수 불변식:
+
+- `emit()`은 현재 상태 목록의 snapshot을 기준으로 순회하고, 실제 호출 직전에는 `_alive_instances`를 확인합니다.
+  - 따라서 hook 실행 중 다른 상태가 제거돼도 이미 삭제된 인스턴스를 다시 실행하지 않아야 합니다.
+- UID 조회는 `_status_by_uid`가 맡지만, hook에서 `instance.uid`가 바뀔 수 있으므로 add/remove 경로는 기존 UID 별칭과 새 UID 매핑을 함께 정리해야 합니다.
+  - 특히 `on_apply`, 런타임 hook, `on_remove`에서 UID가 변해도 stale 인덱스가 남지 않아야 합니다.
+- `restore()`는 snapshot을 되살릴 때 `statuses`만 채우지 않고 `_status_by_uid`, `_alive_instances`, `_next_uid`를 함께 재구축해야 합니다.
+  - 복원 직후에도 `remove(uid)`와 후속 `emit()`이 원본 런타임과 같은 기준으로 동작해야 합니다.
+
 핵심 흐름:
 
 1. Planning phase에서 주문/개입 계획 수립
