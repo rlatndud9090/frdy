@@ -38,6 +38,7 @@ local EXITING_EVENT = "EXITING_EVENT"
 local SETTLEMENT = "SETTLEMENT"
 local EDGE_SELECT = "EDGE_SELECT"
 local START_NODE_SELECT = "START_NODE_SELECT"
+local GAME_OVER = "GAME_OVER"
 
 ---@class GameScene : Scene
 ---@field phase string
@@ -329,6 +330,25 @@ function GameScene:_draw_ui()
   -- 디버그: 현재 페이즈 표시
   love.graphics.setColor(1, 1, 1)
   love.graphics.print("Phase: " .. self.phase, 10, 700)
+
+  if self.phase == GAME_OVER then
+    self:_draw_game_over_overlay()
+  end
+end
+
+---@return nil
+function GameScene:_draw_game_over_overlay()
+  local width = love.graphics.getWidth()
+  local height = love.graphics.getHeight()
+
+  love.graphics.setColor(0, 0, 0, 0.72)
+  love.graphics.rectangle("fill", 0, 0, width, height)
+
+  love.graphics.setColor(1, 0.2, 0.2, 1)
+  love.graphics.printf(i18n.t("combat.defeat"), 0, height * 0.45, width, "center")
+
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.printf(i18n.t("combat.restart_prompt"), 0, height * 0.53, width, "center")
 end
 
 ---@param key string
@@ -339,6 +359,11 @@ end
 
 ---@param key string
 function GameScene:keypressed(key)
+  if self.phase == GAME_OVER then
+    self:_restart_run()
+    return
+  end
+
   if self:_is_settings_input_locked() then
     self.settings_overlay:keypressed(key)
     return
@@ -375,6 +400,11 @@ end
 ---@param y number
 ---@param button number
 function GameScene:mousepressed(x, y, button)
+  if self.phase == GAME_OVER then
+    self:_restart_run()
+    return
+  end
+
   if self:_is_settings_input_locked() then
     self.settings_overlay:mousepressed(x, y, button)
     return
@@ -586,10 +616,16 @@ function GameScene:_on_combat_ended(result)
     :ease("linear")
     :oncomplete(function()
       if result == "defeat" then
-        return  -- 게임 오버 시 진행하지 않음
+        self:_enter_game_over()
+        return
       end
       self:_enter_settlement_or_continue()
     end)
+end
+
+---@return nil
+function GameScene:_enter_game_over()
+  self.phase = GAME_OVER
 end
 
 --- 이벤트 진입 연출
@@ -710,6 +746,17 @@ end
 ---@param edge Edge
 function GameScene:_on_edge_selected(edge)
   self:_start_traveling(edge:get_to_node())
+end
+
+---@return nil
+function GameScene:_restart_run()
+  local game = Game:getInstance()
+  if not game.scene_manager then
+    return
+  end
+
+  local NewGameScene = require('src.scene.game_scene')
+  game.scene_manager:switch(NewGameScene:new())
 end
 
 ---@param x number
