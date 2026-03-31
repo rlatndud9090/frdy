@@ -18,6 +18,8 @@ local function create_fake_scene()
     reward_manager = {},
     overlay_alpha = 0.3,
     _settlement_called = 0,
+    _checkpoint_called = 0,
+    _clear_active_run_called = 0,
   }
 
   function scene.combat_handler:deactivate()
@@ -35,6 +37,15 @@ local function create_fake_scene()
 
   function scene:_enter_settlement_or_continue()
     self._settlement_called = self._settlement_called + 1
+  end
+
+  function scene:_checkpoint_post_resolution()
+    self._checkpoint_called = self._checkpoint_called + 1
+  end
+
+  function scene:_clear_active_run()
+    self._clear_active_run_called = self._clear_active_run_called + 1
+    return true
   end
 
   return setmetatable(scene, {__index = GameScene})
@@ -72,6 +83,7 @@ function suite.test_on_combat_ended_defeat_enters_game_over_state()
 
   TestHelper.assert_true(scene._combat_deactivated == true, "전투 핸들러 비활성화가 필요합니다.")
   TestHelper.assert_equal(scene._mana_recovered, 30, "전투 종료 마나 회복량이 유지되어야 합니다.")
+  TestHelper.assert_equal(scene._clear_active_run_called, 1, "패배 시 세이브 정리가 호출되어야 합니다.")
   TestHelper.assert_equal(scene.phase, "GAME_OVER", "패배 후 GAME_OVER 상태로 전환되어야 합니다.")
   TestHelper.assert_equal(scene._settlement_called, 0, "패배 시 정산/다음 이동으로 진행되면 안 됩니다.")
 end
@@ -84,6 +96,7 @@ function suite.test_on_combat_ended_victory_keeps_settlement_flow()
 
   TestHelper.assert_true(scene._combat_deactivated == true, "전투 핸들러 비활성화가 필요합니다.")
   TestHelper.assert_equal(scene._mana_recovered, 30, "전투 종료 마나 회복량이 유지되어야 합니다.")
+  TestHelper.assert_equal(scene._checkpoint_called, 1, "승리 시 체크포인트 후처리가 호출되어야 합니다.")
   TestHelper.assert_equal(scene._prepared_result, "victory", "승리 정산 준비가 호출되어야 합니다.")
   TestHelper.assert_equal(scene._prepared_node, scene.current_node, "정산 준비에 현재 노드가 전달되어야 합니다.")
   TestHelper.assert_equal(scene._settlement_called, 1, "승리 시 정산/다음 이동 흐름으로 진행되어야 합니다.")
