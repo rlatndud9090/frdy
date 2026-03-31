@@ -258,7 +258,7 @@ function suite.test_checkpoint_post_resolution_preserves_run_for_next_floor_star
   scene:_checkpoint_post_resolution()
 
   TestHelper.assert_false(cleared)
-  TestHelper.assert_equal(checkpoint_kind, 'start_node_select')
+  TestHelper.assert_equal(checkpoint_kind, 'floor_transition_pending')
 end
 
 ---@return nil
@@ -477,6 +477,51 @@ function suite.test_resume_from_travel_checkpoint_enters_selected_target_node()
   TestHelper.assert_equal(scene.current_node.id, 33)
   TestHelper.assert_true(entered)
   TestHelper.assert_equal(scene.pending_target_node_id, nil)
+end
+
+---@return nil
+function suite.test_resume_from_floor_transition_pending_advances_to_next_floor()
+  local advanced = false
+  local checkpoint_kind = nil
+  local selected_start_nodes = nil
+  local start_nodes = {
+    { id = 401 },
+  }
+  local scene = {
+    map = {
+      current_floor_index = 1,
+      get_total_floors = function()
+        return 2
+      end,
+      advance_floor = function(map)
+        advanced = true
+        map.current_floor_index = map.current_floor_index + 1
+      end,
+      get_current_floor = function()
+        return {
+          get_start_nodes = function()
+            return start_nodes
+          end,
+        }
+      end,
+      set_current_node = function() end,
+    },
+    _write_checkpoint = function(_, kind)
+      checkpoint_kind = kind
+      return true
+    end,
+    _reset_world_position_for_current_floor = function() end,
+    _show_start_node_select = function(_, nodes)
+      selected_start_nodes = nodes
+    end,
+  }
+  setmetatable(scene, { __index = GameScene })
+
+  scene:_resume_from_checkpoint('floor_transition_pending')
+
+  TestHelper.assert_true(advanced)
+  TestHelper.assert_equal(checkpoint_kind, 'start_node_select')
+  TestHelper.assert_equal(selected_start_nodes, start_nodes)
 end
 
 ---@return nil
