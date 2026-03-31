@@ -9,25 +9,27 @@
 flowchart LR
   A[main.lua] --> B[Game Singleton]
   B --> C[SceneManager]
-  C --> D[GameScene]
+  C --> D[MainMenuScene]
+  C --> E[GameScene]
+  C --> F[RunEndScene]
 
-  D --> E[Map System]
-  D --> F[Combat Handler]
-  D --> G[Event Handler]
-  D --> H[Reward Handler]
-  D --> I[UI Widgets]
-  D --> J[RunContext/RNG]
+  E --> G[Map System]
+  E --> H[Combat Handler]
+  E --> I[Event Handler]
+  E --> J[Reward Handler]
+  E --> K[UI Widgets]
+  E --> L[RunContext/RNG]
 
-  F --> K[CombatManager]
-  K --> L[TurnManager]
-  K --> M[TimelineManager]
-  K --> N[PredictionEngine]
+  H --> M[CombatManager]
+  M --> N[TurnManager]
+  M --> O[TimelineManager]
+  M --> P[PredictionEngine]
 
-  D --> O[RewardManager]
-  D --> P[EventManager]
-  D --> Q[SpellBook]
-  D --> R[SuspicionManager]
-  D --> S[ManaManager]
+  E --> Q[RewardManager]
+  E --> R[EventManager]
+  E --> S[SpellBook]
+  E --> T[SuspicionManager]
+  E --> U[ManaManager]
 ```
 
 ## 2) Core / Scene 계층
@@ -55,15 +57,19 @@ classDiagram
     +draw()
   }
 
+  class MainMenuScene
   class GameScene {
     -phase
     -run_seed
     -run_context
   }
+  class RunEndScene
 
   Game --> SceneManager
   SceneManager --> Scene
+  MainMenuScene --|> Scene
   GameScene --|> Scene
+  RunEndScene --|> Scene
 ```
 
 ## 3) 맵 시스템
@@ -102,7 +108,15 @@ classDiagram
   class Hero
   class Enemy
   class ActionPattern
-  class StatusContainer
+  class StatusContainer {
+    -statuses
+    -_status_by_uid
+    -_alive_instances
+    -_next_uid
+    +emit(hook_name, ctx)
+    +remove(uid)
+    +restore(snap)
+  }
   class StatusRegistry
 
   CombatHandler --> CombatManager
@@ -121,6 +135,12 @@ classDiagram
   Hero --> ActionPattern
   Enemy --> ActionPattern
 ```
+
+상태 컨테이너 메모:
+
+- `StatusContainer`는 상태 목록 외에 UID 인덱스와 생존 인덱스를 함께 유지합니다.
+- `emit()`은 snapshot 순회 + `_alive_instances` 확인으로, 순회 도중 제거된 상태 hook를 다시 호출하지 않는 것을 보장합니다.
+- `remove()`와 `restore()`는 UID 변경/복원 이후에도 `_status_by_uid`가 stale alias를 남기지 않도록 재매핑 책임을 집니다.
 
 ## 5) 주문/보상/이벤트 시스템
 
@@ -158,7 +178,9 @@ classDiagram
 
 ```mermaid
 classDiagram
+  class MainMenuScene
   class GameScene
+  class RunEndScene
   class CombatHandler
   class EventHandler
   class EdgeSelectHandler
@@ -192,6 +214,7 @@ classDiagram
   MapOverlay --|> UIElement
   SettingsOverlay --|> UIElement
 
+  MainMenuScene --> SettingsOverlay
   GameScene --> CombatHandler
   GameScene --> EventHandler
   GameScene --> EdgeSelectHandler
@@ -200,11 +223,14 @@ classDiagram
   GameScene --> MapOverlay
   GameScene --> SettingsOverlay
   GameScene --> Camera
+  RunEndScene --> Button
 ```
 
 ## 7) 주요 변경 포인트(문서 동기화용)
 
-- 씬 구조: `MapScene/CombatScene` 분리형이 아니라 `GameScene` 통합형
+- 씬 구조: `MainMenuScene` / `GameScene` / `RunEndScene`
+- 런 복귀: active save 1개 + 체크포인트 복원 방식
+- 저장 아키텍처: data-only save + participant registry + backup fallback
 - 개입 구조: `Deck/Card`가 아니라 `SpellBook/Spell` 중심
 - RNG: 전역 `math.random` 의존이 아니라 `RunContext` 스트림 RNG
 - 정산: `RewardManager` + `DemonAwakening` + `LegendaryInventory` 큐 기반

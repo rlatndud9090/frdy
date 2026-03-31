@@ -30,9 +30,34 @@ function Game:init()
     self.scene_manager = SceneManager:new()
     self.event_bus = EventBus:new()
 
-    --- 초기 Scene 설정: GameScene으로 시작 (통합 게임플레이 씬)
-    local GameScene = require('src.scene.game_scene')
-    self.scene_manager:push(GameScene:new())
+    local MainMenuScene = require('src.scene.main_menu_scene')
+    self.scene_manager:push(MainMenuScene:new())
+end
+
+---@param scene Scene
+---@param params? table
+---@return nil
+function Game:switch_scene(scene, params)
+    if self.scene_manager then
+        self.scene_manager:switch(scene, params)
+    end
+end
+
+---@param scene Scene
+---@param params? table
+---@return nil
+function Game:push_scene(scene, params)
+    if self.scene_manager then
+        self.scene_manager:push(scene, params)
+    end
+end
+
+---@return Scene|nil
+function Game:pop_scene()
+    if self.scene_manager then
+        return self.scene_manager:pop()
+    end
+    return nil
 end
 
 ---@param dt number

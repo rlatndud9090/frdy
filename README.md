@@ -6,11 +6,14 @@ Love2D 기반의 턴 기반 개입형 로그라이트 프로젝트입니다.
 
 ## 핵심 특징
 
+- `MainMenuScene` → `GameScene` → `RunEndScene` 흐름
 - `GameScene` 단일 통합 흐름 기반 진행
 - 전투 Planning/Execution + 예측 타임라인
 - `SpellBook/Spell` 기반 개입 시스템
 - `RewardManager` 기반 정산/각성/전설 아이템 루프
 - `RunContext` 기반 결정론 RNG 스트림
+- 진행 중 런 자동 저장 + 메인 메뉴 `이어하기`
+- data-only active save + backup fallback 기반 런 복귀
 
 ## 개발 환경
 
@@ -31,15 +34,15 @@ love .
 ./scripts/check_love.sh
 ```
 
-- `run_tests.sh`: 단위/통합 테스트 실행
-- `check_love.sh`: `FRDY_CI_CHECK=1` 기반 무팝업 실행 검증
+- `run_tests.sh`: 단위/통합 테스트를 실행하고, `FRDY_RUN_SEED`가 unset/empty면 고정 기본 seed를 주입합니다. non-empty 값은 그대로 전달되며 결정론 보장은 런타임이 숫자로 해석하는 경우에 한합니다.
+- `check_love.sh`: 기본적으로 `FRDY_CI_CHECK=1` 기반 Love2D 무팝업 실행 검증을 수행하고, 디스플레이가 없는 자동화 환경에서는 Lua headless bootstrap smoke check로 자동 전환합니다. `FRDY_RUN_SEED` semantics는 기본 Love 실행과 headless fallback 경로에서 동일합니다.
 
 ## 프로젝트 구조
 
 ```text
 src/
 ├── core/      # Game/SceneManager/EventBus/RNG
-├── scene/     # GameScene
+├── scene/     # MainMenu/GameScene/RunEndScene
 ├── combat/    # 전투/예측/상태 시스템
 ├── spell/     # 주문/마나/의심
 ├── reward/    # 정산/각성/전설

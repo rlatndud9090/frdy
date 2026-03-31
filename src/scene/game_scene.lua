@@ -21,6 +21,8 @@ local RewardManager = require('src.reward.reward_manager')
 local RewardHandler = require('src.handler.reward_handler')
 local RewardCatalog = require('src.reward.reward_catalog')
 local RunContext = require('src.core.run_context')
+local RunSaveCoordinator = require('src.core.run_save_coordinator')
+local GameSceneSaveParticipants = require('src.core.game_scene_save_participants')
 local Game = require('src.core.game')
 local i18n = require('src.i18n.init')
 
@@ -39,6 +41,7 @@ local SETTLEMENT = "SETTLEMENT"
 local EDGE_SELECT = "EDGE_SELECT"
 local START_NODE_SELECT = "START_NODE_SELECT"
 local GAME_OVER = "GAME_OVER"
+local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 
 ---@class GameScene : Scene
 ---@field phase string
@@ -48,6 +51,7 @@ local GAME_OVER = "GAME_OVER"
 ---@field map Map
 ---@field current_node Node|nil
 ---@field target_node Node|nil
+---@field pending_target_node_id number|nil
 ---@field hero_world_x number
 ---@field hero_world_y number
 ---@field camera Camera
@@ -68,6 +72,11 @@ local GAME_OVER = "GAME_OVER"
 ---@field minimap Minimap
 ---@field map_overlay MapOverlay
 ---@field settings_overlay SettingsOverlay
+---@field restoring boolean
+---@field save_coordinator RunSaveCoordinator
+---@field save_feedback_text string|nil
+---@field save_feedback_timer number
+---@field initial_checkpoint_committed boolean
 local GameScene = class('GameScene', Scene)
 
 ---@return number
@@ -82,51 +91,54 @@ function GameScene:_resolve_run_seed()
   return RunContext.normalize_seed(os.time())
 end
 
-function GameScene:initialize()
-  Scene.initialize(self)
-
-  self.run_seed = self:_resolve_run_seed()
-  self.run_context = RunContext:new(self.run_seed)
-  local map_rng = self.run_context:get_stream('gameplay.map')
-  self.enemy_rng = self.run_context:get_stream('gameplay.enemy')
-
-  -- 맵 생성
-  local generator = MapGenerator:new(map_rng)
-  local config = require('data.map_configs.default_config')
-  self.map = generator:generate_map(config)
-
-  -- 시작 노드에 배치
-  local floor = self.map:get_current_floor()
-  local start_nodes = floor:get_start_nodes()
-  self.current_node = nil
-  self.target_node = nil
-
-  -- 용사 월드 좌표
-  self.hero_world_x = start_nodes[1] and start_nodes[1]:get_position().x or 0
-  self.hero_world_y = 360
-
-  -- 카메라 생성 및 즉시 위치 설정 (초기 lerp 없이)
-  self.camera = Camera:new(self.run_context:get_stream('ui.camera'))
-  self.camera:set_target(self.hero_world_x, self.hero_world_y)
-  self.camera.x = self.hero_world_x
-  self.camera.target_x = self.hero_world_x
-
-  -- 게임 객체 생성
-  self.hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
-
-  -- 마법서 생성
+---@return SpellBook
+function GameScene:_build_initial_spell_book()
   local starter_spell_ids = require('data.spells.starter_spell_ids')
-
   local spells = {}
   for _, spell_id in ipairs(starter_spell_ids) do
     local spell_data = RewardCatalog.get_spell_data(spell_id)
     if spell_data then
-      table.insert(spells, Spell:new(spell_data))
+      spells[#spells + 1] = Spell:new(spell_data)
     end
   end
-  self.spell_book = SpellBook:new(spells)
+  return SpellBook:new(spells)
+end
 
-  -- 매니저 생성
+---@return nil
+function GameScene:_reset_world_position_for_current_floor()
+  local floor = self.map:get_current_floor()
+  local start_nodes = floor and floor:get_start_nodes() or {}
+  self.current_node = nil
+  self.target_node = nil
+  self.pending_target_node_id = nil
+  self.hero_world_x = start_nodes[1] and start_nodes[1]:get_position().x or 0
+  self.hero_world_y = 360
+  self.camera:set_target(self.hero_world_x, self.hero_world_y)
+  self.camera.x = self.hero_world_x
+  self.camera.y = self.hero_world_y
+  self.camera.target_x = self.hero_world_x
+  self.camera.target_y = self.hero_world_y
+  self.map:set_current_node(nil)
+  self.minimap:set_map_data(floor, nil)
+end
+
+---@param run_seed? number
+---@return nil
+function GameScene:_initialize_runtime(run_seed)
+  self.run_seed = run_seed or self:_resolve_run_seed()
+  self.run_context = RunContext:new(self.run_seed)
+  local map_rng = self.run_context:get_stream('gameplay.map')
+  self.enemy_rng = self.run_context:get_stream('gameplay.enemy')
+
+  local generator = MapGenerator:new(map_rng)
+  local config = require('data.map_configs.default_config')
+  self.map = generator:generate_map(config)
+
+  self.camera = Camera:new(self.run_context:get_stream('ui.camera'))
+
+  self.hero = Hero:new({hp = 50, attack = 8, defense = 2, speed = 8})
+  self.spell_book = self:_build_initial_spell_book()
+
   local event_bus = Game:getInstance().event_bus
   self.mana_manager = ManaManager:new(100)
   self.suspicion_manager = SuspicionManager:new(event_bus)
@@ -138,14 +150,10 @@ function GameScene:initialize()
     self.run_context:get_stream('gameplay.reward')
   )
 
-  -- 이벤트 매니저 생성
   self.event_manager = EventManager:new(self.run_context:get_stream('gameplay.event'))
   self.event_manager:load_events(require('data.events.floor1_events'))
-
-  -- 적 데이터 로드
   self.floor_enemies = require('data.enemies.floor1_enemies')
 
-  -- UI 위젯 생성
   self.suspicion_gauge = Gauge:new(20, 20, 200, 30, "gauge.suspicion", {1, 0, 0})
   self.suspicion_gauge:set_value(0, 100)
 
@@ -153,15 +161,27 @@ function GameScene:initialize()
   self.mana_gauge:set_value(self.mana_manager:get_current(), self.mana_manager:get_max())
 
   self.minimap = Minimap:new(1280 - 196, 16, 180, 100)
-  self.minimap:set_map_data(floor, self.current_node)
   self.minimap:set_on_click(function()
     self:_toggle_map_overlay()
   end)
 
   self.map_overlay = MapOverlay:new()
   self.settings_overlay = SettingsOverlay:new()
+  self.settings_overlay:set_actions({
+    {
+      label_key = 'ui.continue_game',
+      callback = function()
+        self.settings_overlay:close()
+      end,
+    },
+    {
+      label_key = 'ui.abandon_run',
+      callback = function()
+        self:_abandon_run()
+      end,
+    },
+  })
 
-  -- 핸들러 생성
   self.combat_handler = CombatHandler:new()
   self.combat_handler:set_camera(self.camera)
   self.combat_handler:set_on_combat_end(function(result)
@@ -175,15 +195,95 @@ function GameScene:initialize()
   self.reward_handler = RewardHandler:new(self.run_context:get_stream('gameplay.reward_choice'))
 
   self.edge_select_handler = nil
-
-  -- 초기 상태
-  self.phase = START_NODE_SELECT
   self.overlay_alpha = 0
+  self.phase = START_NODE_SELECT
+  self.save_feedback_text = nil
+  self.save_feedback_timer = 0
+  self:_reset_world_position_for_current_floor()
+  self:_initialize_save_coordinator()
+end
 
-  -- 시작 노드 완료 처리
+---@return nil
+function GameScene:_initialize_save_coordinator()
+  local registry = GameSceneSaveParticipants.build_registry({
+    get_rng_snapshot = function()
+      return self:get_rng_snapshot()
+    end,
+    restore_rng_snapshot = function(snapshot)
+      return self:restore_rng_snapshot(snapshot)
+    end,
+    snapshot_map_progress = function()
+      return self:_snapshot_map_progress()
+    end,
+    restore_map_progress = function(snapshot)
+      self:_restore_map_progress(snapshot)
+    end,
+    hero = self.hero,
+    spell_book = self.spell_book,
+    mana_manager = self.mana_manager,
+    suspicion_manager = self.suspicion_manager,
+    reward_manager = self.reward_manager,
+  })
+
+  self.save_coordinator = RunSaveCoordinator:new({
+    registry = registry,
+    get_run_seed = function()
+      return self.run_seed
+    end,
+    expected_system_keys = GameSceneSaveParticipants.expected_keys(),
+  })
+end
+
+---@param message string|nil
+---@return nil
+function GameScene:_set_save_feedback(message)
+  self.save_feedback_text = message
+  self.save_feedback_timer = message and 4 or 0
+end
+
+---@param options? {save_data?: table, run_seed?: number, defer_initial_checkpoint?: boolean}
+function GameScene:initialize(options)
+  Scene.initialize(self)
+  options = options or {}
+  self.restoring = false
+  self.initial_checkpoint_committed = false
+
+  local save_data = options.save_data
+  local initial_seed = options.run_seed
+  if save_data then
+    initial_seed = save_data.run_seed or initial_seed
+  end
+
+  self:_initialize_runtime(initial_seed)
+
+  if save_data then
+    local restored, restore_err = self:_restore_from_save(save_data)
+    if not restored then
+      error(SAVE_RESTORE_ERROR_PREFIX .. (restore_err or '세이브를 복원하지 못했습니다.'))
+    end
+    return
+  end
+
+  local floor = self.map:get_current_floor()
+  local start_nodes = floor and floor:get_start_nodes() or {}
+  if not options.defer_initial_checkpoint then
+    self:commit_initial_checkpoint()
+  end
   self:_show_start_node_select(start_nodes)
+end
 
-  -- 게임 흐름 시작
+---@return boolean
+---@return string|nil
+function GameScene:commit_initial_checkpoint()
+  if self.initial_checkpoint_committed then
+    return true, nil
+  end
+
+  local ok, err = self:_write_checkpoint('start_node_select')
+  if ok then
+    self.initial_checkpoint_committed = true
+  end
+  return ok, err
 end
 
 ---@return number
@@ -202,9 +302,220 @@ function GameScene:restore_rng_snapshot(snapshot)
   return self.run_context:restore(snapshot)
 end
 
+---@return table
+function GameScene:_snapshot_map_progress()
+  local completed_node_ids = {}
+  for floor_index = 1, self.map:get_total_floors() do
+    local floor = self.map:get_floor(floor_index)
+    for _, node in ipairs(floor:get_nodes()) do
+      if node:is_completed() then
+        completed_node_ids[#completed_node_ids + 1] = node.id
+      end
+    end
+  end
+  table.sort(completed_node_ids)
+  return {
+    current_floor_index = self.map.current_floor_index,
+    current_node_id = self.current_node and self.current_node.id or nil,
+    pending_target_node_id = self.pending_target_node_id,
+    completed_node_ids = completed_node_ids,
+  }
+end
+
+---@param node_id number|nil
+---@return Node|nil
+function GameScene:_find_node_by_id(node_id)
+  if node_id == nil then
+    return nil
+  end
+
+  for floor_index = 1, self.map:get_total_floors() do
+    local floor = self.map:get_floor(floor_index)
+    for _, node in ipairs(floor:get_nodes()) do
+      if node.id == node_id then
+        return node
+      end
+    end
+  end
+
+  return nil
+end
+
+---@param snapshot table|nil
+---@return nil
+function GameScene:_restore_map_progress(snapshot)
+  if type(snapshot) ~= 'table' then
+    return
+  end
+
+  self.map.current_floor_index = snapshot.current_floor_index or self.map.current_floor_index
+  self.pending_target_node_id = snapshot.pending_target_node_id
+  local completed_lookup = {}
+  for _, node_id in ipairs(snapshot.completed_node_ids or {}) do
+    completed_lookup[node_id] = true
+  end
+
+  for floor_index = 1, self.map:get_total_floors() do
+    local floor = self.map:get_floor(floor_index)
+    for _, node in ipairs(floor:get_nodes()) do
+      node.completed = completed_lookup[node.id] == true
+    end
+  end
+
+  local current_node = self:_find_node_by_id(snapshot.current_node_id)
+  if current_node then
+    self:_set_current_node(current_node)
+    return
+  end
+
+  self:_reset_world_position_for_current_floor()
+end
+
+---@param checkpoint_kind string
+---@return boolean
+function GameScene:_write_checkpoint(checkpoint_kind)
+  if self.restoring then
+    return true
+  end
+
+  local ok, err = self.save_coordinator:save_checkpoint(checkpoint_kind)
+  if not ok then
+    self:_set_save_feedback(i18n.t('ui.save_write_failed'))
+    print(err)
+    return false
+  end
+
+  self:_set_save_feedback(nil)
+  return ok
+end
+
+---@param checkpoint_kind string
+---@return nil
+function GameScene:_resume_from_checkpoint(checkpoint_kind)
+  local floor = self.map:get_current_floor()
+  if checkpoint_kind == 'combat_start' then
+    self:_enter_combat()
+    return
+  end
+  if checkpoint_kind == 'event_start' then
+    self:_enter_event()
+    return
+  end
+  if checkpoint_kind == 'reward_offer_presented' then
+    self.phase = SETTLEMENT
+    self:_show_next_reward_offer()
+    return
+  end
+  if checkpoint_kind == 'path_ready' then
+    self:_check_next_move()
+    return
+  end
+  if checkpoint_kind == 'travel_start' then
+    self:_resume_travel_start()
+    return
+  end
+  if checkpoint_kind == 'floor_transition_pending' then
+    self:_advance_to_next_floor()
+    return
+  end
+
+  self:_show_start_node_select(floor and floor:get_start_nodes() or {})
+end
+
+---@return boolean
+function GameScene:_clear_active_run()
+  if self.restoring then
+    return true
+  end
+
+  local ok, err = self.save_coordinator:clear_active_run()
+  if not ok then
+    local invalidated, invalidate_err = self.save_coordinator:invalidate_active_run('ended')
+    if not invalidated and invalidate_err then
+      print(invalidate_err)
+    end
+    self:_set_save_feedback(i18n.t('ui.save_write_failed'))
+    print(err)
+    return false
+  end
+
+  self:_set_save_feedback(nil)
+  return true
+end
+
+---@return nil
+function GameScene:_checkpoint_post_resolution()
+  if self.reward_manager:has_pending_offers() then
+    self:_write_checkpoint('reward_offer_presented')
+    return
+  end
+
+  if #self:_get_outgoing_edges() == 0 then
+    if self:_has_next_floor() then
+      self:_write_checkpoint('floor_transition_pending')
+    else
+      self:_clear_active_run()
+    end
+    return
+  end
+
+  self:_write_checkpoint('path_ready')
+end
+
+---@return nil
+function GameScene:_resume_travel_start()
+  local target_node = self:_find_node_by_id(self.pending_target_node_id)
+  self.pending_target_node_id = nil
+  if not target_node then
+    self:_check_next_move()
+    return
+  end
+
+  self.target_node = nil
+  self:_set_current_node(target_node)
+  self:_enter_current_node()
+end
+
+---@param save_data table
+---@return boolean
+---@return string|nil
+function GameScene:_restore_from_save(save_data)
+  self.restoring = true
+
+  local ok, normalized_save_data_or_err, restore_err = pcall(function()
+    local normalized_save_data, normalize_err = self.save_coordinator:restore_payload(save_data)
+    if not normalized_save_data then
+      return nil, normalize_err
+    end
+
+    local checkpoint_kind = normalized_save_data.checkpoint and normalized_save_data.checkpoint.kind or 'start_node_select'
+    self:_resume_from_checkpoint(checkpoint_kind)
+    return normalized_save_data, nil
+  end)
+
+  self.restoring = false
+
+  if not ok then
+    return false, tostring(normalized_save_data_or_err)
+  end
+
+  if not normalized_save_data_or_err then
+    return false, restore_err
+  end
+
+  return true, nil
+end
+
 ---@param dt number
 function GameScene:update(dt)
   self.camera:update(dt)
+
+  if self.save_feedback_timer > 0 then
+    self.save_feedback_timer = math.max(0, self.save_feedback_timer - dt)
+    if self.save_feedback_timer <= 0 then
+      self.save_feedback_text = nil
+    end
+  end
 
   -- UI 위젯 업데이트
   self.suspicion_gauge:update(dt)
@@ -334,6 +645,10 @@ function GameScene:_draw_ui()
   if self.phase == GAME_OVER then
     self:_draw_game_over_overlay()
   end
+  if self.save_feedback_text then
+    love.graphics.setColor(0.95, 0.62, 0.48, 1)
+    love.graphics.printf(self.save_feedback_text, 0, 672, love.graphics.getWidth(), 'center')
+  end
 end
 
 ---@return nil
@@ -435,22 +750,86 @@ function GameScene:mousepressed(x, y, button)
     self.edge_select_handler:mousepressed(x, y, button)
   end
 end
+
+---@return table
+function GameScene:_build_run_end_summary()
+  return {
+    floor = self.map and self.map.current_floor_index or 1,
+    level = self.hero and self.hero:get_level() or 1,
+  }
+end
+
+---@param reason string
+---@return nil
+function GameScene:_finish_run(reason)
+  local RunEndScene = require('src.scene.run_end_scene')
+  local save_cleanup_failed = not self:_clear_active_run()
+  Game:getInstance():switch_scene(RunEndScene:new({
+    reason = reason,
+    summary = self:_build_run_end_summary(),
+    save_cleanup_failed = save_cleanup_failed,
+  }))
+end
+
+---@return nil
+function GameScene:_abandon_run()
+  self.settings_overlay:close()
+  self:_finish_run('abandon')
+end
+
+---@return boolean
+function GameScene:_has_next_floor()
+  return self.map.current_floor_index < self.map:get_total_floors()
+end
+
+---@return nil
+function GameScene:_advance_to_next_floor()
+  if not self:_has_next_floor() then
+    self:_finish_run('victory')
+    return
+  end
+
+  self.map:advance_floor()
+  self.phase = START_NODE_SELECT
+  print(i18n.t("combat.floor_cleared"))
+  self:_reset_world_position_for_current_floor()
+  self:_write_checkpoint('start_node_select')
+  local floor = self.map:get_current_floor()
+  self:_show_start_node_select(floor and floor:get_start_nodes() or {})
+end
+
 function GameScene:_check_next_move()
   if not self.current_node then
     return
   end
 
-  local floor = self.map:get_current_floor()
-  local edges = floor:get_edges_from(self.current_node)
+  local edges = self:_get_outgoing_edges()
 
   if #edges == 0 then
-    print(i18n.t("combat.floor_cleared"))
+    self:_advance_to_next_floor()
     return
   elseif #edges == 1 then
-    self:_start_traveling(edges[1]:get_to_node())
+    local started = self:_on_edge_selected(edges[1])
+    if started == false then
+      self:_show_edge_select(edges)
+    end
   else
     self:_show_edge_select(edges)
   end
+end
+
+---@return Edge[]
+function GameScene:_get_outgoing_edges()
+  if not self.current_node then
+    return {}
+  end
+
+  local floor = self.map and self.map:get_current_floor() or nil
+  if not floor or not floor.get_edges_from then
+    return {}
+  end
+
+  return floor:get_edges_from(self.current_node) or {}
 end
 
 --- 이동 시작
@@ -475,6 +854,7 @@ function GameScene:_on_arrived()
   self.phase = ARRIVING
   local arrived_node = self.target_node
   self.target_node = nil
+  self.pending_target_node_id = nil
   if not arrived_node then
     return
   end
@@ -509,8 +889,10 @@ function GameScene:_enter_current_node()
 
   local node_type = self.current_node:get_type()
   if node_type == "combat" then
+    self:_write_checkpoint('combat_start')
     self:_enter_combat()
   elseif node_type == "event" then
+    self:_write_checkpoint('event_start')
     self:_enter_event()
   else
     self:_check_next_move()
@@ -608,6 +990,12 @@ function GameScene:_on_combat_ended(result)
     print(i18n.t("combat.defeat"))
   end
 
+  if result == "victory" then
+    self:_checkpoint_post_resolution()
+  elseif result == "defeat" then
+    self:_clear_active_run()
+  end
+
   flux.to(self.combat_handler, 0.4, {enemy_world_x = self.hero_world_x + 800})
     :ease("quadin")
   flux.to(self.combat_handler, 0.3, {ui_offset_y = 200})
@@ -665,6 +1053,7 @@ end
 
 --- 이벤트 종료 처리
 function GameScene:_on_event_ended()
+  self:_checkpoint_post_resolution()
   self.phase = EXITING_EVENT
   self.event_handler:deactivate()
 
@@ -682,6 +1071,18 @@ function GameScene:_enter_settlement_or_continue()
     self:_show_next_reward_offer()
     return
   end
+  self.phase = ARRIVING
+  self:_continue_after_settlement()
+end
+
+---@return nil
+function GameScene:_continue_after_settlement()
+  if #self:_get_outgoing_edges() == 0 then
+    self:_advance_to_next_floor()
+    return
+  end
+
+  self:_write_checkpoint('path_ready')
   self:_check_next_move()
 end
 
@@ -690,10 +1091,11 @@ function GameScene:_show_next_reward_offer()
   local offer = self.reward_manager:peek_offer()
   if not offer then
     self.phase = ARRIVING
-    self:_check_next_move()
+    self:_continue_after_settlement()
     return
   end
 
+  self:_write_checkpoint('reward_offer_presented')
   self.reward_handler:start_offer(offer, {
     hero = self.hero,
   }, function(selected_option)
@@ -727,13 +1129,13 @@ function GameScene:_show_edge_select(edges)
 
   if not self.edge_select_handler then
     self.edge_select_handler = EdgeSelectHandler:new(edges, function(edge)
-      self:_on_edge_selected(edge)
+      return self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
     }, self.run_context:get_stream('gameplay.path_choice'))
   else
     self.edge_select_handler:setup(edges, function(edge)
-      self:_on_edge_selected(edge)
+      return self:_on_edge_selected(edge)
     end, {
       hero = self.hero,
     })
@@ -744,8 +1146,17 @@ end
 
 --- 경로 선택 완료 처리
 ---@param edge Edge
+---@return boolean
 function GameScene:_on_edge_selected(edge)
-  self:_start_traveling(edge:get_to_node())
+  local target_node = edge:get_to_node()
+  self.pending_target_node_id = target_node and target_node.id or nil
+  local wrote_checkpoint = self:_write_checkpoint('travel_start')
+  if not wrote_checkpoint then
+    self.pending_target_node_id = nil
+    return false
+  end
+  self:_start_traveling(target_node)
+  return true
 end
 
 ---@return nil

@@ -168,7 +168,8 @@ function ClassName:method(name, optional_param)
 ./scripts/check_love.sh
 ```
 
-- 내부적으로 `FRDY_CI_CHECK=1 timeout|gtimeout 5 love .`를 실행
+- 기본 경로는 `FRDY_CI_CHECK=1 timeout|gtimeout 5 love .` 실행
+- SDL 비디오 초기화 실패처럼 디스플레이가 없는 자동화 환경으로 판단되면 Lua headless bootstrap smoke check로 자동 전환
 - `timeout` 또는 `gtimeout`을 자동 감지해 사용
 - 5초 타임아웃(124) + 에러 로그 없음이면 정상으로 간주
 - **exit code 0** = 정상

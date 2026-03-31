@@ -1,6 +1,7 @@
 local TestHelper = require('tests.test_helper')
 local Fixtures = require('tests.helpers.fixtures')
 local RewardCatalog = require('src.reward.reward_catalog')
+local i18n = require('src.i18n.init')
 
 local suite = {}
 
@@ -101,6 +102,40 @@ function suite.test_same_seed_builds_same_demon_offer_options()
   TestHelper.assert_true(offer_a ~= nil)
   TestHelper.assert_true(offer_b ~= nil)
   TestHelper.assert_equal(option_signature(offer_a), option_signature(offer_b))
+end
+
+---@return nil
+function suite.test_restored_current_offer_relocalizes_to_current_locale()
+  i18n.load('en', require('src.i18n.locales.en'))
+  i18n.load('ko', require('src.i18n.locales.ko'))
+
+  local previous_locale = i18n.get_locale()
+  i18n.set_locale('en')
+
+  local fixture = Fixtures.create_reward_fixture(20260323)
+  fixture.reward_manager:enqueue_offer('legendary_item', 'elite_combat', 1)
+  local offer = fixture.reward_manager:peek_offer()
+  TestHelper.assert_true(offer ~= nil)
+
+  local snapshot = fixture.reward_manager:snapshot()
+  TestHelper.assert_true(snapshot.current_offer ~= nil)
+  TestHelper.assert_true(snapshot.current_offer.options[1].display_text == nil)
+  TestHelper.assert_true(snapshot.current_offer.options[1].description == nil)
+
+  i18n.set_locale('ko')
+
+  local restored_fixture = Fixtures.create_reward_fixture(20260323)
+  restored_fixture.reward_manager:restore(snapshot)
+  local restored_offer = restored_fixture.reward_manager:peek_offer()
+  local restored_option = restored_offer and restored_offer.options and restored_offer.options[1] or nil
+
+  TestHelper.assert_true(restored_option ~= nil)
+  TestHelper.assert_true(restored_option.display_text ~= nil)
+  TestHelper.assert_true(restored_option.description ~= nil)
+  TestHelper.assert_true(restored_option.display_text ~= offer.options[1].display_text)
+  TestHelper.assert_true(restored_option.description ~= offer.options[1].description)
+
+  i18n.set_locale(previous_locale)
 end
 
 return suite
