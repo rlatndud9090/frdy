@@ -450,10 +450,10 @@ function GameScene:_checkpoint_post_resolution()
   end
 
   if #self:_get_outgoing_edges() == 0 then
-    if self:_has_next_floor() then
-      self:_write_checkpoint('floor_transition_pending')
-    else
+    if self:_is_last_floor() then
       self:_clear_active_run()
+    else
+      self:_write_checkpoint('floor_transition_pending')
     end
     return
   end
@@ -749,24 +749,25 @@ function GameScene:_abandon_run()
 end
 
 ---@return boolean
-function GameScene:_has_next_floor()
-  return self.map.current_floor_index < self.map:get_total_floors()
+function GameScene:_is_last_floor()
+  if not self.map or not self.map.get_total_floors then
+    return true
+  end
+
+  return self.map.current_floor_index >= self.map:get_total_floors()
 end
 
----@return nil
+---@return boolean
 function GameScene:_advance_to_next_floor()
-  if not self:_has_next_floor() then
-    self:_finish_run('victory')
-    return
+  if self:_is_last_floor() then
+    return false
   end
 
   self.map:advance_floor()
-  self.phase = START_NODE_SELECT
-  print(i18n.t("combat.floor_cleared"))
   self:_reset_world_position_for_current_floor()
   self:_write_checkpoint('start_node_select')
-  local floor = self.map:get_current_floor()
-  self:_show_start_node_select(floor and floor:get_start_nodes() or {})
+  self:_show_start_node_select(self.map:get_current_floor():get_start_nodes())
+  return true
 end
 
 function GameScene:_check_next_move()
@@ -777,7 +778,10 @@ function GameScene:_check_next_move()
   local edges = self:_get_outgoing_edges()
 
   if #edges == 0 then
-    self:_advance_to_next_floor()
+    print(i18n.t("combat.floor_cleared"))
+    if not self:_advance_to_next_floor() then
+      self:_finish_run('victory')
+    end
     return
   elseif #edges == 1 then
     local started = self:_on_edge_selected(edges[1])
@@ -1044,7 +1048,9 @@ end
 ---@return nil
 function GameScene:_continue_after_settlement()
   if #self:_get_outgoing_edges() == 0 then
-    self:_advance_to_next_floor()
+    if not self:_advance_to_next_floor() then
+      self:_finish_run('victory')
+    end
     return
   end
 

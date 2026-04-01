@@ -7,12 +7,12 @@ local RunSaveValidators = {}
 
 local CHECKPOINT_KINDS = {
   start_node_select = true,
-  floor_transition_pending = true,
   combat_start = true,
   event_start = true,
   reward_offer_presented = true,
   path_ready = true,
   travel_start = true,
+  floor_transition_pending = true,
 }
 
 local ACTION_PATTERN_TYPES = {
