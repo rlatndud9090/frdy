@@ -83,6 +83,7 @@ return {
   ["combat.defense_badge"] = "방어 {value}",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
+  ["combat.restart_prompt"] = "아무 키 또는 클릭으로 다시 시작",
 
   -- Entities
   ["entity.hero"] = "용사",

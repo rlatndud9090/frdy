@@ -83,6 +83,7 @@ return {
   ["combat.defense_badge"] = "DEF {value}",
   ["combat.floor_cleared"] = "Floor cleared!",
   ["combat.defeat"] = "Defeat! Game Over",
+  ["combat.restart_prompt"] = "Press any key or click to restart",
 
   -- Entities
   ["entity.hero"] = "Hero",
