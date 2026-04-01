@@ -109,9 +109,11 @@ end
 ---@param start_index? number
 ---@return boolean
 function TimelineManager:_has_actor_slot_intervention_from(start_index)
+  local threshold = start_index or 1
   for _, intervention in ipairs(self.interventions) do
     local itype = intervention.type
-    if itype == "swap" or itype == "delay" or itype == "remove" then
+    local index = intervention.index or 1
+    if (itype == "swap" or itype == "delay" or itype == "remove") and index >= threshold then
       return true
     end
   end
