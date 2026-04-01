@@ -94,4 +94,34 @@ function suite.test_recalculate_from_preserves_actor_slot_for_suffix_delay()
   )
 end
 
+---@return nil
+function suite.test_actor_slot_intervention_detects_cross_boundary_swap_and_delay()
+  local manager = create_fixture()
+  manager.interventions = {
+    {type = "swap", index = 2, a = 2, b = 5},
+    {type = "delay", index = 1, to_index = 4},
+  }
+
+  TestHelper.assert_true(
+    manager:_has_actor_slot_intervention_from(4),
+    "시작 인덱스 이전에서 시작해도 suffix까지 닿는 swap/delay는 actor-slot 개입으로 유지되어야 합니다."
+  )
+end
+
+---@return nil
+function suite.test_recalculate_from_preserves_actor_slot_for_cross_boundary_swap()
+  local manager, calls = create_fixture()
+  manager.interventions = {
+    {type = "swap", index = 2, a = 2, b = 5},
+  }
+
+  manager:_recalculate_from(4)
+
+  TestHelper.assert_equal(#calls, 1, "재계산 호출이 한 번 발생해야 합니다.")
+  TestHelper.assert_true(
+    calls[1].preserve_actor_slots,
+    "교차 경계 swap은 suffix 재계산에서도 actor-slot 보존을 유지해야 합니다."
+  )
+end
+
 return suite
