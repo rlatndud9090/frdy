@@ -124,4 +124,33 @@ function suite.test_recalculate_from_preserves_actor_slot_for_cross_boundary_swa
   )
 end
 
+---@return nil
+function suite.test_actor_slot_intervention_keeps_remove_for_later_suffix_recalc()
+  local manager = create_fixture()
+  manager.interventions = {
+    {type = "remove", index = 1},
+  }
+
+  TestHelper.assert_true(
+    manager:_has_actor_slot_intervention_from(3),
+    "앞쪽 remove는 이후 suffix 재계산에서도 actor-slot 보존을 유지해야 합니다."
+  )
+end
+
+---@return nil
+function suite.test_recalculate_from_preserves_actor_slot_after_prefix_remove()
+  local manager, calls = create_fixture()
+  manager.interventions = {
+    {type = "remove", index = 1},
+  }
+
+  manager:_recalculate_from(3)
+
+  TestHelper.assert_equal(#calls, 1, "재계산 호출이 한 번 발생해야 합니다.")
+  TestHelper.assert_true(
+    calls[1].preserve_actor_slots,
+    "앞쪽 remove 이후의 suffix 재계산은 actor-slot 보존을 유지해야 합니다."
+  )
+end
+
 return suite

@@ -110,6 +110,9 @@ end
 ---@param intervention table
 ---@return number
 local function get_actor_slot_intervention_max_index(intervention)
+  if intervention.type == "remove" then
+    return math.huge
+  end
   if intervention.type == "swap" then
     return math.max(intervention.a or intervention.index or 1, intervention.b or intervention.index or 1)
   end
