@@ -107,11 +107,29 @@ function TimelineManager:_recalculate_from(start_index, force_preserve_actor_slo
 end
 
 ---@param start_index? number
+---@param intervention table
+---@return number
+local function get_actor_slot_intervention_max_index(intervention)
+  if intervention.type == "remove" then
+    return math.huge
+  end
+  if intervention.type == "swap" then
+    return math.max(intervention.a or intervention.index or 1, intervention.b or intervention.index or 1)
+  end
+  if intervention.type == "delay" then
+    return math.max(intervention.index or 1, intervention.to_index or intervention.index or 1)
+  end
+  return intervention.index or 1
+end
+
+---@param start_index? number
 ---@return boolean
 function TimelineManager:_has_actor_slot_intervention_from(start_index)
+  local threshold = start_index or 1
   for _, intervention in ipairs(self.interventions) do
     local itype = intervention.type
-    if itype == "swap" or itype == "delay" or itype == "remove" then
+    local max_index = get_actor_slot_intervention_max_index(intervention)
+    if (itype == "swap" or itype == "delay" or itype == "remove") and max_index >= threshold then
       return true
     end
   end
