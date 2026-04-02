@@ -1163,7 +1163,7 @@ function GameScene:_show_edge_select(edges)
     })
   end
 
-  self.edge_selectHandler:activate()
+  self.edge_select_handler:activate()
 end
 
 --- 경로 선택 완료 처리
