@@ -601,6 +601,47 @@ function suite.test_on_suspicion_max_finishes_run_once_with_detected_reason()
 end
 
 ---@return nil
+function suite.test_on_combat_ended_ignores_reentry_after_run_end_lock()
+  local deactivated = false
+  local recovered = false
+  local checkpointed = false
+  local cleared = false
+  local scene = {
+    run_end_locked = true,
+    combat_handler = {
+      deactivate = function()
+        deactivated = true
+      end,
+    },
+    mana_manager = {
+      recover_after_combat = function()
+        recovered = true
+      end,
+    },
+    reward_manager = {
+      prepare_combat_settlement = function()
+        checkpointed = true
+      end,
+    },
+    _checkpoint_post_resolution = function()
+      checkpointed = true
+    end,
+    _clear_active_run = function()
+      cleared = true
+      return true
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_on_combat_ended('victory')
+
+  TestHelper.assert_false(deactivated)
+  TestHelper.assert_false(recovered)
+  TestHelper.assert_false(checkpointed)
+  TestHelper.assert_false(cleared)
+end
+
+---@return nil
 function suite.test_clear_active_run_invalidates_save_when_cleanup_fails()
   local invalidated_reason = nil
   local feedback_text = nil
