@@ -1000,6 +1000,10 @@ end
 --- 전투 종료 처리
 ---@param result string
 function GameScene:_on_combat_ended(result)
+  if self.run_end_locked then
+    return
+  end
+
   self.phase = EXITING_COMBAT
   self.combat_handler:deactivate()
 
@@ -1159,7 +1163,7 @@ function GameScene:_show_edge_select(edges)
     })
   end
 
-  self.edge_select_handler:activate()
+  self.edge_selectHandler:activate()
 end
 
 --- 경로 선택 완료 처리
