@@ -465,8 +465,8 @@ function suite.test_restore_from_save_returns_error_when_checkpoint_resume_raise
         return {
           checkpoint = {
             kind = 'path_ready',
-          }, nil
-        }
+          },
+        }, nil
       end,
     },
     _resume_from_checkpoint = function()
