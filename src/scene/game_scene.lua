@@ -1057,13 +1057,25 @@ end
 
 --- 이벤트 종료 처리
 function GameScene:_on_event_ended()
-  self:_checkpoint_post_resolution()
   self.phase = EXITING_EVENT
   self.event_handler:deactivate()
+
+  local hero_alive = true
+  if self.hero and self.hero.is_alive then
+    hero_alive = self.hero:is_alive()
+  end
+
+  if hero_alive then
+    self:_checkpoint_post_resolution()
+  end
 
   flux.to(self.event_handler, 0.3, {panel_alpha = 0, panel_y = -200})
     :ease("quadin")
     :oncomplete(function()
+      if self.hero and self.hero.is_alive and not self.hero:is_alive() then
+        self:_enter_game_over()
+        return
+      end
       self:_enter_settlement_or_continue()
     end)
 end
