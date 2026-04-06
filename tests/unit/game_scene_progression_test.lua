@@ -606,11 +606,11 @@ function suite.test_finish_run_passes_save_cleanup_failure_to_run_end_scene()
 end
 
 ---@return nil
-function suite.test_on_event_ended_finishes_run_on_lethal_event_damage()
+function suite.test_on_event_ended_enters_game_over_on_lethal_event_damage()
   local deactivated = false
   local checkpointed = false
   local entered_settlement = false
-  local finished_reason = nil
+  local entered_game_over = false
   local scene = {
     hero = {
       is_alive = function()
@@ -630,8 +630,8 @@ function suite.test_on_event_ended_finishes_run_on_lethal_event_damage()
     _enter_settlement_or_continue = function()
       entered_settlement = true
     end,
-    _finish_run = function(_, reason)
-      finished_reason = reason
+    _enter_game_over = function()
+      entered_game_over = true
     end,
   }
   setmetatable(scene, {__index = GameScene})
@@ -642,7 +642,7 @@ function suite.test_on_event_ended_finishes_run_on_lethal_event_damage()
   TestHelper.assert_true(deactivated)
   TestHelper.assert_false(checkpointed)
   TestHelper.assert_false(entered_settlement)
-  TestHelper.assert_equal(finished_reason, 'death')
+  TestHelper.assert_true(entered_game_over)
 end
 
 ---@return nil
@@ -650,7 +650,7 @@ function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
   local deactivated = false
   local checkpointed = false
   local entered_settlement = false
-  local finished_reason = nil
+  local entered_game_over = false
   local scene = {
     hero = {
       is_alive = function()
@@ -670,8 +670,8 @@ function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
     _enter_settlement_or_continue = function()
       entered_settlement = true
     end,
-    _finish_run = function(_, reason)
-      finished_reason = reason
+    _enter_game_over = function()
+      entered_game_over = true
     end,
   }
   setmetatable(scene, {__index = GameScene})
@@ -682,7 +682,7 @@ function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
   TestHelper.assert_true(deactivated)
   TestHelper.assert_true(checkpointed)
   TestHelper.assert_true(entered_settlement)
-  TestHelper.assert_equal(finished_reason, nil)
+  TestHelper.assert_false(entered_game_over)
 end
 
 ---@return nil
