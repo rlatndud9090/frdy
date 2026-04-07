@@ -169,6 +169,8 @@ classDiagram
 
   EventManager --> Event
   Event --> Choice
+  Spell --> ManaManager
+  Spell --> SuspicionManager
 ```
 
 ## 6) 핸들러 / UI 계층
@@ -235,4 +237,4 @@ classDiagram
 ## 문서 메타
 
 - 문서 기준: `origin/main`
-- Last Updated: 2026-03-12
+- Last Updated: 2026-04-07
