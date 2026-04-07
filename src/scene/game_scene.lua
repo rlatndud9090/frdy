@@ -1073,6 +1073,7 @@ function GameScene:_on_event_ended()
     :ease("quadin")
     :oncomplete(function()
       if self.hero and self.hero.is_alive and not self.hero:is_alive() then
+        self:_clear_active_run()
         self:_enter_game_over()
         return
       end
