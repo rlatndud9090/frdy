@@ -169,9 +169,6 @@ classDiagram
 
   EventManager --> Event
   Event --> Choice
-
-  SpellBook --> ManaManager
-  Spell --> SuspicionManager
 ```
 
 ## 6) 핸들러 / UI 계층
@@ -200,6 +197,8 @@ classDiagram
 
   CombatHandler --> TimelineUI
   CombatHandler --> SpellBookOverlay
+  CombatHandler --> ManaManager
+  CombatHandler --> SuspicionManager
   EventHandler --> Button
   RewardHandler --> Button
   EdgeSelectHandler --> EdgeSelector
@@ -211,8 +210,6 @@ classDiagram
   SpellBookOverlay --|> UIElement
   EdgeSelector --|> UIElement
   Minimap --|> UIElement
-  MapOverlay --|> UIElement
-  SettingsOverlay --|> UIElement
 
   MainMenuScene --> SettingsOverlay
   GameScene --> CombatHandler
