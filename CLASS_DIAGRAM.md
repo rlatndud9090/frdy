@@ -169,8 +169,7 @@ classDiagram
 
   EventManager --> Event
   Event --> Choice
-
-  SpellBook --> ManaManager
+  Spell --> ManaManager
   Spell --> SuspicionManager
 ```
 
@@ -200,6 +199,8 @@ classDiagram
 
   CombatHandler --> TimelineUI
   CombatHandler --> SpellBookOverlay
+  CombatHandler --> ManaManager
+  CombatHandler --> SuspicionManager
   EventHandler --> Button
   RewardHandler --> Button
   EdgeSelectHandler --> EdgeSelector
@@ -211,8 +212,6 @@ classDiagram
   SpellBookOverlay --|> UIElement
   EdgeSelector --|> UIElement
   Minimap --|> UIElement
-  MapOverlay --|> UIElement
-  SettingsOverlay --|> UIElement
 
   MainMenuScene --> SettingsOverlay
   GameScene --> CombatHandler
@@ -238,4 +237,4 @@ classDiagram
 ## 문서 메타
 
 - 문서 기준: `origin/main`
-- Last Updated: 2026-03-12
+- Last Updated: 2026-04-07

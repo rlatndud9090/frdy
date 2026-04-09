@@ -2,6 +2,7 @@ local TestHelper = require('tests.test_helper')
 local GameScene = require('src.scene.game_scene')
 local Game = require('src.core.game')
 local EventBus = require('src.core.event_bus')
+local flux = require('lib.flux')
 
 local suite = {}
 local original_game_get_instance = Game.getInstance
@@ -10,6 +11,7 @@ local original_run_end_scene_module = nil
 
 function suite.before_each()
   original_run_end_scene_module = package.loaded['src.scene.run_end_scene']
+  flux.tweens = {}
 end
 
 function suite.after_each()
@@ -18,6 +20,7 @@ function suite.after_each()
     Game.static.getInstance = original_game_static_get_instance
   end
   package.loaded['src.scene.run_end_scene'] = original_run_end_scene_module
+  flux.tweens = {}
 end
 
 local function build_fake_scene(edge_count, has_pending_offers, current_floor_index, total_floors)
@@ -639,6 +642,98 @@ function suite.test_on_combat_ended_ignores_reentry_after_run_end_lock()
   TestHelper.assert_false(recovered)
   TestHelper.assert_false(checkpointed)
   TestHelper.assert_false(cleared)
+end
+
+---@return nil
+function suite.test_on_event_ended_enters_game_over_on_lethal_event_damage()
+  local deactivated = false
+  local checkpointed = false
+  local entered_settlement = false
+  local entered_game_over = false
+  local cleared_run = false
+  local scene = {
+    hero = {
+      is_alive = function()
+        return false
+      end,
+    },
+    event_handler = {
+      panel_alpha = 1,
+      panel_y = 0,
+      deactivate = function()
+        deactivated = true
+      end,
+    },
+    _checkpoint_post_resolution = function()
+      checkpointed = true
+    end,
+    _enter_settlement_or_continue = function()
+      entered_settlement = true
+    end,
+    _clear_active_run = function()
+      cleared_run = true
+      return true
+    end,
+    _enter_game_over = function()
+      entered_game_over = true
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_on_event_ended()
+  flux.update(1)
+
+  TestHelper.assert_true(deactivated)
+  TestHelper.assert_false(checkpointed)
+  TestHelper.assert_false(entered_settlement)
+  TestHelper.assert_true(cleared_run)
+  TestHelper.assert_true(entered_game_over)
+end
+
+---@return nil
+function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
+  local deactivated = false
+  local checkpointed = false
+  local entered_settlement = false
+  local entered_game_over = false
+  local cleared_run = false
+  local scene = {
+    hero = {
+      is_alive = function()
+        return true
+      end,
+    },
+    event_handler = {
+      panel_alpha = 1,
+      panel_y = 0,
+      deactivate = function()
+        deactivated = true
+      end,
+    },
+    _checkpoint_post_resolution = function()
+      checkpointed = true
+    end,
+    _enter_settlement_or_continue = function()
+      entered_settlement = true
+    end,
+    _clear_active_run = function()
+      cleared_run = true
+      return true
+    end,
+    _enter_game_over = function()
+      entered_game_over = true
+    end,
+  }
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_on_event_ended()
+  flux.update(1)
+
+  TestHelper.assert_true(deactivated)
+  TestHelper.assert_true(checkpointed)
+  TestHelper.assert_true(entered_settlement)
+  TestHelper.assert_false(cleared_run)
+  TestHelper.assert_false(entered_game_over)
 end
 
 ---@return nil
