@@ -1,11 +1,13 @@
 local TestHelper = require('tests.test_helper')
 local flux = require('lib.flux')
 local GameScene = require('src.scene.game_scene')
+local Game = require('src.core.game')
 
 local suite = {}
 
 ---@return table
 local function create_fake_scene()
+  local switched_scene = nil
   local scene = {
     phase = "COMBAT",
     hero_world_x = 120,
@@ -20,6 +22,15 @@ local function create_fake_scene()
     _settlement_called = 0,
     _checkpoint_called = 0,
     _clear_active_run_called = 0,
+    _unsubscribe_called = 0,
+    map = {
+      current_floor_index = 2,
+    },
+    hero = {
+      get_level = function()
+        return 4
+      end,
+    },
   }
 
   function scene.combat_handler:deactivate()
@@ -48,11 +59,27 @@ local function create_fake_scene()
     return true
   end
 
+  function scene:_unsubscribe_runtime_events()
+    self._unsubscribe_called = self._unsubscribe_called + 1
+  end
+
+  local game_instance = {
+    switch_scene = function(_, next_scene)
+      switched_scene = next_scene
+    end,
+  }
+  scene._game_instance = game_instance
+  scene._get_switched_scene = function()
+    return switched_scene
+  end
+
   return setmetatable(scene, {__index = GameScene})
 end
 
 function suite.before_each()
   suite._original_flux_to = flux.to
+  suite._original_game_static_get_instance = Game.static and Game.static.getInstance or nil
+
   flux.to = function()
     local tween = {}
 
@@ -73,19 +100,32 @@ end
 
 function suite.after_each()
   flux.to = suite._original_flux_to
+  if Game.static then
+    Game.static.getInstance = suite._original_game_static_get_instance
+  end
 end
 
 ---@return nil
-function suite.test_on_combat_ended_defeat_enters_game_over_state()
+function suite.test_on_combat_ended_defeat_finishes_run_once()
   local scene = create_fake_scene()
+  if Game.static then
+    Game.static.getInstance = function()
+      return scene._game_instance
+    end
+  end
 
   scene:_on_combat_ended("defeat")
 
+  local switched_scene = scene._get_switched_scene()
   TestHelper.assert_true(scene._combat_deactivated == true, "전투 핸들러 비활성화가 필요합니다.")
   TestHelper.assert_equal(scene._mana_recovered, 30, "전투 종료 마나 회복량이 유지되어야 합니다.")
-  TestHelper.assert_equal(scene._clear_active_run_called, 1, "패배 시 세이브 정리가 호출되어야 합니다.")
-  TestHelper.assert_equal(scene.phase, "GAME_OVER", "패배 후 GAME_OVER 상태로 전환되어야 합니다.")
+  TestHelper.assert_equal(scene._clear_active_run_called, 1, "패배 시 세이브 정리는 한 번만 호출되어야 합니다.")
   TestHelper.assert_equal(scene._settlement_called, 0, "패배 시 정산/다음 이동으로 진행되면 안 됩니다.")
+  TestHelper.assert_equal(scene._unsubscribe_called, 1, "런 종료 시 런타임 이벤트 구독을 해제해야 합니다.")
+  TestHelper.assert_true(switched_scene ~= nil, "패배 후 런 종료 씬으로 전환되어야 합니다.")
+  TestHelper.assert_equal(switched_scene.reason, "death", "패배 시 death 사유로 런 종료가 기록되어야 합니다.")
+  TestHelper.assert_equal(switched_scene.summary.floor, 2, "런 종료 요약에 현재 층이 반영되어야 합니다.")
+  TestHelper.assert_equal(switched_scene.summary.level, 4, "런 종료 요약에 현재 레벨이 반영되어야 합니다.")
 end
 
 ---@return nil

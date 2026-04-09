@@ -40,7 +40,6 @@ local EXITING_EVENT = "EXITING_EVENT"
 local SETTLEMENT = "SETTLEMENT"
 local EDGE_SELECT = "EDGE_SELECT"
 local START_NODE_SELECT = "START_NODE_SELECT"
-local GAME_OVER = "GAME_OVER"
 local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 
 ---@class GameScene : Scene
@@ -77,6 +76,9 @@ local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 ---@field save_feedback_text string|nil
 ---@field save_feedback_timer number
 ---@field initial_checkpoint_committed boolean
+---@field runtime_event_bus EventBus|nil
+---@field suspicion_max_callback function|nil
+---@field run_end_locked boolean
 local GameScene = class('GameScene', Scene)
 
 ---@return number
@@ -126,6 +128,7 @@ end
 ---@return nil
 function GameScene:_initialize_runtime(run_seed)
   self.run_seed = run_seed or self:_resolve_run_seed()
+  self.run_end_locked = false
   self.run_context = RunContext:new(self.run_seed)
   local map_rng = self.run_context:get_stream('gameplay.map')
   self.enemy_rng = self.run_context:get_stream('gameplay.enemy')
@@ -193,6 +196,7 @@ function GameScene:_initialize_runtime(run_seed)
     self:_on_event_ended()
   end)
   self.reward_handler = RewardHandler:new(self.run_context:get_stream('gameplay.reward_choice'))
+  self:_subscribe_runtime_events(event_bus)
 
   self.edge_select_handler = nil
   self.overlay_alpha = 0
@@ -201,6 +205,33 @@ function GameScene:_initialize_runtime(run_seed)
   self.save_feedback_timer = 0
   self:_reset_world_position_for_current_floor()
   self:_initialize_save_coordinator()
+end
+
+---@param event_bus EventBus|nil
+---@return nil
+function GameScene:_subscribe_runtime_events(event_bus)
+  self:_unsubscribe_runtime_events()
+  self.runtime_event_bus = event_bus
+
+  if not event_bus or type(event_bus.subscribe) ~= 'function' then
+    return
+  end
+
+  self.suspicion_max_callback = function()
+    self:_on_suspicion_max()
+  end
+  event_bus:subscribe('suspicion_max', self.suspicion_max_callback)
+end
+
+---@return nil
+function GameScene:_unsubscribe_runtime_events()
+  local event_bus = self.runtime_event_bus
+  if event_bus and self.suspicion_max_callback and type(event_bus.unsubscribe) == 'function' then
+    event_bus:unsubscribe('suspicion_max', self.suspicion_max_callback)
+  end
+
+  self.runtime_event_bus = nil
+  self.suspicion_max_callback = nil
 end
 
 ---@return nil
@@ -451,10 +482,10 @@ function GameScene:_checkpoint_post_resolution()
   end
 
   if #self:_get_outgoing_edges() == 0 then
-    if self:_is_last_floor() then
-      self:_clear_active_run()
-    else
+    if self:_has_next_floor() then
       self:_write_checkpoint('floor_transition_pending')
+    else
+      self:_clear_active_run()
     end
     return
   end
@@ -642,28 +673,10 @@ function GameScene:_draw_ui()
   love.graphics.setColor(1, 1, 1)
   love.graphics.print("Phase: " .. self.phase, 10, 700)
 
-  if self.phase == GAME_OVER then
-    self:_draw_game_over_overlay()
-  end
   if self.save_feedback_text then
     love.graphics.setColor(0.95, 0.62, 0.48, 1)
     love.graphics.printf(self.save_feedback_text, 0, 672, love.graphics.getWidth(), 'center')
   end
-end
-
----@return nil
-function GameScene:_draw_game_over_overlay()
-  local width = love.graphics.getWidth()
-  local height = love.graphics.getHeight()
-
-  love.graphics.setColor(0, 0, 0, 0.72)
-  love.graphics.rectangle("fill", 0, 0, width, height)
-
-  love.graphics.setColor(1, 0.2, 0.2, 1)
-  love.graphics.printf(i18n.t("combat.defeat"), 0, height * 0.45, width, "center")
-
-  love.graphics.setColor(1, 1, 1, 1)
-  love.graphics.printf(i18n.t("combat.restart_prompt"), 0, height * 0.53, width, "center")
 end
 
 ---@param key string
@@ -674,11 +687,6 @@ end
 
 ---@param key string
 function GameScene:keypressed(key)
-  if self.phase == GAME_OVER then
-    self:_restart_run()
-    return
-  end
-
   if self:_is_settings_input_locked() then
     self.settings_overlay:keypressed(key)
     return
@@ -715,11 +723,6 @@ end
 ---@param y number
 ---@param button number
 function GameScene:mousepressed(x, y, button)
-  if self.phase == GAME_OVER then
-    self:_restart_run()
-    return
-  end
-
   if self:_is_settings_input_locked() then
     self.settings_overlay:mousepressed(x, y, button)
     return
@@ -763,6 +766,8 @@ end
 ---@return nil
 function GameScene:_finish_run(reason)
   local RunEndScene = require('src.scene.run_end_scene')
+  self.run_end_locked = true
+  self:_unsubscribe_runtime_events()
   local save_cleanup_failed = not self:_clear_active_run()
   Game:getInstance():switch_scene(RunEndScene:new({
     reason = reason,
@@ -777,26 +782,43 @@ function GameScene:_abandon_run()
   self:_finish_run('abandon')
 end
 
----@return boolean
-function GameScene:_is_last_floor()
-  if not self.map or not self.map.get_total_floors then
-    return true
+---@return nil
+function GameScene:_on_suspicion_max()
+  if self.run_end_locked then
+    return
   end
 
-  return self.map.current_floor_index >= self.map:get_total_floors()
+  self.run_end_locked = true
+  if self.combat_handler and self.combat_handler.deactivate then
+    self.combat_handler:deactivate()
+  end
+  if self.settings_overlay and self.settings_overlay.close then
+    self.settings_overlay:close()
+  end
+
+  print(i18n.t('ui.run_detected_reason'))
+  self:_finish_run('detected')
 end
 
 ---@return boolean
+function GameScene:_has_next_floor()
+  return self.map.current_floor_index < self.map:get_total_floors()
+end
+
+---@return nil
 function GameScene:_advance_to_next_floor()
-  if self:_is_last_floor() then
-    return false
+  if not self:_has_next_floor() then
+    self:_finish_run('victory')
+    return
   end
 
   self.map:advance_floor()
+  self.phase = START_NODE_SELECT
+  print(i18n.t("combat.floor_cleared"))
   self:_reset_world_position_for_current_floor()
   self:_write_checkpoint('start_node_select')
-  self:_show_start_node_select(self.map:get_current_floor():get_start_nodes())
-  return true
+  local floor = self.map:get_current_floor()
+  self:_show_start_node_select(floor and floor:get_start_nodes() or {})
 end
 
 function GameScene:_check_next_move()
@@ -807,10 +829,7 @@ function GameScene:_check_next_move()
   local edges = self:_get_outgoing_edges()
 
   if #edges == 0 then
-    print(i18n.t("combat.floor_cleared"))
-    if not self:_advance_to_next_floor() then
-      self:_finish_run('victory')
-    end
+    self:_advance_to_next_floor()
     return
   elseif #edges == 1 then
     local started = self:_on_edge_selected(edges[1])
@@ -981,6 +1000,10 @@ end
 --- 전투 종료 처리
 ---@param result string
 function GameScene:_on_combat_ended(result)
+  if self.run_end_locked then
+    return
+  end
+
   self.phase = EXITING_COMBAT
   self.combat_handler:deactivate()
 
@@ -996,8 +1019,6 @@ function GameScene:_on_combat_ended(result)
 
   if result == "victory" then
     self:_checkpoint_post_resolution()
-  elseif result == "defeat" then
-    self:_clear_active_run()
   end
 
   flux.to(self.combat_handler, 0.4, {enemy_world_x = self.hero_world_x + 800})
@@ -1008,16 +1029,11 @@ function GameScene:_on_combat_ended(result)
     :ease("linear")
     :oncomplete(function()
       if result == "defeat" then
-        self:_enter_game_over()
+        self:_finish_run('death')
         return
       end
       self:_enter_settlement_or_continue()
     end)
-end
-
----@return nil
-function GameScene:_enter_game_over()
-  self.phase = GAME_OVER
 end
 
 --- 이벤트 진입 연출
@@ -1095,9 +1111,7 @@ end
 ---@return nil
 function GameScene:_continue_after_settlement()
   if #self:_get_outgoing_edges() == 0 then
-    if not self:_advance_to_next_floor() then
-      self:_finish_run('victory')
-    end
+    self:_advance_to_next_floor()
     return
   end
 
@@ -1176,17 +1190,6 @@ function GameScene:_on_edge_selected(edge)
   end
   self:_start_traveling(target_node)
   return true
-end
-
----@return nil
-function GameScene:_restart_run()
-  local game = Game:getInstance()
-  if not game.scene_manager then
-    return
-  end
-
-  local NewGameScene = require('src.scene.game_scene')
-  game.scene_manager:switch(NewGameScene:new())
 end
 
 ---@param x number

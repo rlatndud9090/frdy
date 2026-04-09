@@ -56,6 +56,9 @@ function RunEndScene:_resolve_reason_key()
   if self.reason == 'abandon' then
     return 'ui.run_abandon_reason'
   end
+  if self.reason == 'detected' then
+    return 'ui.run_detected_reason'
+  end
   return 'ui.run_death_reason'
 end
 

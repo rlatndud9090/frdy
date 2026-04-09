@@ -37,6 +37,7 @@ return {
   ["ui.run_cleared"] = "런 클리어",
   ["ui.run_abandoned"] = "런 포기",
   ["ui.run_death_reason"] = "용사가 쓰러졌습니다.",
+  ["ui.run_detected_reason"] = "의심이 최대치에 도달해 정체가 들통났습니다.",
   ["ui.run_victory_reason"] = "이번 런을 무사히 마무리했습니다.",
   ["ui.run_abandon_reason"] = "형님께서 이번 런을 포기하셨습니다.",
   ["ui.run_cleanup_failed"] = "런 종료 저장 정리에 실패했습니다. 이어하기가 남아 있을 수 있습니다.",
@@ -83,7 +84,6 @@ return {
   ["combat.defense_badge"] = "방어 {value}",
   ["combat.floor_cleared"] = "층 클리어!",
   ["combat.defeat"] = "패배! 게임 오버",
-  ["combat.restart_prompt"] = "아무 키 또는 클릭으로 다시 시작",
 
   -- Entities
   ["entity.hero"] = "용사",
