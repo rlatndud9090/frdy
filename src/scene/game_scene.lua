@@ -1019,8 +1019,6 @@ function GameScene:_on_combat_ended(result)
 
   if result == "victory" then
     self:_checkpoint_post_resolution()
-  elseif result == "defeat" then
-    self:_clear_active_run()
   end
 
   flux.to(self.combat_handler, 0.4, {enemy_world_x = self.hero_world_x + 800})
