@@ -77,6 +77,8 @@ local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 ---@field save_feedback_text string|nil
 ---@field save_feedback_timer number
 ---@field initial_checkpoint_committed boolean
+---@field game_over_reason string|nil
+---@field suspicion_max_listener fun(data?: table)|nil
 local GameScene = class('GameScene', Scene)
 
 ---@return number
@@ -197,10 +199,25 @@ function GameScene:_initialize_runtime(run_seed)
   self.edge_select_handler = nil
   self.overlay_alpha = 0
   self.phase = START_NODE_SELECT
+  self.game_over_reason = nil
   self.save_feedback_text = nil
   self.save_feedback_timer = 0
+  self:_subscribe_runtime_events(event_bus)
   self:_reset_world_position_for_current_floor()
   self:_initialize_save_coordinator()
+end
+
+---@param event_bus EventBus|nil
+---@return nil
+function GameScene:_subscribe_runtime_events(event_bus)
+  if not event_bus then
+    return
+  end
+
+  self.suspicion_max_listener = function(data)
+    self:_on_suspicion_max(data)
+  end
+  event_bus:subscribe("suspicion_max", self.suspicion_max_listener)
 end
 
 ---@return nil
@@ -660,10 +677,19 @@ function GameScene:_draw_game_over_overlay()
   love.graphics.rectangle("fill", 0, 0, width, height)
 
   love.graphics.setColor(1, 0.2, 0.2, 1)
-  love.graphics.printf(i18n.t("combat.defeat"), 0, height * 0.45, width, "center")
+  love.graphics.printf(self:_get_game_over_message(), 0, height * 0.45, width, "center")
 
   love.graphics.setColor(1, 1, 1, 1)
   love.graphics.printf(i18n.t("combat.restart_prompt"), 0, height * 0.53, width, "center")
+end
+
+---@return string
+function GameScene:_get_game_over_message()
+  if self.game_over_reason == "suspicion_max" then
+    return i18n.t("suspicion.game_over")
+  end
+
+  return i18n.t("combat.defeat")
 end
 
 ---@param key string
@@ -1008,16 +1034,34 @@ function GameScene:_on_combat_ended(result)
     :ease("linear")
     :oncomplete(function()
       if result == "defeat" then
-        self:_enter_game_over()
+        self:_enter_game_over("combat_defeat")
         return
       end
       self:_enter_settlement_or_continue()
     end)
 end
 
+---@param reason? string
 ---@return nil
-function GameScene:_enter_game_over()
+function GameScene:_enter_game_over(reason)
+  self.game_over_reason = reason or "combat_defeat"
   self.phase = GAME_OVER
+end
+
+---@param _data? table
+---@return nil
+function GameScene:_on_suspicion_max(_data)
+  if self.phase == GAME_OVER then
+    return
+  end
+
+  if self.combat_handler and self.combat_handler.deactivate then
+    self.combat_handler:deactivate()
+  end
+
+  self.overlay_alpha = 0
+  self:_clear_active_run()
+  self:_enter_game_over("suspicion_max")
 end
 
 --- 이벤트 진입 연출

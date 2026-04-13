@@ -1,5 +1,6 @@
 local TestHelper = require('tests.test_helper')
 local flux = require('lib.flux')
+local EventBus = require('src.core.event_bus')
 local GameScene = require('src.scene.game_scene')
 
 local suite = {}
@@ -100,6 +101,31 @@ function suite.test_on_combat_ended_victory_keeps_settlement_flow()
   TestHelper.assert_equal(scene._prepared_result, "victory", "승리 정산 준비가 호출되어야 합니다.")
   TestHelper.assert_equal(scene._prepared_node, scene.current_node, "정산 준비에 현재 노드가 전달되어야 합니다.")
   TestHelper.assert_equal(scene._settlement_called, 1, "승리 시 정산/다음 이동 흐름으로 진행되어야 합니다.")
+end
+
+---@return nil
+function suite.test_on_suspicion_max_enters_game_over_state()
+  local scene = create_fake_scene()
+  scene.phase = "EVENT"
+
+  scene:_on_suspicion_max({level = 100})
+
+  TestHelper.assert_true(scene._combat_deactivated == true, "의심 최대치 도달 시 전투 핸들러를 비활성화해야 합니다.")
+  TestHelper.assert_equal(scene._clear_active_run_called, 1, "의심 최대치 도달 시 세이브 정리가 호출되어야 합니다.")
+  TestHelper.assert_equal(scene.phase, "GAME_OVER", "의심 최대치 도달 시 GAME_OVER 상태로 전환되어야 합니다.")
+  TestHelper.assert_equal(scene.game_over_reason, "suspicion_max", "게임 오버 원인이 의심 최대치로 기록되어야 합니다.")
+end
+
+---@return nil
+function suite.test_subscribe_runtime_events_wires_suspicion_max_to_game_over()
+  local scene = create_fake_scene()
+  local event_bus = EventBus:new()
+
+  scene:_subscribe_runtime_events(event_bus)
+  event_bus:emit("suspicion_max", {level = 100})
+
+  TestHelper.assert_equal(scene.phase, "GAME_OVER", "의심 최대치 이벤트가 GAME_OVER 전이로 연결되어야 합니다.")
+  TestHelper.assert_equal(scene.game_over_reason, "suspicion_max", "이벤트 기반 게임 오버 원인이 보존되어야 합니다.")
 end
 
 return suite

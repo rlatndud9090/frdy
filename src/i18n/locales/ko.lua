@@ -187,6 +187,7 @@ return {
   -- Suspicion
   ["suspicion.increase"] = "의심 +{value}",
   ["suspicion.decrease"] = "의심 {value}",
+  ["suspicion.game_over"] = "의심이 극에 달해 정체가 들통났습니다",
 
   -- Mind control
   ["control.blocked_by_mental"] = "정신력이 높아 조종 불가 ({stage}단계 / 허용 {max}단계)",
