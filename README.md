@@ -59,7 +59,11 @@ tests/         # unit/integration 테스트
 
 ## 주요 문서
 
-- [GAME_CONCEPT.md](GAME_CONCEPT.md): 게임 설계/런타임 흐름(현재 코드 기준)
-- [CLASS_DIAGRAM.md](CLASS_DIAGRAM.md): 클래스/시스템 다이어그램
+- [docs/wiki/project/overview.md](docs/wiki/project/overview.md): 프로젝트 개요와 운영 원칙
+- [docs/wiki/systems/runtime-architecture.md](docs/wiki/systems/runtime-architecture.md): 게임 설계/런타임 흐름(현재 코드 기준)
+- [docs/wiki/systems/class-architecture.md](docs/wiki/systems/class-architecture.md): 클래스/시스템 다이어그램
+- [docs/wiki/SCHEMA.md](docs/wiki/SCHEMA.md): LLM Wiki 운영 스키마
+- [docs/wiki/RESOLVER.md](docs/wiki/RESOLVER.md): wiki/artifact 분기 규칙
+- [docs/artifacts/README.md](docs/artifacts/README.md): 작업 단위 아티팩트 운영 규칙
 - [AGENTS.md](AGENTS.md): 에이전트 작업 규칙 및 개발 가이드
 - [COMMIT_CONVENTION.md](COMMIT_CONVENTION.md): 커밋 규칙

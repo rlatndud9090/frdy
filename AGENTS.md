@@ -75,7 +75,9 @@ feat: 기능 추가했습니다.
 ## 프로젝트 구조
 
 - `main.lua`: Love2D 진입점
-- `GAME_CONCEPT.md`: 게임 설계 문서
+- `docs/wiki/`: LLM Wiki 현재형 지식층
+- `docs/artifacts/`: 작업 단위별 진실의 원천 아티팩트
+- `GAME_CONCEPT.md`: 호환성 포인터 (실제 최신 설계는 `docs/wiki/` 참조)
 - `COMMIT_CONVENTION.md`: 커밋 컨벤션 상세 문서
 - `.gitmessage`: Git 커밋 템플릿
 - `scripts/check_love.sh`: 무팝업 검증 스크립트
@@ -176,6 +178,21 @@ function ClassName:method(name, optional_param)
 - **에러 출력/비정상 종료** = 실패
 - 에러 발생 시 반드시 수정 후 재검증할 것
 
+### LLM Wiki / Artifact 가드레일 (필수)
+
+- `docs/wiki/`는 현재형 지식층이며, 에이전트는 기본적으로 이 계층을 먼저 읽는다.
+- `docs/artifacts/`는 작업 단위별 진실의 원천이다. 회의록, AI 대화, PRD, ADR, 실험 로그, 리뷰 메모는 모두 이 계층에 쌓는다.
+- `docs/artifacts/`는 기본 RAG 대상이 아니다. 위키 갱신, 근거 확인, 모순 해소가 필요할 때만 내려간다.
+- 브랜치에서 코드/데이터/테스트 작업을 시작할 때는 반드시 `./scripts/ensure_artifact_scaffold.sh`를 먼저 실행해 해당 작업 단위의 artifact scaffold를 만든다.
+- PR 전에는 `./scripts/check_artifact_guard.sh`를 통과해야 한다.
+- 위키 갱신은 기본적으로 머지 후 수행한다. PR 생성 전 위키 완료를 강제하지 않는다.
+- 다만 artifact의 `meta.md`에는 최소한 `status`, `wiki_sync_status`를 유지한다.
+- 위키 관련 요청이면 먼저 아래 문서를 읽는다.
+  - `docs/wiki/SCHEMA.md`
+  - `docs/wiki/RESOLVER.md`
+  - `docs/wiki/skills/wiki-query.md`
+  - `docs/wiki/skills/wiki-update.md`
+
 ### 테스트 작성 컨벤션 (필수)
 
 - `src/`, `data/` 하위 Lua 로직 변경 시 `tests/*_test.lua`를 함께 추가/수정한다.
@@ -184,8 +201,9 @@ function ClassName:method(name, optional_param)
 ### 문서 동기화 체크 (필수)
 
 - 코드 작업(PR) 마무리 전에 아래 문서의 최신화 필요 여부를 반드시 점검한다.
-  - `GAME_CONCEPT.md`
-  - `CLASS_DIAGRAM.md`
+  - `docs/wiki/project/overview.md`
+  - `docs/wiki/systems/runtime-architecture.md`
+  - `docs/wiki/systems/class-architecture.md`
   - `README.md`
 - 아키텍처/흐름/용어가 바뀌었다면 같은 PR에서 문서를 함께 갱신한다.
 - 문서 변경이 불필요한 경우, PR 설명에 불필요 판단 근거를 한 줄로 남긴다.

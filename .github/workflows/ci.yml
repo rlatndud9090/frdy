@@ -7,6 +7,18 @@ on:
       - main
 
 jobs:
+  artifact-required:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate artifact scaffold exists for code changes
+        run: ./scripts/check_artifact_guard.sh "origin/${{ github.base_ref }}"
+
   test-required:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
