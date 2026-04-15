@@ -1,0 +1,21 @@
+# Impl Handoff
+
+- issue: #66
+- owner_repo: rlatndud9090/frdy
+- branch_name: codex/issue-66-class-diagram-ui-hierarchy
+- judge_route: direct-impl
+- ralplan_artifacts: none
+- ralph_artifacts: none
+- validation_commands:
+  - ./scripts/run_tests.sh
+  - ./scripts/check_love.sh
+  - ./scripts/check_artifact_guard.sh
+- validation_summary:
+  - ./scripts/run_tests.sh: 122 passed
+  - ./scripts/check_love.sh: success (`CHECK_LOVE_OK`)
+  - ./scripts/check_artifact_guard.sh: code/data/tests 변경 없음으로 guard skip
+- notes:
+  - detached HEAD에서 이슈 전용 브랜치를 새로 만들고 작업을 격리했습니다.
+  - LLM Wiki/artifact 규칙에 따라 branch scaffold를 먼저 생성했습니다.
+  - 실제 수정 대상은 `docs/wiki/systems/class-architecture.md`입니다.
+  - 루트 `CLASS_DIAGRAM.md`는 현재 포인터 문서이므로 수정 대상이 아니었습니다.
