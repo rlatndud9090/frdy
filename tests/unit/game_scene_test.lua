@@ -1,5 +1,6 @@
 local TestHelper = require('tests.test_helper')
 local flux = require('lib.flux')
+local EventBus = require('src.core.event_bus')
 local GameScene = require('src.scene.game_scene')
 local Game = require('src.core.game')
 
@@ -140,6 +141,47 @@ function suite.test_on_combat_ended_victory_keeps_settlement_flow()
   TestHelper.assert_equal(scene._prepared_result, "victory", "승리 정산 준비가 호출되어야 합니다.")
   TestHelper.assert_equal(scene._prepared_node, scene.current_node, "정산 준비에 현재 노드가 전달되어야 합니다.")
   TestHelper.assert_equal(scene._settlement_called, 1, "승리 시 정산/다음 이동 흐름으로 진행되어야 합니다.")
+end
+
+---@return nil
+function suite.test_on_suspicion_max_finishes_run_with_detected_reason()
+  local finished_reason = nil
+  local close_calls = 0
+  local scene = create_fake_scene()
+  scene.phase = "EVENT"
+  scene.run_end_locked = false
+  scene.settings_overlay = {
+    close = function()
+      close_calls = close_calls + 1
+    end,
+  }
+  scene._finish_run = function(_, reason)
+    finished_reason = reason
+  end
+
+  scene:_on_suspicion_max()
+  scene:_on_suspicion_max()
+
+  TestHelper.assert_true(scene._combat_deactivated == true, "의심 최대치 도달 시 전투 핸들러를 비활성화해야 합니다.")
+  TestHelper.assert_equal(finished_reason, "detected", "의심 최대치는 detected 사유로 런 종료되어야 합니다.")
+  TestHelper.assert_equal(close_calls, 1, "의심 최대치 처리 중 설정 오버레이는 한 번만 닫혀야 합니다.")
+end
+
+---@return nil
+function suite.test_exit_unsubscribes_runtime_events()
+  local event_bus = EventBus:new()
+  local handled = false
+  local scene = {}
+  scene._on_suspicion_max = function()
+    handled = true
+  end
+  setmetatable(scene, {__index = GameScene})
+
+  scene:_subscribe_runtime_events(event_bus)
+  scene:exit()
+  event_bus:emit("suspicion_max", {level = 100})
+
+  TestHelper.assert_false(handled, "씬 종료 후에는 suspicion_max 구독이 해제되어야 합니다.")
 end
 
 return suite

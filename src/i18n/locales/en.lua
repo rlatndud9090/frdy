@@ -187,6 +187,7 @@ return {
   -- Suspicion
   ["suspicion.increase"] = "Suspicion +{value}",
   ["suspicion.decrease"] = "Suspicion {value}",
+  ["suspicion.game_over"] = "Suspicion peaked and your cover was blown",
 
   -- Mind control
   ["control.blocked_by_mental"] = "Mind control blocked ({stage} / allowed up to {max})",

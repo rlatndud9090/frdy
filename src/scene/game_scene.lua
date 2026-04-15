@@ -77,7 +77,7 @@ local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 ---@field save_feedback_timer number
 ---@field initial_checkpoint_committed boolean
 ---@field runtime_event_bus EventBus|nil
----@field suspicion_max_callback function|nil
+---@field suspicion_max_callback fun(...: any)|nil
 ---@field run_end_locked boolean
 local GameScene = class('GameScene', Scene)
 
@@ -217,7 +217,7 @@ function GameScene:_subscribe_runtime_events(event_bus)
     return
   end
 
-  self.suspicion_max_callback = function()
+  self.suspicion_max_callback = function(...)
     self:_on_suspicion_max()
   end
   event_bus:subscribe('suspicion_max', self.suspicion_max_callback)
@@ -301,6 +301,11 @@ function GameScene:initialize(options)
     self:commit_initial_checkpoint()
   end
   self:_show_start_node_select(start_nodes)
+end
+
+---@return nil
+function GameScene:exit()
+  self:_unsubscribe_runtime_events()
 end
 
 ---@return boolean
@@ -1089,8 +1094,7 @@ function GameScene:_on_event_ended()
     :ease("quadin")
     :oncomplete(function()
       if self.hero and self.hero.is_alive and not self.hero:is_alive() then
-        self:_clear_active_run()
-        self:_enter_game_over()
+        self:_finish_run('death')
         return
       end
       self:_enter_settlement_or_continue()
