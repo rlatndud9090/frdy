@@ -48,3 +48,4 @@ docs/artifacts/
 - 브랜치 작업을 시작할 때 `./scripts/ensure_artifact_scaffold.sh`로 스캐폴드를 만듭니다.
 - PR 전에는 `./scripts/check_artifact_guard.sh`가 최소 요건을 확인합니다.
 - main 머지 후 위키 갱신 자동화는 `./scripts/check_wiki_sync_guard.sh` 출력을 기반으로 후속 실행할 수 있게 설계합니다.
+- 이 자동화는 `status: merged`를 별도 전제조건으로 요구하지 않습니다. `main`에 존재하는 `wiki_sync_status: pending` artifact면 sync 후보입니다.

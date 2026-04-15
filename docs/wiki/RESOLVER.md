@@ -68,4 +68,4 @@
 
 - 작업 단위 아티팩트가 생성되면 `meta.md`를 유지합니다.
 - PR 생성 전 `wiki_sync_status`를 최소 `pending` 또는 `synced`로 명시합니다.
-- main 머지 후에는 관련 위키를 갱신하고 `wiki_sync_status: synced`로 바꿉니다.
+- main 머지 후에는 `main`에 반영된 `wiki_sync_status: pending` artifact를 대상으로 관련 위키를 갱신하고 `wiki_sync_status: synced`로 바꿉니다.

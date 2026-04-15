@@ -31,6 +31,6 @@
 
 ## 머지 후 운영 원칙
 
-- main 머지 직후에는 `merged`이면서 `wiki_sync_status: pending` 인 artifact를 우선 처리합니다.
+- main 트리에 존재하면서 `wiki_sync_status: pending` 인 artifact를 우선 처리합니다.
 - PR 전 단계에서 위키 완료를 강제하지 않습니다.
 - PR 리뷰 루프가 끝나고 바로 머지 가능한 상태에 도달하는 목표를 유지합니다.
