@@ -37,6 +37,7 @@ return {
   ["ui.run_cleared"] = "Run Cleared",
   ["ui.run_abandoned"] = "Run Abandoned",
   ["ui.run_death_reason"] = "The hero has fallen.",
+  ["ui.run_detected_reason"] = "Suspicion reached its limit and your cover was blown.",
   ["ui.run_victory_reason"] = "This run has been completed successfully.",
   ["ui.run_abandon_reason"] = "You abandoned the current run.",
   ["ui.run_cleanup_failed"] = "Failed to clean up the run save. Continue may still appear.",
@@ -83,7 +84,6 @@ return {
   ["combat.defense_badge"] = "DEF {value}",
   ["combat.floor_cleared"] = "Floor cleared!",
   ["combat.defeat"] = "Defeat! Game Over",
-  ["combat.restart_prompt"] = "Press any key or click to restart",
 
   -- Entities
   ["entity.hero"] = "Hero",
