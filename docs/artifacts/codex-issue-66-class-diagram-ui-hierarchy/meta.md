@@ -6,7 +6,7 @@ wiki_sync_status: pending
 created_at: 2026-04-15
 updated_at: 2026-04-15
 related_issue: "#66"
-related_pr:
+related_pr: "#70"
 merge_commit:
 wiki_targets:
   - docs/wiki/systems/class-architecture.md
