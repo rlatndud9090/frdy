@@ -204,8 +204,6 @@ classDiagram
   SpellBookOverlay --|> UIElement
   EdgeSelector --|> UIElement
   Minimap --|> UIElement
-  MapOverlay --|> UIElement
-  SettingsOverlay --|> UIElement
 
   GameScene --> CombatHandler
   GameScene --> EventHandler
