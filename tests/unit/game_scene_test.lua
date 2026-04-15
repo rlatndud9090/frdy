@@ -184,14 +184,4 @@ function suite.test_exit_unsubscribes_runtime_events()
   TestHelper.assert_false(handled, "씬 종료 후에는 suspicion_max 구독이 해제되어야 합니다.")
 end
 
----@return nil
-function suite.test_enter_game_over_sets_named_phase()
-  local scene = create_fake_scene()
-
-  scene:_enter_game_over("suspicion_max")
-
-  TestHelper.assert_equal(scene.phase, "GAME_OVER", "게임 오버 진입 시 명시적인 GAME_OVER 페이즈를 사용해야 합니다.")
-  TestHelper.assert_equal(scene.game_over_reason, "suspicion_max", "게임 오버 원인은 그대로 보존되어야 합니다.")
-end
-
 return suite

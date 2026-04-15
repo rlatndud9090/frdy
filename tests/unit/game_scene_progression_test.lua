@@ -649,8 +649,8 @@ function suite.test_on_event_ended_enters_game_over_on_lethal_event_damage()
   local deactivated = false
   local checkpointed = false
   local entered_settlement = false
-  local entered_game_over = false
   local cleared_run = false
+  local finished_reason = nil
   local scene = {
     hero = {
       is_alive = function()
@@ -674,8 +674,8 @@ function suite.test_on_event_ended_enters_game_over_on_lethal_event_damage()
       cleared_run = true
       return true
     end,
-    _enter_game_over = function()
-      entered_game_over = true
+    _finish_run = function(_, reason)
+      finished_reason = reason
     end,
   }
   setmetatable(scene, {__index = GameScene})
@@ -686,8 +686,8 @@ function suite.test_on_event_ended_enters_game_over_on_lethal_event_damage()
   TestHelper.assert_true(deactivated)
   TestHelper.assert_false(checkpointed)
   TestHelper.assert_false(entered_settlement)
-  TestHelper.assert_true(cleared_run)
-  TestHelper.assert_true(entered_game_over)
+  TestHelper.assert_false(cleared_run)
+  TestHelper.assert_equal(finished_reason, 'death')
 end
 
 ---@return nil
@@ -695,7 +695,6 @@ function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
   local deactivated = false
   local checkpointed = false
   local entered_settlement = false
-  local entered_game_over = false
   local cleared_run = false
   local scene = {
     hero = {
@@ -720,9 +719,6 @@ function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
       cleared_run = true
       return true
     end,
-    _enter_game_over = function()
-      entered_game_over = true
-    end,
   }
   setmetatable(scene, {__index = GameScene})
 
@@ -733,7 +729,6 @@ function suite.test_on_event_ended_preserves_existing_flow_when_hero_survives()
   TestHelper.assert_true(checkpointed)
   TestHelper.assert_true(entered_settlement)
   TestHelper.assert_false(cleared_run)
-  TestHelper.assert_false(entered_game_over)
 end
 
 ---@return nil

@@ -39,7 +39,6 @@ local EVENT = "EVENT"
 local EXITING_EVENT = "EXITING_EVENT"
 local SETTLEMENT = "SETTLEMENT"
 local EDGE_SELECT = "EDGE_SELECT"
-local GAME_OVER = "GAME_OVER"
 local START_NODE_SELECT = "START_NODE_SELECT"
 local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 
@@ -77,7 +76,6 @@ local SAVE_RESTORE_ERROR_PREFIX = 'save_restore_failed:'
 ---@field save_feedback_text string|nil
 ---@field save_feedback_timer number
 ---@field initial_checkpoint_committed boolean
----@field game_over_reason string|nil
 ---@field runtime_event_bus EventBus|nil
 ---@field suspicion_max_callback fun(...: any)|nil
 ---@field run_end_locked boolean
@@ -203,7 +201,6 @@ function GameScene:_initialize_runtime(run_seed)
   self.edge_select_handler = nil
   self.overlay_alpha = 0
   self.phase = START_NODE_SELECT
-  self.game_over_reason = nil
   self.save_feedback_text = nil
   self.save_feedback_timer = 0
   self:_reset_world_position_for_current_floor()
@@ -687,29 +684,6 @@ function GameScene:_draw_ui()
   end
 end
 
----@return nil
-function GameScene:_draw_game_over_overlay()
-  local width = love.graphics.getWidth()
-  local height = love.graphics.getHeight()
-
-  love.graphics.setColor(0, 0, 0, 0.72)
-  love.graphics.rectangle("fill", 0, 0, width, height)
-
-  love.graphics.setColor(1, 0.2, 0.2, 1)
-  love.graphics.printf(self:_get_game_over_message(), 0, height * 0.45, width, "center")
-
-  love.graphics.setColor(1, 1, 1, 1)
-  love.graphics.printf(i18n.t("combat.restart_prompt"), 0, height * 0.53, width, "center")
-end
-
----@return string
-function GameScene:_get_game_over_message()
-  if self.game_over_reason == "suspicion_max" then
-    return i18n.t("suspicion.game_over")
-  end
-
-  return i18n.t("combat.defeat")
-end
 ---@param key string
 ---@return boolean
 function GameScene:_is_settings_input_locked()
@@ -1067,13 +1041,6 @@ function GameScene:_on_combat_ended(result)
     end)
 end
 
----@param reason? string
----@return nil
-function GameScene:_enter_game_over(reason)
-  self.game_over_reason = reason or "combat_defeat"
-  self.phase = GAME_OVER
-end
-
 --- 이벤트 진입 연출
 function GameScene:_enter_event()
   self.phase = ENTERING_EVENT
@@ -1127,8 +1094,7 @@ function GameScene:_on_event_ended()
     :ease("quadin")
     :oncomplete(function()
       if self.hero and self.hero.is_alive and not self.hero:is_alive() then
-        self:_clear_active_run()
-        self:_enter_game_over()
+        self:_finish_run('death')
         return
       end
       self:_enter_settlement_or_continue()
