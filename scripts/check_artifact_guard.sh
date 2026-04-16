@@ -24,13 +24,13 @@ fi
 
 work_unit_id="$(printf "%s" "$branch" | tr '/[:upper:]' '-[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
 artifact_dir="$ROOT_DIR/docs/artifacts/$work_unit_id"
-mapfile -t changed_artifact_dirs < <(
+changed_artifact_dirs="$(
   printf "%s\n" "$changed_files" \
     | grep -E '^docs/artifacts/[^/]+/' \
     | grep -Ev '^docs/artifacts/_template/' \
     | awk -F/ '{print $1 "/" $2 "/" $3}' \
-    | sort -u
-)
+    | sort -u || true
+)"
 
 python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
   --artifact-dir "$artifact_dir" \
@@ -38,7 +38,8 @@ python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
   --expected-id "$work_unit_id" \
   --expected-branch "$branch"
 
-for changed_artifact_dir in "${changed_artifact_dirs[@]}"; do
+while IFS= read -r changed_artifact_dir; do
+  [[ -z "$changed_artifact_dir" ]] && continue
   if [[ "$ROOT_DIR/$changed_artifact_dir" == "$artifact_dir" ]]; then
     continue
   fi
@@ -46,6 +47,6 @@ for changed_artifact_dir in "${changed_artifact_dirs[@]}"; do
     --artifact-dir "$ROOT_DIR/$changed_artifact_dir" \
     --mode pr \
     --expected-id "$(basename "$changed_artifact_dir")"
-done
+done <<< "$changed_artifact_dirs"
 
 echo "artifact guard 통과"

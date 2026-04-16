@@ -21,15 +21,15 @@ fi
 meaningful_changed="$(printf "%s\n" "$changed_files" \
   | grep -Ev '^(docs/artifacts/|\.gitignore$)' || true)"
 
-mapfile -t artifact_dirs < <(
+artifact_dirs="$(
   printf "%s\n" "$changed_files" \
     | grep -E '^docs/artifacts/[^/]+/' \
     | grep -Ev '^docs/artifacts/_template/' \
     | awk -F/ '{print $1 "/" $2 "/" $3}' \
-    | sort -u
-)
+    | sort -u || true
+)"
 
-if [[ -n "$meaningful_changed" && "${#artifact_dirs[@]}" -eq 0 ]]; then
+if [[ -n "$meaningful_changed" && -z "$artifact_dirs" ]]; then
   echo "실패: main에 반영된 변경 중 artifact 갱신이 없는 항목이 있습니다." >&2
   echo "--- 변경 파일 ---" >&2
   printf "%s\n" "$meaningful_changed" >&2
@@ -37,17 +37,18 @@ if [[ -n "$meaningful_changed" && "${#artifact_dirs[@]}" -eq 0 ]]; then
   exit 1
 fi
 
-if [[ "${#artifact_dirs[@]}" -eq 0 ]]; then
+if [[ -z "$artifact_dirs" ]]; then
   echo "artifact 변경이 없어 main artifact audit를 통과합니다."
   exit 0
 fi
 
-for artifact_dir in "${artifact_dirs[@]}"; do
+while IFS= read -r artifact_dir; do
+  [[ -z "$artifact_dir" ]] && continue
   work_unit_id="$(basename "$artifact_dir")"
   python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
     --artifact-dir "$ROOT_DIR/$artifact_dir" \
     --mode main-audit \
     --expected-id "$work_unit_id"
-done
+done <<< "$artifact_dirs"
 
 echo "main artifact audit 통과"
