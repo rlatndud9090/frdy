@@ -31,13 +31,14 @@ docs/artifacts/
 
 `meta.md` frontmatter의 `wiki_sync_status`를 기준으로 후속 작업을 추적합니다.
 
-- `not-started`: 작업 중이며 아직 위키 갱신 판단 전
+- `not-started`: scaffold만 만든 초기 상태이며, 진행 중 작업에는 허용하지 않음
 - `pending`: 위키 반영이 필요함
 - `synced`: 관련 위키 반영이 완료됨
 
 `status`는 작업 자체의 라이프사이클을 나타냅니다.
 
-- `collecting`: 아티팩트 수집 중
+- `collecting`: scaffold만 생성된 상태. 실제 작업을 시작하기 전까지만 허용
+- `in_progress`: 작업 요약, 범위, 수용 기준, 타임라인 초안이 채워진 진행 상태
 - `ready-for-pr`: PR 생성 가능
 - `in-review`: PR 리뷰 진행 중
 - `merged`: main 머지 완료
@@ -45,7 +46,9 @@ docs/artifacts/
 
 ## 운영 메모
 
-- 브랜치 작업을 시작할 때 `./scripts/ensure_artifact_scaffold.sh`로 스캐폴드를 만듭니다.
-- PR 전에는 `./scripts/check_artifact_guard.sh`가 최소 요건을 확인합니다.
+- 브랜치 작업을 시작할 때는 `./scripts/start_work_unit.sh`로 artifact 초안을 채웁니다.
+- `./scripts/check_artifact_progress.sh`는 현재 브랜치 artifact가 껍데기 상태인지 확인합니다.
+- PR 전에는 `./scripts/check_artifact_guard.sh`가 파일 존재뿐 아니라 본문 충실도까지 확인합니다.
+- `main` push 후에는 `./scripts/check_main_artifact_audit.sh`가 머지된 변경에 artifact가 함께 반영됐는지 감사합니다.
 - main 머지 후 위키 갱신 자동화는 `./scripts/check_wiki_sync_guard.sh` 출력을 기반으로 후속 실행할 수 있게 설계합니다.
 - 이 자동화는 `status: merged`를 별도 전제조건으로 요구하지 않습니다. `main`에 존재하는 `wiki_sync_status: pending` artifact면 sync 후보입니다.

@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate artifact scaffold exists for code changes
+      - name: Validate artifact completeness for branch work
         run: ./scripts/check_artifact_guard.sh "origin/${{ github.base_ref }}"
 
   test-required:
@@ -44,3 +44,15 @@ jobs:
 
       - name: Run unit/integration tests
         run: ./scripts/run_tests.sh
+
+  main-artifact-audit:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Audit merged changes include complete artifacts
+        run: ./scripts/check_main_artifact_audit.sh "${{ github.event.before }}" "${{ github.sha }}"

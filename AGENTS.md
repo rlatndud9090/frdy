@@ -183,10 +183,12 @@ function ClassName:method(name, optional_param)
 - `docs/wiki/`는 현재형 지식층이며, 에이전트는 기본적으로 이 계층을 먼저 읽는다.
 - `docs/artifacts/`는 작업 단위별 진실의 원천이다. 회의록, AI 대화, PRD, ADR, 실험 로그, 리뷰 메모는 모두 이 계층에 쌓는다.
 - `docs/artifacts/`는 기본 RAG 대상이 아니다. 위키 갱신, 근거 확인, 모순 해소가 필요할 때만 내려간다.
-- 브랜치에서 코드/데이터/테스트 작업을 시작할 때는 반드시 `./scripts/ensure_artifact_scaffold.sh`를 먼저 실행해 해당 작업 단위의 artifact scaffold를 만든다.
+- 브랜치/워크트리에서 작업을 시작할 때는 `./scripts/start_work_unit.sh`로 artifact 초안을 먼저 채운다. `ensure_artifact_scaffold.sh` 단독 실행은 예외적인 수동 복구 용도로만 사용한다.
+- 첫 코드/문서/스크립트 편집 전과 커밋 전에는 `./scripts/check_artifact_progress.sh`가 통과하는 상태를 유지한다.
 - PR 전에는 `./scripts/check_artifact_guard.sh`를 통과해야 한다.
+- 템플릿 문구만 남은 `prd.md`, `timeline.md`, `meta.md`는 artifact가 없는 것과 동일하게 간주한다.
 - 위키 갱신은 기본적으로 머지 후 수행한다. PR 생성 전 위키 완료를 강제하지 않는다.
-- 다만 artifact의 `meta.md`에는 최소한 `status`, `wiki_sync_status`를 유지한다.
+- 다만 artifact의 `meta.md`에는 최소한 `status`, `wiki_sync_status`, `updated_at`를 유지한다.
 - 위키 관련 요청이면 먼저 아래 문서를 읽는다.
   - `docs/wiki/SCHEMA.md`
   - `docs/wiki/RESOLVER.md`
