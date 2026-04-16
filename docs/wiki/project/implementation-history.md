@@ -39,12 +39,32 @@
 - 2026-03-02에 정산 기반 보상 시스템, `RewardManager`, `DemonAwakening`, `LegendaryInventory`, 자동화 테스트가 추가됐습니다.
 - 2026-03-04에 `RunContext` 기반 결정론 RNG가 들어오며 런 전체를 시드 재현 가능한 구조로 정리했습니다.
 
-## 8. 메인 메뉴, 이어하기, 런 종료 루프 보강
+## 8. 메인 메뉴, 이어하기, 런 종료 구조 정착
 
-- 이후 `MainMenuScene`, `RunEndScene`, active save/coordinator 계층이 더해지며 런 시작과 종료 경험이 보강됐습니다.
-- 현재는 메인 메뉴에서 `이어하기`가 가능하고, 체크포인트 기반 저장/복원이 `GameScene` 내부 흐름과 연결되어 있습니다.
+- 2026-03-24에 `MainMenuScene`, `RunEndScene`, 확인 모달, active save JSON/checksum/backup 구조가 함께 들어왔습니다.
+- 저장 책임은 `GameScene`에서 `RunSaveCoordinator`와 participant registry 계층으로 분리되었고, 현재의 `이어하기`와 종료 화면 경험이 이 시점에 자리잡았습니다.
+
+## 9. 헤드리스 Love 검증 fallback 도입
+
+- 같은 날 `scripts/check_love.sh`에 no-display 환경 감지와 headless smoke check fallback이 추가됐습니다.
+- 이 변경으로 현재의 자동 검증 절차는 GUI가 없는 환경에서도 Love 실행 검증을 유지할 수 있게 되었습니다.
+
+## 10. 층 전환과 패배 종료 흐름 복구
+
+- 2026-03-26과 2026-04-01에 런 종료 정리, 다음 층 체크포인트, `GAME_OVER` 전환 누락이 연속 보수되었습니다.
+- 현재 `GameScene`이 층 전환 대기, 패배 종료, 재시작 입력 흐름을 명시 상태 전환으로 다루는 이유가 이 시기 수정에서 고정됐습니다.
+
+## 11. 이벤트 치사 피해와 의심 최대치 종료 연결
+
+- 2026-04-09에 이벤트 치사 피해와 `suspicion_max` 도달이 공통 런 종료 정리 경로에 연결되었습니다.
+- 이 흐름으로 전투 밖 종료 사유도 active save 정리와 종료 사유 표시를 일관되게 거치도록 맞춰졌습니다.
+
+## 12. LLM Wiki와 artifact 운영 기반 도입
+
+- 2026-04-14에 `docs/wiki/`와 `docs/artifacts/` 2계층, scaffold/guard 스크립트, pre-artifact bootstrap 복원 체계가 도입되었습니다.
+- 현재는 work unit artifact를 근거층으로 쌓고, 위키를 그 근거로 재합성하는 운영 규칙이 이 시점부터 프로젝트 기본 규약이 되었습니다.
 
 ## 해석 규칙
 
 - 이 문서는 “현재 구조가 왜 이렇게 생겼는가”를 설명하는 현재형 요약입니다.
-- 세부 근거가 더 필요하면 `docs/artifacts/history-bootstrap-2026-04/`를 먼저 보고, 이후 작업은 개별 work unit artifact를 참조합니다.
+- 세부 근거가 더 필요하면 `docs/artifacts/history-bootstrap-2026-04/`와 `docs/artifacts/history-bootstrap-late-pre-artifact-2026-04/`를 먼저 보고, 이후 작업은 개별 work unit artifact를 참조합니다.
