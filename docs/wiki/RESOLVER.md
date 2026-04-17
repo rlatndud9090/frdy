@@ -67,5 +67,6 @@
 ## 5. 작업 종료 규칙
 
 - 작업 단위 아티팩트가 생성되면 `meta.md`를 유지합니다.
+- scaffold만 만든 `collecting` 상태로는 작업을 지속하지 않습니다. 최소한 범위/수용 기준/타임라인 초안을 채우고 `in_progress` 이상으로 올립니다.
 - PR 생성 전 `wiki_sync_status`를 최소 `pending` 또는 `synced`로 명시합니다.
 - main 머지 후에는 `main`에 반영된 `wiki_sync_status: pending` artifact를 대상으로 관련 위키를 갱신하고 `wiki_sync_status: synced`로 바꿉니다.

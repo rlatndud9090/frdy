@@ -10,9 +10,14 @@ if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
   exit 0
 fi
 
-branch="$(git branch --show-current)"
-if [[ -z "$branch" || "$branch" == "main" ]]; then
-  echo "main 또는 detached 상태에서는 artifact guard를 건너뜁니다."
+head_ref="${GITHUB_HEAD_REF:-}"
+branch="${head_ref:-$(git branch --show-current)}"
+if [[ -z "$branch" ]]; then
+  echo "artifact guard를 수행할 작업 브랜치를 확인할 수 없습니다." >&2
+  exit 0
+fi
+if [[ -z "$head_ref" && "$branch" == "main" ]]; then
+  echo "로컬 main에서는 artifact guard를 건너뜁니다." >&2
   exit 0
 fi
 
@@ -22,34 +27,31 @@ if [[ -z "$changed_files" ]]; then
   exit 0
 fi
 
-meaningful_changed="$(printf "%s\n" "$changed_files" \
-  | grep -E '^(src|data|assets|tests)/' || true)"
-
-if [[ -z "$meaningful_changed" ]]; then
-  echo "코드/데이터/테스트 변경이 없어 artifact guard를 건너뜁니다."
-  exit 0
-fi
-
 work_unit_id="$(printf "%s" "$branch" | tr '/[:upper:]' '-[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
 artifact_dir="$ROOT_DIR/docs/artifacts/$work_unit_id"
-meta_file="$artifact_dir/meta.md"
+changed_artifact_dirs="$(
+  printf "%s\n" "$changed_files" \
+    | grep -E '^docs/artifacts/[^/]+/' \
+    | grep -Ev '^docs/artifacts/_template/' \
+    | awk -F/ '{print $1 "/" $2 "/" $3}' \
+    | sort -u || true
+)"
 
-if [[ ! -f "$meta_file" ]]; then
-  echo "실패: 코드/데이터 변경이 있지만 작업 단위 artifact가 없습니다." >&2
-  echo "브랜치: $branch" >&2
-  echo "예상 경로: $artifact_dir" >&2
-  echo "먼저 ./scripts/ensure_artifact_scaffold.sh 를 실행하세요." >&2
-  exit 1
-fi
+python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
+  --artifact-dir "$artifact_dir" \
+  --mode pr \
+  --expected-id "$work_unit_id" \
+  --expected-branch "$branch"
 
-if ! grep -q '^wiki_sync_status:' "$meta_file"; then
-  echo "실패: $meta_file 에 wiki_sync_status가 없습니다." >&2
-  exit 1
-fi
-
-if ! grep -q '^status:' "$meta_file"; then
-  echo "실패: $meta_file 에 status가 없습니다." >&2
-  exit 1
-fi
+while IFS= read -r changed_artifact_dir; do
+  [[ -z "$changed_artifact_dir" ]] && continue
+  if [[ "$ROOT_DIR/$changed_artifact_dir" == "$artifact_dir" ]]; then
+    continue
+  fi
+  python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
+    --artifact-dir "$ROOT_DIR/$changed_artifact_dir" \
+    --mode main-audit \
+    --expected-id "$(basename "$changed_artifact_dir")"
+done <<< "$changed_artifact_dirs"
 
 echo "artifact guard 통과"

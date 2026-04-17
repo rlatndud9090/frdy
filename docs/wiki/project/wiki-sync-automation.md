@@ -4,7 +4,7 @@
 
 ## 결론
 
-- 추천 방식은 `main`을 주기적으로 확인하는 Codex cron 자동화입니다.
+- 추천 방식은 최신 `main`을 확인하는 `frdy-main-wiki-sync` 스킬 또는 이를 호출하는 Codex cron 자동화입니다.
 - GitHub Actions는 `artifact -> wiki 재합성` 같은 에이전트형 문서 작업을 수행하기에 적합하지 않습니다.
 - 따라서 CI는 guard 역할만 맡고, 실제 wiki sync는 Codex 자동화가 수행합니다.
 
@@ -13,13 +13,14 @@
 - PR 단계에서 wiki 완료를 강제하면 구현 속도와 리뷰 루프가 불필요하게 느려집니다.
 - 반대로 머지 후 자동화는 구현 맥락이 정리된 뒤 `main`에 반영된 `wiki_sync_status: pending` 작업만 골라 처리할 수 있습니다.
 - `docs/wiki/`는 현재형 재합성 문서라서, 단순 텍스트 치환보다 에이전트형 판단이 필요합니다.
+- 이 전략이 성립하려면 PR 단계에서 artifact completeness guard가 껍데기 artifact 머지를 먼저 차단해야 합니다.
 
 ## 권장 흐름
 
 1. 브랜치 작업 시작 시 artifact scaffold 생성
 2. 구현/PR/리뷰 루프 진행
 3. main 머지 완료 후 artifact가 `main` 트리에 존재하고 `wiki_sync_status: pending`
-4. Codex 자동화가 `./scripts/check_wiki_sync_guard.sh`로 pending 대상을 확인
+4. `frdy-main-wiki-sync` 또는 이를 호출하는 Codex 자동화가 `./scripts/check_wiki_sync_guard.sh`로 pending 대상을 확인
 5. `docs/wiki/skills/wiki-update.md` 절차로 영향 페이지를 재합성
 6. 완료된 work unit의 `wiki_sync_status`를 `synced`로 갱신
 
