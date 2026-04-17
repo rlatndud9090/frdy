@@ -10,9 +10,14 @@ if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
   exit 0
 fi
 
-branch="${GITHUB_HEAD_REF:-$(git branch --show-current)}"
-if [[ -z "$branch" || "$branch" == "main" ]]; then
+head_ref="${GITHUB_HEAD_REF:-}"
+branch="${head_ref:-$(git branch --show-current)}"
+if [[ -z "$branch" ]]; then
   echo "artifact guard를 수행할 작업 브랜치를 확인할 수 없습니다." >&2
+  exit 0
+fi
+if [[ -z "$head_ref" && "$branch" == "main" ]]; then
+  echo "로컬 main에서는 artifact guard를 건너뜁니다." >&2
   exit 0
 fi
 
