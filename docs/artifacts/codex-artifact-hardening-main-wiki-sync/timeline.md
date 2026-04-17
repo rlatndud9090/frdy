@@ -7,3 +7,4 @@
 - 2026-04-16 14:17 | `frdy-main-wiki-sync` 스킬 설치 및 운영 문서/README/overview 동기화
 - 2026-04-16 14:21 | macOS 기본 Bash 3.x에서 `mapfile` 비호환 이슈를 제거하고 guard/audit 통과 확인
 - 2026-04-16 14:22 | `run_tests.sh`, `check_love.sh`, artifact progress/guard/main audit 검증 완료
+- 2026-04-17 14:27 | PR #73 오픈 후 Codex 리뷰에서 placeholder 오탐 가능성을 확인하고 `validate_no_placeholders`를 줄 단위 검사로 보강

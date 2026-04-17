@@ -19,14 +19,19 @@ ALLOWED_STATUS = {
 ALLOWED_WIKI_STATUS = {"not-started", "pending", "synced"}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIMELINE_ENTRY_RE = re.compile(r"^- 20\d{2}-\d{2}-\d{2} \d{2}:\d{2} \| .+\S$")
-PLACEHOLDER_SNIPPETS = (
+PLACEHOLDER_TOKENS = (
     "<work-unit-id>",
     "<branch-name>",
     "YYYY-MM-DD",
     "YYYY-MM-DD HH:MM",
-    "이 작업 단위의 목표를 1~3줄로 적습니다.",
-    "완료 기준:",
-    "아티팩트 수집 규칙, 주의사항, 후속 결정 메모를 남깁니다.",
+)
+PLACEHOLDER_LINE_PATTERNS = (
+    (re.compile(r"^(?:-\s*)?이 작업 단위의 목표를 1~3줄로 적습니다\.$"), "이 작업 단위의 목표를 1~3줄로 적습니다."),
+    (re.compile(r"^(?:-\s*)?완료 기준:$"), "완료 기준:"),
+    (
+        re.compile(r"^(?:-\s*)?아티팩트 수집 규칙, 주의사항, 후속 결정 메모를 남깁니다\.$"),
+        "아티팩트 수집 규칙, 주의사항, 후속 결정 메모를 남깁니다.",
+    ),
 )
 META_BODY_SECTIONS = ("Goal", "Scope", "Acceptance", "Notes")
 PRD_SECTIONS = ("Problem", "Goal", "Constraints", "Acceptance")
@@ -121,9 +126,14 @@ def section_text(lines: list[str]) -> str:
 
 
 def validate_no_placeholders(text: str, label: str, errors: list[str]) -> None:
-    for snippet in PLACEHOLDER_SNIPPETS:
+    for snippet in PLACEHOLDER_TOKENS:
         if snippet in text:
             errors.append(f"{label}에 템플릿 플레이스홀더가 남아 있습니다: {snippet}")
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        for pattern, snippet in PLACEHOLDER_LINE_PATTERNS:
+            if pattern.fullmatch(stripped):
+                errors.append(f"{label}에 템플릿 플레이스홀더가 남아 있습니다: {snippet}")
 
 
 def validate_frontmatter(
