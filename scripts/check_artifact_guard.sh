@@ -45,7 +45,7 @@ while IFS= read -r changed_artifact_dir; do
   fi
   python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
     --artifact-dir "$ROOT_DIR/$changed_artifact_dir" \
-    --mode pr \
+    --mode main-audit \
     --expected-id "$(basename "$changed_artifact_dir")"
 done <<< "$changed_artifact_dirs"
 
