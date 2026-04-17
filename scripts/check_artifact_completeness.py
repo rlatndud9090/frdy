@@ -19,12 +19,12 @@ ALLOWED_STATUS = {
 ALLOWED_WIKI_STATUS = {"not-started", "pending", "synced"}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIMELINE_ENTRY_RE = re.compile(r"^- 20\d{2}-\d{2}-\d{2} \d{2}:\d{2} \| .+\S$")
-PLACEHOLDER_TOKENS = (
-    "<work-unit-id>",
-    "<branch-name>",
-    "YYYY-MM-DD",
-    "YYYY-MM-DD HH:MM",
-)
+FRONTMATTER_PLACEHOLDERS = {
+    "id": "<work-unit-id>",
+    "branch": "<branch-name>",
+    "created_at": "YYYY-MM-DD",
+    "updated_at": "YYYY-MM-DD",
+}
 PLACEHOLDER_LINE_PATTERNS = (
     (re.compile(r"^(?:-\s*)?이 작업 단위의 목표를 1~3줄로 적습니다\.$"), "이 작업 단위의 목표를 1~3줄로 적습니다."),
     (re.compile(r"^(?:-\s*)?완료 기준:$"), "완료 기준:"),
@@ -32,6 +32,7 @@ PLACEHOLDER_LINE_PATTERNS = (
         re.compile(r"^(?:-\s*)?아티팩트 수집 규칙, 주의사항, 후속 결정 메모를 남깁니다\.$"),
         "아티팩트 수집 규칙, 주의사항, 후속 결정 메모를 남깁니다.",
     ),
+    (re.compile(r"^- YYYY-MM-DD HH:MM \| .+$"), "YYYY-MM-DD HH:MM"),
 )
 META_BODY_SECTIONS = ("Goal", "Scope", "Acceptance", "Notes")
 PRD_SECTIONS = ("Problem", "Goal", "Constraints", "Acceptance")
@@ -126,9 +127,6 @@ def section_text(lines: list[str]) -> str:
 
 
 def validate_no_placeholders(text: str, label: str, errors: list[str]) -> None:
-    for snippet in PLACEHOLDER_TOKENS:
-        if snippet in text:
-            errors.append(f"{label}에 템플릿 플레이스홀더가 남아 있습니다: {snippet}")
     for raw_line in text.splitlines():
         stripped = raw_line.strip()
         for pattern, snippet in PLACEHOLDER_LINE_PATTERNS:
@@ -151,6 +149,11 @@ def validate_frontmatter(
     created_at = str(data.get("created_at", "")).strip()
     updated_at = str(data.get("updated_at", "")).strip()
     related_pr = str(data.get("related_pr", "")).strip()
+
+    for key, snippet in FRONTMATTER_PLACEHOLDERS.items():
+        value = str(data.get(key, "")).strip()
+        if value == snippet:
+            errors.append(f"meta.md의 {key}에 템플릿 플레이스홀더가 남아 있습니다: {snippet}")
 
     if expected_id and artifact_id != expected_id:
         errors.append(f"meta.md의 id가 예상값과 다릅니다. expected={expected_id}, actual={artifact_id}")
