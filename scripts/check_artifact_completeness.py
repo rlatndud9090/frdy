@@ -126,6 +126,27 @@ def section_text(lines: list[str]) -> str:
     return " ".join(compact_lines(lines))
 
 
+def require_prefixed_value(
+    lines: list[str],
+    *,
+    prefix: str,
+    label: str,
+    errors: list[str],
+) -> None:
+    for raw_line in compact_lines(lines):
+        normalized = raw_line
+        if normalized.startswith("- "):
+            normalized = normalized[2:].strip()
+        if not normalized.startswith(prefix):
+            continue
+        value = normalized[len(prefix) :].strip()
+        if value:
+            return
+        errors.append(f"{label}에 `{prefix}` 뒤 실제 내용이 있어야 합니다.")
+        return
+    errors.append(f"{label}에 `{prefix}` 항목이 없습니다.")
+
+
 def validate_no_placeholders(text: str, label: str, errors: list[str]) -> None:
     for raw_line in text.splitlines():
         stripped = raw_line.strip()
@@ -200,9 +221,9 @@ def validate_markdown_sections(
             errors.append(f"{label}의 {section} 섹션 내용이 너무 짧거나 비어 있습니다.")
 
     if label == "meta.md 본문" and mode == "pr":
-        scope_text = section_text(sections.get("Scope", []))
-        if "포함 범위" not in scope_text or "제외 범위" not in scope_text:
-            errors.append("meta.md의 Scope 섹션에는 포함/제외 범위가 모두 명시되어야 합니다.")
+        scope_lines = sections.get("Scope", [])
+        require_prefixed_value(scope_lines, prefix="포함 범위:", label="meta.md의 Scope 섹션", errors=errors)
+        require_prefixed_value(scope_lines, prefix="제외 범위:", label="meta.md의 Scope 섹션", errors=errors)
 
 
 def validate_timeline(text: str, *, mode: str, errors: list[str]) -> None:
