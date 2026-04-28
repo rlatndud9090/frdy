@@ -7,3 +7,4 @@
 - 2026-04-28 | raw-wiki-schema-rules | raw/artifacts, wiki, schema/rules 3계층 운영 규칙과 wiki LLM-only 수정 원칙을 명문화했다.
 - 2026-04-28 | artifact-hardening-main-wiki-sync | artifact completeness guard, main artifact audit, main 기준 wiki sync 운영 규칙을 main에 반영했다.
 - 2026-04-28 | pr-wiki-sync-required | PR 생성 전 작업 artifact의 `wiki_sync_status: synced`와 대상 wiki diff 포함을 필수화했다.
+- 2026-04-28 | pending-wiki-sync-closeout | `codex-issue-57-suspicion-max-game-over`와 `codex-issue-66-class-diagram-ui-hierarchy`의 main 반영 내용을 위키에 재합성하고 pending sync를 마감했다.

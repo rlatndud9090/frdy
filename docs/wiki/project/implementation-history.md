@@ -58,6 +58,8 @@
 
 - 2026-04-09에 이벤트 치사 피해와 `suspicion_max` 도달이 공통 런 종료 정리 경로에 연결되었습니다.
 - 이 흐름으로 전투 밖 종료 사유도 active save 정리와 종료 사유 표시를 일관되게 거치도록 맞춰졌습니다.
+- 2026-04-15에는 `GameScene`의 `suspicion_max` 이벤트 구독/해제 생명주기가 보강되어, 씬 교체 뒤 종료 이벤트가 중복 처리되지 않도록 정리됐습니다.
+- 같은 날 UI 계층 위키에서 `MapOverlay`와 `SettingsOverlay`가 `UIElement` 상속 위젯이 아니라 `GameScene` composition overlay라는 점도 현재 코드 기준으로 정정됐습니다.
 
 ## 12. LLM Wiki와 artifact 운영 기반 도입
 

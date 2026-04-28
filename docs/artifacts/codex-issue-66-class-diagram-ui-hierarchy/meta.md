@@ -1,15 +1,16 @@
 ---
 id: codex-issue-66-class-diagram-ui-hierarchy
 branch: codex/issue-66-class-diagram-ui-hierarchy
-status: in_progress
-wiki_sync_status: pending
+status: merged
+wiki_sync_status: synced
 created_at: 2026-04-15
-updated_at: 2026-04-15
+updated_at: 2026-04-28
 related_issue: "#66"
 related_pr: "#70"
-merge_commit:
+merge_commit: 2fa6c98c99582bd4d7800832525fc2f0149655f7
 wiki_targets:
   - docs/wiki/systems/class-architecture.md
+  - docs/wiki/log.md
 ---
 
 # Work Unit Meta
@@ -33,4 +34,4 @@ wiki_targets:
 ## Notes
 
 - 이슈 본문은 루트 `CLASS_DIAGRAM.md`를 언급하지만, 현재 워크트리의 실제 불일치는 위키 문서에 남아 있었습니다.
-- main 머지 후 위키 sync가 끝나면 `wiki_sync_status: synced`로 후속 갱신합니다.
+- 2026-04-28에 main 기준 위키 반영 상태를 확인하고 `wiki_sync_status: synced`로 마감했습니다.

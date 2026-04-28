@@ -116,6 +116,10 @@
 - 의심: `SuspicionManager`
 - 마나: `ManaManager`
 - 이득과 의심 리스크를 동시에 관리하는 것이 핵심 전략입니다.
+- `SuspicionManager`는 의심 수치가 최대치에 도달하면 `suspicion_max` 이벤트를 발행합니다.
+- `GameScene`은 런타임 이벤트 버스의 `suspicion_max`를 구독해 `detected` 사유의 `RunEndScene` 종료로 연결합니다.
+- `GameScene:exit()`와 런 종료 경로는 이 구독을 해제해, 씬 교체 뒤 종료 이벤트가 중복 처리되지 않게 합니다.
+- 이벤트 치사, 전투 패배, 의심 최대치 종료는 active save 정리 후 `RunEndScene`으로 넘어가는 공통 종료 경계를 공유합니다.
 
 ### 4.7 결정론 RNG 시스템
 

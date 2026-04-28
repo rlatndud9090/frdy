@@ -215,6 +215,11 @@ classDiagram
   GameScene --> Camera
 ```
 
+UI 계층 메모:
+
+- `MapOverlay`와 `SettingsOverlay`는 `UIElement` 상속 위젯이 아니라 `GameScene`이 composition으로 보유하는 독립 overlay 객체입니다.
+- `TimelineUI`, `SpellBookOverlay`, `EdgeSelector`, `Minimap`은 `UIElement` 계층에 속합니다.
+
 ## 7) 변경 포인트
 
 - 씬 구조는 `GameScene` 통합형입니다.
