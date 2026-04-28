@@ -1,18 +1,19 @@
 ---
 id: codex-raw-wiki-schema-rules
 branch: codex/raw-wiki-schema-rules
-status: in_progress
-wiki_sync_status: pending
+status: merged
+wiki_sync_status: synced
 created_at: 2026-04-28
 updated_at: 2026-04-28
 related_issue: 
-related_pr:
-merge_commit:
+related_pr: https://github.com/rlatndud9090/frdy/pull/74
+merge_commit: 5783e760b71e3f1f34379542e2fab848509d4430
 wiki_targets:
   - docs/wiki/SCHEMA.md
   - docs/wiki/RESOLVER.md
   - docs/wiki/skills/wiki-update.md
   - docs/wiki/project/implementation-history.md
+  - docs/wiki/log.md
 ---
 
 # Work Unit Meta
