@@ -82,6 +82,8 @@ schema/rules 계층은 raw를 어디에 쌓고, wiki를 어떤 절차로 LLM이 
 
 - 작업 단위 아티팩트가 생성되면 `meta.md`를 유지합니다.
 - scaffold만 만든 `collecting` 상태로는 작업을 지속하지 않습니다. 최소한 범위/수용 기준/타임라인 초안을 채우고 `in_progress` 이상으로 올립니다.
-- PR 생성 전 `wiki_sync_status`를 최소 `pending` 또는 `synced`로 명시합니다.
-- main 머지 후에는 `main`에 반영된 `wiki_sync_status: pending` artifact를 대상으로 LLM이 관련 위키를 갱신하고 `wiki_sync_status: synced`로 바꿉니다.
+- PR 생성 전 `wiki_sync_status`는 `synced`여야 합니다.
+- PR 생성 전 `wiki_targets`에 적은 `docs/wiki/...` 파일은 같은 PR diff에서 갱신되어야 합니다.
+- 같은 wiki 페이지를 여러 PR이 수정하면 최신 `main` 또는 PR base 기준으로 위키 재합성을 다시 수행합니다. 텍스트 충돌은 Git merge conflict와 CI 재검증으로 드러나게 두고, 충돌이 없더라도 후발 PR은 최신 base의 위키 내용을 포함해 다시 재합성합니다.
+- main 머지 후 `main`에 남은 `wiki_sync_status: pending` artifact는 기존/예외 작업을 복구하기 위한 후속 sync 후보입니다.
 - wiki 계층은 LLM만 수정합니다. 사람이 직접 wiki 본문을 고쳐 쓰지 않고, LLM에게 artifacts 기반 재합성을 요청합니다.

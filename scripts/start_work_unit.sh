@@ -127,10 +127,10 @@ fi
   printf 'related_issue: %s\n' "$issue_ref"
   printf '%s\n' 'related_pr:'
   printf '%s\n' 'merge_commit:'
-  printf '%s\n' 'wiki_targets:'
   if [[ "${#wiki_targets[@]}" -eq 0 ]]; then
-    printf '%s\n' '  - docs/wiki/project/overview.md'
+    printf '%s\n' 'wiki_targets: []'
   else
+    printf '%s\n' 'wiki_targets:'
     for target in "${wiki_targets[@]}"; do
       printf '  - %s\n' "$target"
     done

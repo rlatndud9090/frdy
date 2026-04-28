@@ -188,9 +188,10 @@ function ClassName:method(name, optional_param)
 - `docs/wiki/SCHEMA.md`, `docs/wiki/RESOLVER.md`, `docs/wiki/skills/*`, 관련 guard script는 raw-wiki 패턴을 지키기 위한 schema/rules 계층이다.
 - 브랜치/워크트리에서 작업을 시작할 때는 `./scripts/start_work_unit.sh`로 artifact 초안을 먼저 채운다. `ensure_artifact_scaffold.sh` 단독 실행은 예외적인 수동 복구 용도로만 사용한다.
 - 첫 코드/문서/스크립트 편집 전과 커밋 전에는 `./scripts/check_artifact_progress.sh`가 통과하는 상태를 유지한다.
-- PR 전에는 `./scripts/check_artifact_guard.sh`를 통과해야 한다.
+- PR 전에는 `./scripts/check_artifact_guard.sh`를 통과해야 한다. 이 guard는 작업 artifact가 `wiki_sync_status: synced`이고 `wiki_targets`의 `docs/wiki/...` 파일이 같은 PR diff에서 갱신됐는지까지 확인한다.
+- 작업 시작 시 영향 위키 페이지가 아직 불명확하면 `wiki_targets: []`로 둘 수 있지만, PR 전에는 실제 영향 페이지로 채운다.
 - 템플릿 문구만 남은 `prd.md`, `timeline.md`, `meta.md`는 artifact가 없는 것과 동일하게 간주한다.
-- 위키 갱신은 기본적으로 머지 후 수행한다. PR 생성 전 위키 완료를 강제하지 않는다.
+- 위키 갱신은 기본적으로 PR 생성 전에 수행한다. main 머지 후 pending sync는 기존/예외 작업을 복구하기 위한 후속 안전망으로만 사용한다.
 - 다만 artifact의 `meta.md`에는 최소한 `status`, `wiki_sync_status`, `updated_at`를 유지한다.
 - 위키 관련 요청이면 먼저 아래 문서를 읽는다.
   - `docs/wiki/SCHEMA.md`

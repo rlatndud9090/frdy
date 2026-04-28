@@ -1,45 +1,43 @@
-# Wiki Sync Automation
+# PR Wiki Sync Guard
 
-`frdy`의 wiki sync는 PR 전 강제보다 `main` 머지 후 후속 처리로 자동화하는 쪽을 기본 전략으로 둡니다.
+`frdy`의 wiki sync 기본 정책은 PR 생성 전 증분 업데이트입니다. 작업 branch의 artifact와 영향 wiki 페이지가 같은 PR diff에 함께 들어가야 합니다.
 
 ## 결론
 
-- 추천 방식은 최신 `main`을 확인하는 `frdy-main-wiki-sync` 스킬 또는 이를 호출하는 Codex cron 자동화입니다.
-- GitHub Actions는 `artifact -> wiki 재합성` 같은 에이전트형 문서 작업을 수행하기에 적합하지 않습니다.
-- 따라서 CI는 guard 역할만 맡고, 실제 wiki sync는 Codex 자동화가 수행합니다.
+- PR CI의 `artifact-required` job이 wiki sync 완료 여부를 함께 검증합니다.
+- 작업 artifact의 `wiki_sync_status`는 PR 전에 `synced`여야 합니다.
+- `meta.md`의 `wiki_targets`에 적은 `docs/wiki/...` 파일은 같은 PR diff에서 실제로 변경되어야 합니다.
+- main 머지 후 pending sync는 기존/예외 작업을 복구하기 위한 안전망이며, 새 작업의 기본 경로가 아닙니다.
 
 ## 이유
 
-- PR 단계에서 wiki 완료를 강제하면 구현 속도와 리뷰 루프가 불필요하게 느려집니다.
-- 반대로 머지 후 자동화는 구현 맥락이 정리된 뒤 `main`에 반영된 `wiki_sync_status: pending` 작업만 골라 처리할 수 있습니다.
-- `docs/wiki/`는 현재형 재합성 문서라서, 단순 텍스트 치환보다 에이전트형 판단이 필요합니다.
-- 이 전략이 성립하려면 PR 단계에서 artifact completeness guard가 껍데기 artifact 머지를 먼저 차단해야 합니다.
+- 작업 맥락이 가장 풍부한 시점은 PR 생성 직전입니다.
+- 코드/테스트 변경과 위키 재합성을 같은 리뷰 단위로 묶으면, 코드만 merge되고 의사결정 히스토리가 뒤늦게 따라오는 상태를 줄일 수 있습니다.
+- CI guard는 artifact 존재, artifact 충실도, wiki sync 상태, 영향 wiki 파일 변경 여부를 한 번에 확인합니다.
 
-## 권장 흐름
+## PR 전 흐름
 
-1. 브랜치 작업 시작 시 artifact scaffold 생성
-2. 구현/PR/리뷰 루프 진행
-3. main 머지 완료 후 artifact가 `main` 트리에 존재하고 `wiki_sync_status: pending`
-4. `frdy-main-wiki-sync` 또는 이를 호출하는 Codex 자동화가 `./scripts/check_wiki_sync_guard.sh`로 pending 대상을 확인
-5. `docs/wiki/skills/wiki-update.md` 절차로 영향 페이지를 재합성
-6. 완료된 work unit의 `wiki_sync_status`를 `synced`로 갱신
+1. 브랜치 작업 시작 시 `./scripts/start_work_unit.sh`로 artifact 초안을 채웁니다.
+2. 구현/검증/리뷰 메모를 artifact에 누적합니다.
+3. 영향 페이지가 확정되면 `wiki_targets`에 실제 `docs/wiki/...` 파일을 채웁니다.
+4. `docs/wiki/RESOLVER.md`와 `docs/wiki/skills/wiki-update.md` 절차에 따라 영향 wiki 페이지를 현재형으로 재합성합니다.
+5. 작업 artifact의 `wiki_sync_status`를 `synced`로 바꾸고 `updated_at`을 갱신합니다.
+6. `./scripts/check_artifact_guard.sh origin/main`을 통과한 뒤 PR을 올립니다.
 
-## 자동화 요구사항
+## 동시 PR 충돌 대비
 
-- 대상 브랜치는 `main`만 사용합니다.
-- pending 대상이 없으면 조용히 종료합니다.
-- `status`는 참고 정보이며, sync 후보 판정은 `main` 존재 여부 + `wiki_sync_status: pending`을 기준으로 합니다.
-- 기본 조회는 `docs/wiki/RESOLVER.md`, `docs/wiki/index.md`부터 시작합니다.
-- 관련 artifact만 읽고, 전체 artifact를 전수 스캔하지 않습니다.
-- wiki 갱신 후에는 변경 파일과 갱신한 work unit id를 요약으로 남깁니다.
+- 두 PR이 같은 wiki 파일을 수정하면 Git의 일반 병합 규칙을 충돌 표면으로 사용합니다.
+- 텍스트 충돌이 발생하면 후발 PR이 최신 `main` 또는 최신 PR base를 반영한 뒤 wiki를 다시 재합성합니다.
+- 텍스트 충돌이 없더라도 같은 `wiki_targets`를 건드린 후발 PR은 최신 base 내용을 포함해 다시 확인합니다.
+- branch protection 또는 merge queue가 required CI를 최신 base에서 다시 실행하도록 두는 것이 이 정책의 전제입니다.
 
 ## 기존 자동화와의 역할 분리
 
-- `Daily Autopilot`: issue pick -> 구현 -> PR -> review loop 완료까지 책임
-- `주간 코드 변경 감사`: 최근 변경 중 리스크, wiki 미반영, 재미 아이디어를 감사
-- `Wiki Sync Automation`: main 머지 후 pending wiki sync 해소
+- PR artifact guard: 새 작업의 기본 강제 경로입니다.
+- `check_wiki_sync_guard.sh`: main에 남은 `pending` artifact를 찾는 복구/감사 도구입니다.
+- 주기적 감사 자동화: 누락된 wiki sync나 stale 문서를 사후 탐지하는 보조 안전망입니다.
 
 ## 보류한 대안
 
-- PR 생성 전 wiki 완료 강제: 구현 흐름을 지나치게 무겁게 만드므로 채택하지 않음
-- GitHub Actions에서 wiki 직접 갱신: 에이전트형 재합성과 개인 로컬 문맥 활용이 어려워 채택하지 않음
+- main 머지 후에만 wiki sync 수행: 코드와 의사결정 히스토리가 분리되어 누락 위험이 커지므로 기본 정책에서 제외합니다.
+- GitHub Actions에서 LLM 재합성까지 직접 수행: 에이전트형 판단과 로컬 문맥 활용이 필요하므로 CI는 검증만 담당합니다.

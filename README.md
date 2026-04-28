@@ -45,7 +45,7 @@ love .
 ```
 
 - 작업 브랜치에서는 `start_work_unit.sh`로 artifact 초안을 먼저 채운 뒤 구현을 시작합니다.
-- PR 전에는 `./scripts/check_artifact_guard.sh origin/main`이, main 반영 후에는 `./scripts/check_main_artifact_audit.sh`가 껍데기 artifact를 차단합니다.
+- PR 전에는 `./scripts/check_artifact_guard.sh origin/main`이 껍데기 artifact와 wiki 미반영 상태를 차단합니다. main 반영 후에는 `./scripts/check_main_artifact_audit.sh`가 artifact 누락을 추가 감사합니다.
 
 ## 프로젝트 구조
 

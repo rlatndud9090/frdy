@@ -37,6 +37,8 @@ docs/artifacts/
 - `pending`: 위키 반영이 필요함
 - `synced`: 관련 위키 반영이 완료됨
 
+작업 시작 시 영향 위키 페이지가 아직 불명확하면 `wiki_targets: []`로 둘 수 있습니다. PR 전에는 실제 `docs/wiki/...` 대상이 1개 이상 있어야 하며, 해당 파일이 같은 PR diff에서 변경되어야 합니다.
+
 `status`는 작업 자체의 라이프사이클을 나타냅니다.
 
 - `collecting`: scaffold만 생성된 상태. 실제 작업을 시작하기 전까지만 허용
@@ -50,7 +52,7 @@ docs/artifacts/
 
 - 브랜치 작업을 시작할 때는 `./scripts/start_work_unit.sh`로 artifact 초안을 채웁니다.
 - `./scripts/check_artifact_progress.sh`는 현재 브랜치 artifact가 껍데기 상태인지 확인합니다.
-- PR 전에는 `./scripts/check_artifact_guard.sh`가 파일 존재뿐 아니라 본문 충실도까지 확인합니다.
+- PR 전에는 `./scripts/check_artifact_guard.sh`가 파일 존재, 본문 충실도, `wiki_sync_status: synced`, `wiki_targets`의 wiki 파일 변경 여부까지 확인합니다.
 - `main` push 후에는 `./scripts/check_main_artifact_audit.sh`가 머지된 변경에 artifact가 함께 반영됐는지 감사합니다.
-- main 머지 후 위키 갱신 자동화는 `./scripts/check_wiki_sync_guard.sh` 출력을 기반으로 후속 실행할 수 있게 설계합니다.
-- 이 자동화는 `status: merged`를 별도 전제조건으로 요구하지 않습니다. `main`에 존재하는 `wiki_sync_status: pending` artifact면 sync 후보입니다.
+- `./scripts/check_wiki_sync_guard.sh`는 main에 남은 `wiki_sync_status: pending` artifact를 찾는 복구/감사 도구입니다.
+- 새 작업의 기본 경로는 PR 생성 전 wiki 증분 업데이트이며, main 머지 후 pending sync는 기존/예외 작업에만 사용합니다.

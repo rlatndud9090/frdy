@@ -48,6 +48,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--expected-id")
     parser.add_argument("--expected-branch")
+    parser.add_argument(
+        "--changed-file",
+        action="append",
+        default=[],
+        help="Changed file path in the PR diff. Repeat for each changed file.",
+    )
     return parser.parse_args()
 
 
@@ -197,10 +203,66 @@ def validate_frontmatter(
         errors.append("scaffold만 만든 collecting 상태로는 작업을 진행할 수 없습니다.")
     if mode in {"progress", "pr"} and wiki_status == "not-started":
         errors.append("작업 중 artifact는 wiki_sync_status: pending 또는 synced 여야 합니다.")
+    if mode == "pr" and wiki_status != "synced":
+        errors.append("PR 검증 시 meta.md의 wiki_sync_status는 synced 여야 합니다.")
     if mode == "pr" and status == "in-review" and not related_pr:
         errors.append("status가 in-review이면 related_pr를 채워야 합니다.")
     if mode == "pr" and status not in {"in_progress", "ready-for-pr", "in-review"}:
         errors.append(f"PR 검증 시 status는 in_progress/ready-for-pr/in-review 중 하나여야 합니다: {status}")
+
+
+def normalize_wiki_targets(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped or stripped == "[]":
+            return []
+        return [stripped]
+
+    return []
+
+
+def normalize_changed_files(paths: list[str]) -> set[str]:
+    normalized = set()
+    for path in paths:
+        cleaned = path.strip()
+        if not cleaned:
+            continue
+        while cleaned.startswith("./"):
+            cleaned = cleaned[2:]
+        normalized.add(cleaned)
+    return normalized
+
+
+def validate_pr_wiki_sync(
+    data: dict[str, object],
+    *,
+    changed_files: list[str],
+    errors: list[str],
+) -> None:
+    changed_file_set = normalize_changed_files(changed_files)
+    wiki_targets = [
+        target
+        for target in normalize_wiki_targets(data.get("wiki_targets", []))
+        if target.startswith("docs/wiki/")
+    ]
+
+    if not changed_file_set:
+        errors.append("PR 검증 시 변경 파일 목록이 필요합니다.")
+        return
+
+    if not wiki_targets:
+        errors.append("PR 검증 시 meta.md의 wiki_targets에 docs/wiki/... 대상이 1개 이상 필요합니다.")
+        return
+
+    missing_targets = [target for target in wiki_targets if target not in changed_file_set]
+    if missing_targets:
+        errors.append(
+            "PR 검증 시 wiki_targets의 위키 파일은 같은 PR diff에서 변경되어야 합니다: "
+            + ", ".join(missing_targets)
+        )
 
 
 def validate_markdown_sections(
@@ -268,6 +330,12 @@ def main() -> int:
         mode=args.mode,
         errors=errors,
     )
+    if args.mode == "pr":
+        validate_pr_wiki_sync(
+            meta_frontmatter,
+            changed_files=args.changed_file,
+            errors=errors,
+        )
     validate_markdown_sections(
         meta_body,
         required_sections=META_BODY_SECTIONS,

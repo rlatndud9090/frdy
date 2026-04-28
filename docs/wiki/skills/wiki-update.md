@@ -21,6 +21,7 @@
 4. 영향받은 wiki 페이지를 골라 현재형으로 재서술합니다.
 5. 필요하면 `docs/wiki/index.md`와 `docs/wiki/log.md`도 갱신합니다.
 6. 갱신이 끝나면 `wiki_sync_status: synced`로 바꿉니다.
+7. PR 전 `./scripts/check_artifact_guard.sh origin/main`을 실행해 `wiki_targets`의 위키 파일이 같은 PR diff에 포함되는지 확인합니다.
 
 ## 강한 규칙
 
@@ -31,8 +32,9 @@
 - 위키는 append-only가 아니라 현재형 재합성 문서입니다.
 - 전면 재작성보다 `영향 페이지 단위 재합성`을 기본으로 합니다.
 
-## 머지 후 운영 원칙
+## PR 전 운영 원칙
 
-- main 트리에 존재하면서 `wiki_sync_status: pending` 인 artifact를 우선 처리합니다.
-- PR 전 단계에서 위키 완료를 강제하지 않습니다.
-- PR 리뷰 루프가 끝나고 바로 머지 가능한 상태에 도달하는 목표를 유지합니다.
+- PR 생성 전 작업 artifact는 `wiki_sync_status: synced`여야 합니다.
+- `wiki_targets`에 적은 `docs/wiki/...` 파일은 같은 PR diff에서 실제로 변경되어야 합니다.
+- 같은 wiki 파일을 여러 PR이 수정하는 경우, 후발 PR은 최신 base의 위키 내용을 포함해 다시 재합성한 뒤 guard를 통과시킵니다.
+- main 트리에 남은 `wiki_sync_status: pending` artifact는 기존/예외 작업 복구용 후보입니다.

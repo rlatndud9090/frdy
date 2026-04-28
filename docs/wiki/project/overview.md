@@ -39,7 +39,8 @@
 - `docs/wiki/`가 현재형 지식층이며, 루트 문서는 호환성 포인터로만 유지합니다.
 - `docs/artifacts/`는 작업 단위별 진실의 원천입니다.
 - 작업 브랜치는 `./scripts/start_work_unit.sh`로 artifact 초안을 먼저 채우고 시작합니다.
-- PR 전 artifact completeness guard와 main push audit가 템플릿-only artifact 머지를 차단합니다.
+- PR 전 artifact completeness guard가 템플릿-only artifact와 wiki 미반영 PR을 차단합니다.
+- main push audit와 pending wiki sync guard는 기존/예외 작업의 누락을 찾는 후속 안전망입니다.
 - 에이전트는 `wiki-first, artifacts-on-demand`로 조회합니다.
 
 ## 관련 문서

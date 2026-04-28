@@ -26,6 +26,11 @@ if [[ -z "$changed_files" ]]; then
   echo "변경 파일이 없어 artifact guard를 건너뜁니다."
   exit 0
 fi
+changed_file_args=()
+while IFS= read -r changed_file; do
+  [[ -z "$changed_file" ]] && continue
+  changed_file_args+=(--changed-file "$changed_file")
+done <<< "$changed_files"
 
 work_unit_id="$(printf "%s" "$branch" | tr '/[:upper:]' '-[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
 artifact_dir="$ROOT_DIR/docs/artifacts/$work_unit_id"
@@ -41,7 +46,8 @@ python3 "$ROOT_DIR/scripts/check_artifact_completeness.py" \
   --artifact-dir "$artifact_dir" \
   --mode pr \
   --expected-id "$work_unit_id" \
-  --expected-branch "$branch"
+  --expected-branch "$branch" \
+  "${changed_file_args[@]}"
 
 while IFS= read -r changed_artifact_dir; do
   [[ -z "$changed_artifact_dir" ]] && continue

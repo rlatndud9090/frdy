@@ -71,13 +71,17 @@ docs/wiki/SCHEMA.md 등 rule 문서  ← schema/rules: raw-wiki 패턴을 지키
 - 아티팩트가 누적되면 관련 위키 페이지를 현재형으로 재합성합니다.
 - 기본 전략은 `증분 업데이트 + 영향 페이지 단위 재합성`입니다.
 - 전체 위키 전면 재작성은 정기 점검 또는 대형 리워크 때만 수행합니다.
+- PR 생성 전에는 해당 작업 artifact의 `wiki_sync_status`가 `synced`여야 하며, `wiki_targets`에 적은 `docs/wiki/...` 파일이 같은 PR diff에서 갱신되어야 합니다.
 
 ## 5. 아티팩트 → 위키 반영 규칙
 
 - `prd.md`, `adr/`, 회의록, 실험 로그, 리뷰 메모는 근거입니다.
 - AI 대화 기록은 근거 후보이며, 검증된 결론만 위키로 승격합니다.
 - `meta.md`의 `wiki_targets`는 어떤 위키 페이지를 갱신해야 하는지 나타냅니다.
-- `meta.md`의 `wiki_sync_status`가 `pending`이면 후속 위키 갱신 대상입니다.
+- 작업 시작 시 영향 페이지가 불명확하면 `wiki_targets: []`로 둘 수 있지만, PR 전에는 실제 `docs/wiki/...` 대상이 1개 이상 필요합니다.
+- `meta.md`의 `wiki_sync_status`가 `pending`이면 PR 생성 전 위키 갱신 대상입니다.
+- `meta.md`의 `wiki_sync_status`가 `synced`이면 해당 작업의 영향 위키 페이지가 현재 PR 안에서 재합성된 상태입니다.
+- main에 남은 `pending` artifact는 기존/예외 작업을 복구하기 위한 후속 sync 후보로만 취급합니다.
 
 ## 6. 단일 소스 원칙
 
