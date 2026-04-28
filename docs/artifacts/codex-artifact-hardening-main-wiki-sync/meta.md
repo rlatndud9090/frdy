@@ -1,17 +1,18 @@
 ---
 id: codex-artifact-hardening-main-wiki-sync
 branch: codex/artifact-hardening-main-wiki-sync
-status: in-review
-wiki_sync_status: pending
+status: merged
+wiki_sync_status: synced
 created_at: 2026-04-16
 updated_at: 2026-04-17
 related_issue: 
 related_pr: https://github.com/rlatndud9090/frdy/pull/73
-merge_commit:
+merge_commit: 92a396e3d345d4c3d605f1fa741bd16c9ef30182
 wiki_targets:
   - docs/wiki/project/wiki-sync-automation.md
   - docs/wiki/RESOLVER.md
   - docs/wiki/project/overview.md
+  - docs/wiki/log.md
 ---
 
 # Work Unit Meta

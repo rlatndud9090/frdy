@@ -12,3 +12,4 @@
 - 2026-04-17 14:43 | 재리뷰에서 Scope 라벨만 남겨도 통과하는 문제를 확인하고 `포함 범위:`/`제외 범위:` 뒤 실제 내용 존재 여부를 PR completeness 검증에 추가
 - 2026-04-17 14:52 | 재리뷰에서 과거 artifact 수정까지 PR 상태 게이트로 막는 문제를 확인하고 `check_artifact_guard.sh`가 비현재 artifact에는 `main-audit` 검증을 사용하도록 조정
 - 2026-04-17 14:59 | 재리뷰에서 PR head 브랜치명이 `main`인 포크 PR 우회 가능성을 확인하고 `GITHUB_HEAD_REF`가 있는 PR 컨텍스트에서는 artifact guard를 계속 수행하도록 수정
+- 2026-04-28 14:12 | PR #73 main 반영 및 wiki 운영 문서 반영 완료 상태를 synced로 마감
