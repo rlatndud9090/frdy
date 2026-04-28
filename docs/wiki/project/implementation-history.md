@@ -61,8 +61,8 @@
 
 ## 12. LLM Wiki와 artifact 운영 기반 도입
 
-- 2026-04-14에 `docs/wiki/`와 `docs/artifacts/` 2계층, scaffold/guard 스크립트, pre-artifact bootstrap 복원 체계가 도입되었습니다.
-- 현재는 work unit artifact를 근거층으로 쌓고, 위키를 그 근거로 재합성하는 운영 규칙이 이 시점부터 프로젝트 기본 규약이 되었습니다.
+- 2026-04-14에 `docs/wiki/`와 `docs/artifacts/` 저장 영역, scaffold/guard 스크립트, pre-artifact bootstrap 복원 체계가 도입되었습니다.
+- 현재 운영 표현은 raw/artifacts, wiki, schema/rules 3계층이며, work unit artifact를 근거층으로 쌓고 LLM이 위키를 그 근거로 재합성하는 규칙을 기본 규약으로 둡니다.
 
 ## 해석 규칙
 
