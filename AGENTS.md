@@ -180,9 +180,12 @@ function ClassName:method(name, optional_param)
 
 ### LLM Wiki / Artifact 가드레일 (필수)
 
-- `docs/wiki/`는 현재형 지식층이며, 에이전트는 기본적으로 이 계층을 먼저 읽는다.
-- `docs/artifacts/`는 작업 단위별 진실의 원천이다. 회의록, AI 대화, PRD, ADR, 실험 로그, 리뷰 메모는 모두 이 계층에 쌓는다.
+- `docs/artifacts/`는 수정하는 문서가 아니라 쌓아나가는 raw data 계층이다. 회의록, AI 대화, PRD, ADR, 실험 로그, 리뷰 메모는 모두 이 계층에 누적한다.
+- 기존 artifact 기록을 현재 관점으로 고쳐 쓰지 않는다. 정정이 필요하면 새 기록을 추가한다. 단, `meta.md`의 상태/동기화/PR/merge 추적 필드는 운영상 갱신할 수 있다.
+- `docs/wiki/`는 현재형 지식층이며, LLM만 수정한다. 사람은 직접 wiki 본문을 고치지 않고 LLM에게 artifacts 기반 재합성을 요청한다.
+- 에이전트는 기본적으로 `docs/wiki/`를 먼저 읽는다.
 - `docs/artifacts/`는 기본 RAG 대상이 아니다. 위키 갱신, 근거 확인, 모순 해소가 필요할 때만 내려간다.
+- `docs/wiki/SCHEMA.md`, `docs/wiki/RESOLVER.md`, `docs/wiki/skills/*`, 관련 guard script는 raw-wiki 패턴을 지키기 위한 schema/rules 계층이다.
 - 브랜치/워크트리에서 작업을 시작할 때는 `./scripts/start_work_unit.sh`로 artifact 초안을 먼저 채운다. `ensure_artifact_scaffold.sh` 단독 실행은 예외적인 수동 복구 용도로만 사용한다.
 - 첫 코드/문서/스크립트 편집 전과 커밋 전에는 `./scripts/check_artifact_progress.sh`가 통과하는 상태를 유지한다.
 - PR 전에는 `./scripts/check_artifact_guard.sh`를 통과해야 한다.

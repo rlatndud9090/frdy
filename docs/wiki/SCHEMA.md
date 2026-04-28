@@ -4,12 +4,31 @@
 
 ## 1. 계층 구조
 
-`frdy`의 지식 구조는 아래 2계층으로 운영합니다.
+`frdy`의 지식 구조는 아래 3계층으로 운영합니다.
 
 ```text
-docs/wiki/       ← LLM이 기본 참조하는 정리된 현재 지식층
-docs/artifacts/  ← 작업 단위별 진실의 원천 아티팩트 계층
+docs/artifacts/                 ← raw: 수정하지 않고 쌓아나가는 작업 단위 원천 데이터
+docs/wiki/                      ← wiki: LLM만 수정하는 현재형 지식층
+docs/wiki/SCHEMA.md 등 rule 문서  ← schema/rules: raw-wiki 패턴을 지키기 위한 운영 규칙
 ```
+
+### raw / artifacts 계층
+
+- `docs/artifacts/`는 수정하는 문서가 아니라 쌓아나가는 데이터입니다.
+- 작업 중 발생한 PRD, ADR, 회의록, AI 대화 기록, 실험 로그, 리뷰 메모, 타임라인을 누적합니다.
+- 과거 기록을 현재 관점으로 고쳐 쓰지 않습니다. 정정이 필요하면 새 기록을 추가합니다.
+- 단, `meta.md`의 `status`, `wiki_sync_status`, `updated_at`, PR/merge 정보는 운영 추적을 위해 갱신할 수 있습니다.
+
+### wiki 계층
+
+- `docs/wiki/`는 LLM이 artifacts를 근거로 현재형 지식을 재합성하는 계층입니다.
+- wiki 문서는 사람이 직접 편집하지 않고, LLM 요청을 통해서만 수정합니다.
+- wiki는 append-only가 아니며, 현재 코드/결정과 맞도록 영향 페이지 단위로 재서술합니다.
+
+### schema / rules 계층
+
+- `docs/wiki/SCHEMA.md`, `docs/wiki/RESOLVER.md`, `docs/wiki/skills/*`, 관련 guard script는 패턴을 지키기 위한 룰입니다.
+- schema/rules 계층은 raw를 어디에 쌓고, wiki를 언제 어떻게 재합성하며, LLM이 어떤 순서로 읽을지를 정의합니다.
 
 ## 2. 조회 우선순위
 
@@ -48,6 +67,7 @@ docs/artifacts/  ← 작업 단위별 진실의 원천 아티팩트 계층
 ## 4. 위키 갱신 원칙
 
 - 위키는 append-only가 아닙니다.
+- 위키 수정은 LLM만 수행합니다. 사람이 직접 현재형 지식을 고쳐 쓰지 않습니다.
 - 아티팩트가 누적되면 관련 위키 페이지를 현재형으로 재합성합니다.
 - 기본 전략은 `증분 업데이트 + 영향 페이지 단위 재합성`입니다.
 - 전체 위키 전면 재작성은 정기 점검 또는 대형 리워크 때만 수행합니다.
